@@ -57,33 +57,31 @@ func (s *fakeSink) Key(code uint16, value int32) error {
 }
 
 func TestInjectKeys(t *testing.T) {
-	const fn = 0x8c4a
+	// The key frames of the unit: hdr 07 84 01 87, cmd 01 (captured), Func 0x8701.
+	const fn = 0x8701
 	sink := &fakeSink{}
 	var logged []string
 	logf := func(f string, a ...any) { logged = append(logged, f) }
 	var prev int
-	h := injectKeys(func(Frame) { prev++ }, sink, map[keyKey]uint16{{5, 1}: 116}, fn, logf)
+	h := injectKeys(func(Frame) { prev++ }, sink, map[keyKey]uint16{{0, 1}: 116}, fn, logf)
 
 	key := func(typ, code, press byte) Frame {
-		return Frame{Hdr: [4]byte{0x0c, 0, 0, 0x8c}, Cmd: 0x4a, Payload: []byte{typ, code | press<<4}}
+		return Frame{Hdr: [4]byte{0x07, 0x84, 0x01, 0x87}, Cmd: 0x01, Payload: []byte{typ, code | press<<4, 0}}
 	}
-	h(key(5, 1, PressShort))
-	h(key(5, 1, PressLong))
-	h(key(5, 1, PressRelease))
-	h(key(5, 2, PressShort)) // unmapped: logged
-	other := key(5, 1, PressShort)
-	other.Cmd = 0x4b // another Func: ignored
+	h(key(0, 1, PressShort))
+	h(key(0, 1, PressLong))
+	h(key(0, 1, PressRelease))
+	h(key(0, 2, PressShort)) // unmapped: logged
+	other := key(0, 1, PressShort)
+	other.Cmd = 0x02 // another Func: ignored
 	h(other)
-	toSoC := key(5, 1, PressShort)
-	toSoC.Hdr[0] = 0x0b // not from the micom: ignored
-	h(toSoC)
 
 	want := []int32{116<<8 | 1, 116<<8 | 2, 116<<8 | 0}
 	if !reflect.DeepEqual(sink.got, want) {
 		t.Errorf("injected %v, want %v", sink.got, want)
 	}
-	if prev != 6 {
-		t.Errorf("the wrapped handler saw %d frames, want 6", prev)
+	if prev != 5 {
+		t.Errorf("the wrapped handler saw %d frames, want 5", prev)
 	}
 	if len(logged) != 1 {
 		t.Errorf("logged %v, want the one unmapped key", logged)
@@ -91,7 +89,7 @@ func TestInjectKeys(t *testing.T) {
 
 	sink.err = errors.New("boom")
 	logged = nil
-	h(key(5, 1, PressShort))
+	h(key(0, 1, PressShort))
 	if len(logged) != 1 {
 		t.Errorf("a sink error was not logged: %v", logged)
 	}

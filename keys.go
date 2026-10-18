@@ -71,14 +71,14 @@ type keySink interface {
 }
 
 // injectKeys wraps prev (it may be nil) so that a frame with Func fn, from the
-// micom (Hdr[0] 0x0c), that parses as a mapped push key is sent to ui, as a
+// micom, that parses as a mapped push key is sent to ui, as a
 // press (1), release (0) or long press (2, the kernel's key repeat).
 func injectKeys(prev func(Frame), ui keySink, km map[keyKey]uint16, fn uint16, logf func(string, ...any)) func(Frame) {
 	return func(f Frame) {
 		if prev != nil {
 			prev(f)
 		}
-		if Func(f) != fn || f.Hdr[0] != 0x0c {
+		if Func(f) != fn {
 			return
 		}
 		e, ok := ParseKey(f.Payload)
