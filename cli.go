@@ -20,7 +20,11 @@ import (
 // and writes only to the writers it is given, so a larger program (the Boot
 // Manager) can embed it as a subcommand.
 //
-//	micomd -dev /dev/ttyAMA1 [-baud 115200] [-dump] [-clock]
+//	micomd -dev /dev/ttyAMA1 [-baud 115200] [-dump] [-clock] [-keyfunc 0xHHCC -keymap type.code=N,...]
+//
+// -keyfunc turns the micom's hard-key frames into events of a virtual keyboard
+// (uinput, Linux only); it is off unless the Func of the key frames is given,
+// which a -dump capture shows. Keys without a -keymap entry are logged.
 //
 // What it sends is DefaultProfile and nothing else. -clock adds the two
 // frames that carry the time, from this machine's clock: only use it when
@@ -33,6 +37,8 @@ func Main(args []string, stdout, stderr io.Writer) int {
 	dump := fs.Bool("dump", false, "print every frame received")
 	clock := fs.Bool("clock", false, "also send the two clock frames, from this machine's clock")
 	noAlive := fs.Bool("noalive", false, "do not answer the micom's CPU-alive requests (it resets the SoC if they go unanswered)")
+	keyFunc := fs.Uint("keyfunc", 0, "Func (hdr[3]<<8|cmd) of the micom's key frames, from a -dump capture; 0 leaves key injection off")
+	keyMap := fs.String("keymap", "", "type.code=KEYNUM,... (decimal Linux key numbers, e.g. 5.1=116), for -keyfunc")
 	every := fs.Duration("stats", 10*time.Second, "how often to print the link's counters; 0 for never")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -65,6 +71,20 @@ func Main(args []string, stdout, stderr io.Writer) int {
 			}
 			fmt.Fprintf(stdout, "rx %v\n", f)
 		}
+	}
+	if *keyFunc != 0 {
+		km, keys, err := parseKeyMap(*keyMap)
+		if err != nil {
+			lg.Print(err)
+			return 2
+		}
+		ui, err := OpenUinput("micom keys", keys)
+		if err != nil {
+			lg.Print(err)
+			return 1
+		}
+		defer ui.Close()
+		cfg.OnFrame = injectKeys(cfg.OnFrame, ui, km, uint16(*keyFunc), lg.Printf)
 	}
 	d := New(cfg)
 
