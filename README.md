@@ -47,6 +47,12 @@ frames that carry the time, from this machine's clock: only use it when that clo
 is right, as the car may store it. `-noalive` stops answering the CPU-alive
 requests, which makes the micom reset the SoC.
 
+The daemon owns the UART, so nothing else can read it. `-tap /run/micomd.sock`
+serves every frame it receives, with the time, on a unix socket (mode 0660); from
+another shell, `micomd -attach /run/micomd.sock` prints them live until stopped,
+and any number can attach. A reader that cannot keep up loses lines and never
+slows the daemon.
+
 `Main(args, stdout, stderr) int` is the same command for embedding as a
 subcommand of a larger multi-call program.
 

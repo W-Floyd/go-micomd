@@ -26,6 +26,10 @@ import (
 // (uinput, Linux only); it is off unless the Func of the key frames is given,
 // which a -dump capture shows. Keys without a -keymap entry are logged.
 //
+// -tap SOCKET lets another process watch the frames of a running daemon, which
+// owns the UART and so cannot be read from otherwise: micomd -attach SOCKET
+// prints them, one line each with the time, until it is stopped.
+//
 // What it sends is DefaultProfile and nothing else. -clock adds the two
 // frames that carry the time, from this machine's clock: only use it when
 // that clock is right, as the car may store it.
@@ -40,11 +44,20 @@ func Main(args []string, stdout, stderr io.Writer) int {
 	keyFunc := fs.Uint("keyfunc", 0, "Func (hdr[3]<<8|cmd) of the micom's key frames, from a -dump capture; 0 leaves key injection off")
 	keyMap := fs.String("keymap", "", "type.code=KEYNUM,... (decimal Linux key numbers, e.g. 5.1=116), for -keyfunc")
 	every := fs.Duration("stats", 10*time.Second, "how often to print the link's counters; 0 for never")
+	tapPath := fs.String("tap", "", "serve every frame received, with a timestamp, on this unix socket, for -attach")
+	attach := fs.String("attach", "", "print the frames of the micomd serving this -tap socket, instead of running one")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
 		return 2
+	}
+	if *attach != "" {
+		if err := Attach(*attach, stdout); err != nil {
+			fmt.Fprintln(stderr, err)
+			return 1
+		}
+		return 0
 	}
 	if *dev == "" {
 		fs.Usage()
@@ -64,12 +77,21 @@ func Main(args []string, stdout, stderr io.Writer) int {
 	}
 	cfg := Config{Port: port, Profile: profile, Logf: lg.Printf, NoAlive: *noAlive}
 	if *dump {
+		cfg.OnFrame = func(f Frame) { io.WriteString(stdout, frameLine(f)) }
+	}
+	if *tapPath != "" {
+		tap, err := ListenTap(*tapPath)
+		if err != nil {
+			lg.Print(err)
+			return 1
+		}
+		defer tap.Close()
+		prev := cfg.OnFrame
 		cfg.OnFrame = func(f Frame) {
-			if s := Describe(f); s != "" {
-				fmt.Fprintf(stdout, "rx %v  # %s\n", f, s)
-				return
+			if prev != nil {
+				prev(f)
 			}
-			fmt.Fprintf(stdout, "rx %v\n", f)
+			tap.Send(time.Now().Format("15:04:05.000 ") + frameLine(f))
 		}
 	}
 	if *keyFunc != 0 {
@@ -107,4 +129,12 @@ func Main(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+// frameLine is a received frame as a line of text, decoded where known.
+func frameLine(f Frame) string {
+	if s := Describe(f); s != "" {
+		return fmt.Sprintf("rx %v  # %s\n", f, s)
+	}
+	return fmt.Sprintf("rx %v\n", f)
 }
