@@ -50,6 +50,10 @@ requests, which makes the micom reset the SoC.
 `Main(args, stdout, stderr) int` is the same command for embedding as a
 subcommand of a larger multi-call program.
 
+## Licence
+
+MIT: see [LICENSE](LICENSE).
+
 ## History
 
 Extracted from the Boot Manager's `internal/micom` and `tools/micomd` (commits
