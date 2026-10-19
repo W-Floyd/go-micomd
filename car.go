@@ -34,6 +34,9 @@ func carDescribe(f Frame) string {
 		}
 		return fmt.Sprintf("Rear camera mode: code %#02x", p[0])
 	case h == [4]byte{0x55, 0xca, 0x00, 0xd5}:
+		if s := describeWindow(f.Cmd, 0x08, 0x0b, 0x06, 0x09, p); s != "" {
+			return s
+		}
 		switch f.Cmd {
 		case 0x20:
 			return "Seat heat, driver: " + seatHeat(p)
@@ -45,6 +48,9 @@ func carDescribe(f Frame) string {
 	case h == [4]byte{0x44, 0xc1, 0x00, 0xc4}:
 		if s := describeDoor(f.Cmd, p); s != "" {
 			return s
+		}
+		if s := describeWindow(f.Cmd, 0x26, 0x27, 0x24, 0x25, p); s != "" {
+			return s + " (repeat)"
 		}
 		switch f.Cmd {
 		case 0x19:
@@ -97,6 +103,60 @@ func describeDoor(cmd byte, p []byte) string {
 		}
 	}
 	return ""
+}
+
+// describeWindow reads a power-window frame of the driver's or the front
+// passenger's window (from the driver's door switches), which come twice: on the
+// 55 ca 00 d5 node (switch cmds 08 and 0b, position cmds 06 and 09) and repeated
+// on the body node (26 and 27, 24 and 25). A switch frame is 0 released, 1 and 2
+// held down and up, 5 and 6 pressed hard (auto down and up). A position frame is
+// the window's coarse position, 0 closed (top) to 3 fully down, sent when it
+// crosses a step. The rear windows were not tried.
+func describeWindow(cmd, drvSw, pasSw, drvPos, pasPos byte, p []byte) string {
+	if len(p) != 1 {
+		return ""
+	}
+	var who string
+	var sw bool
+	switch cmd {
+	case drvSw:
+		who, sw = "driver", true
+	case pasSw:
+		who, sw = "passenger", true
+	case drvPos:
+		who = "driver"
+	case pasPos:
+		who = "passenger"
+	default:
+		return ""
+	}
+	v := p[0]
+	if !sw {
+		if v > 3 {
+			return fmt.Sprintf("Window %s: position code %#02x", who, v)
+		}
+		s := fmt.Sprintf("Window %s: position %d of 3", who, v)
+		switch v {
+		case 0:
+			s += " (closed)"
+		case 3:
+			s += " (fully down)"
+		}
+		return s
+	}
+	switch v {
+	case 0:
+		return "Window " + who + ": switch released"
+	case 1:
+		return "Window " + who + ": switch down"
+	case 2:
+		return "Window " + who + ": switch up"
+	case 5:
+		return "Window " + who + ": switch hard down (auto)"
+	case 6:
+		return "Window " + who + ": switch hard up (auto)"
+	}
+	return fmt.Sprintf("Window %s: switch code %#02x", who, v)
 }
 
 // describeOpen reads the system node's bitmask of what keeps the micom awake
