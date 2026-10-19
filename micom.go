@@ -28,6 +28,11 @@ type Config struct {
 	// NoAlive turns off the answer to the micom's CPU-alive requests, which
 	// is otherwise always sent: without it the micom resets the SoC.
 	NoAlive bool
+	// Allow lists frames Send may also put on the wire, each matched exactly
+	// (header, command and payload), and sent only when asked to (the control
+	// socket, ServeControl): nothing here is sent on a schedule. For frames
+	// worked out from the stock system that a person tries one at a time.
+	Allow []Frame
 }
 
 // Stats is a snapshot of the link.
@@ -109,6 +114,11 @@ func (d *Daemon) allowed(f Frame) bool {
 	for _, p := range d.profile {
 		g := p.Build(now)
 		if g.Hdr == f.Hdr && g.Cmd == f.Cmd {
+			return true
+		}
+	}
+	for _, a := range d.cfg.Allow {
+		if sameFrame(a, f) {
 			return true
 		}
 	}
