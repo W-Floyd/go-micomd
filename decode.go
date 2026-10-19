@@ -91,6 +91,9 @@ func Decode(f Frame) []Field {
 // Describe is a one-line reading of f for the frames whose layout is known,
 // "" for the rest.
 func Describe(f Frame) string {
+	if s := carDescribe(f); s != "" {
+		return s
+	}
 	fs := Decode(f)
 	if fs == nil {
 		return ""
