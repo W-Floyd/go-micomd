@@ -134,6 +134,10 @@ var keyLabels = map[[2]byte]string{
 	{0, 4}: "Map", {0, 5}: "Nav",
 	{1, 1}: "Tune knob", {1, 2}: "Radio", {1, 3}: "Media",
 	{1, 4}: "Star", {1, 5}: "Setup",
+	// The steering wheel (type 2).
+	{2, 2}: "Wheel up", {2, 3}: "Wheel down", {2, 4}: "Wheel mode",
+	{2, 5}: "Wheel volume push", {2, 6}: "Wheel volume up", {2, 7}: "Wheel volume down",
+	{2, 8}: "Wheel voice", {2, 10}: "Wheel call", {2, 11}: "Wheel star",
 }
 
 func describeKey(p []byte) string {
