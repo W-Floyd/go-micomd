@@ -42,7 +42,7 @@ func Main(args []string, stdout, stderr io.Writer) int {
 	clock := fs.Bool("clock", false, "also send the two clock frames, from this machine's clock")
 	noAlive := fs.Bool("noalive", false, "do not answer the micom's CPU-alive requests (it resets the SoC if they go unanswered)")
 	keyFunc := fs.Uint("keyfunc", 0, "Func (hdr[3]<<8|cmd) of the micom's key frames, from a -dump capture; 0 leaves key injection off")
-	keyMap := fs.String("keymap", "", "type.code=KEYNUM,... (decimal Linux key numbers, e.g. 5.1=116), for -keyfunc")
+	keyMap := fs.String("keymap", "", "type.code=KEYNUM for push keys and type.code.up|down=KEYNUM for knobs, comma separated (decimal Linux key numbers: 2.6=115,2.7=114,9.1.up=115,9.1.down=114), for -keyfunc")
 	every := fs.Duration("stats", 10*time.Second, "how often to print the link's counters; 0 for never")
 	tapPath := fs.String("tap", "", "serve every frame received, with a timestamp, on this unix socket, for -attach")
 	attach := fs.String("attach", "", "print the frames of the micomd serving this -tap socket, instead of running one")
