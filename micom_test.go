@@ -122,8 +122,12 @@ func TestDescribeLive(t *testing.T) {
 	// Frames seen live on the stage, 2026-10-16; the variant-code replies are
 	// the EV6 and a Korean micom build's, in emulation.
 	for _, c := range []struct{ hdr, cmd, payload, want string }{
-		{"018a0181", "17", "cc01a2180080 00 656e 00000000", "Vehicle=204 Country=1 Options high=41496 Options low=128"},
-		{"018a0181", "17", "cc01a2180080 00 656e 00000000", "Language=en"},
+		{"018a0181", "17", "cc01a2180080 00 656e 00000000", "Vehicle=cvev Country=us Navigation=1 Modem=0 Internal amp=1 Rear monitor=0 Radio region=khz_10_200 DMB=0"},
+		{"018a0181", "17", "cc01a2180080 00 656e 00000000", "External amp=actune Camera=avm"},
+		{"018a0181", "17", "cc01a2180080 00 656e 00000000", "Telematics=0 Diranarom=1 DAB=0 HU type=daudio Camera mode=analog"},
+		{"018a0181", "17", "cc01a2180080 00 656e 00000000", "RDS=0 DVD region=worldwide Language=en CPU variant 9=0 CPU variant 10=0 CPU variant 11=0 ADM=off"},
+		{"018a0181", "17", "c800a0180080 00 656e 00000080", "Vehicle=200 Country=korea"},
+		{"018a0181", "17", "c800a0180080 00 656e 00000080", "ADM=128"},
 		{"018a0181", "17", "c800a0180080 00 6b6f 00000000", "Language=ko"},
 		{"018a0181", "17", "c800a0180080 00 0000 00000000", "Language=n/a"},
 		{"0c88018c", "02", "5700f5", "Climate power draw=245 W"},

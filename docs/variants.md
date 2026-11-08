@@ -42,8 +42,16 @@ it says anything to the micom.
      modem, AmpType, rearMonitor, radioRegion, RHD, Limo, Lexicon, AMP,
      Camera, advancedCluster, HUD, rearUSB, RRC, CDC, rearMIC, HD, DMB, CMMB,
      InternalCDP, ExternalCDP, Telematics. No code references those strings.
-   - Their offsets are unknown.
-   - Code reads index 4 as the amp (0 internal), 23 as the modem and 31 as RDS.
+   - `SystemService.onVariantCode` splits the 13 bytes (EV6 V015.012
+     automotive-service; the 0x0118 save packs with the same masks):
+     vehicle, country, a 32-bit word of option bits (navigation, modem,
+     internal amp, radio region, camera, Lexicon amp, telematics, RDS, …),
+     the DVD region, the language, three CPU-variant bytes opaque to
+     Android, and ADM. hkmc-gen5w decodes them all.
+   - The indices code reads (4 amp, 23, 31) are `VariantCoding` indices, not
+     bit positions: 23 is telematics, 31 RDS, and the modem is 3. Index 4,
+     the amp type, is derived: 0 internal if W29, else 2 Lexicon if W21,
+     else 1 Actune.
    - The key mapping changes with the navigation, modem and CMMB codes.
 3. **The climate (DATC) variant.** It is DATC item 17, cached in
    `persist.sys.climate.variant`, which is 2 on the EV6. `persist.sys.amptype`
@@ -365,10 +373,13 @@ decoder is the safer reader of untrusted lines.
 ## Not done yet
 
 - **Checking `expect` against the variant-code reply (0x8117).** The reply
-  is decoded (hkmc-gen5w): vehicle and country, constants of the micom build;
-  the option word; the language, "en" or "ko". The layout comes from the
-  micom firmware and emulated builds, not yet from a car. Which option bits
-  are amp type and climate variant is not known, so nothing is checked.
+  is decoded field by field (hkmc-gen5w), by stock Android's bit map, but not
+  yet seen from a car. The climate variant is not in it: stock sets
+  `persist.sys.climate.variant` from DATCService's `DatcBypassStatus`, a
+  climate frame, so `expect: climate_variant` cannot be checked from 0x8117.
+  The amp type is derived from two bits (internal, Lexicon), which a field
+  cannot express ([messages.md](messages.md)), and whether
+  `persist.sys.amptype` holds that code is unconfirmed. Nothing is checked.
 - **Sequences.** These would be named orders of send entries for `-send`. The
   daemon would never run one, but `-send` would have to load a variant to
   expand them, so they were left out. A to_micom message's `end` is the one
