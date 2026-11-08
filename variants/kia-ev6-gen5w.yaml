@@ -32,6 +32,9 @@ headers:
   cluster_tx:    { hdr: "8f 0d 01 0d", dir: to_micom, status: captured, ref: "the ack profile frame; stock ClusterService" }
   status_tx:     { hdr: "c3 4d 00 4d", dir: to_micom, status: captured }
   clock_tx:      { hdr: "c2 43 00 43", dir: to_micom, status: captured }
+  # The micom's display node (backlight): micom firmware, in emulation.
+  display_rx:    { hdr: "08 8c 01 88", dir: from_micom, status: code, ref: "EV6 micom firmware V002.208, micom-run" }
+  display_tx:    { hdr: "8c 08 01 08", dir: to_micom, status: code, ref: "EV6 micom firmware V002.208, micom-run" }
 
 keys:
   frame: { hdr: keys, cmd: 0x01 }   # Func 0x8701
@@ -348,3 +351,200 @@ messages:
       - { msg: tbt-guiding, set: { guiding: false } }
     status: code
     ref: "stock ClusterService$NaviCluster OperationStatus; GPM claimCluster/onStatus"
+
+  # Power and ACC, from the micom firmware (CV_E.USA.S5W_M.V002.208) in
+  # emulation and disassembly; not yet seen from a car. The ACC-off timeline
+  # and a clean shutdown are in docs/messages.md ("Power").
+  # 0x8108 on every power state change: [00, state, 00] going down,
+  # [01, 05] when ACC comes back.
+  - name: "Power state"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x08
+    length: 3
+    when: [ { off: 0, eq: 0x00 } ]
+    fields:
+      - { name: "Power state", off: 1, enum: power_state }
+    status: code
+    ref: "micom firmware FUN_0006ee40; micom-run ACC off to state 0"
+  - name: "Power state (ACC on)"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x08
+    length: 2
+    when: [ { off: 0, eq: 0x01 } ]
+    fields:
+      - { name: "Power state", off: 1, enum: power_state }
+    status: code
+    ref: "micom-run: ff 01 8a 01 81 08 00 03 01 05 fb on ACC on"
+  # 0x8133: the ACC edge, before the 0x8108 of the same change.
+  - name: "ACC edge"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x33
+    length: 1
+    fields:
+      - { name: "ACC", off: 0, enum: acc_edge }
+    status: code
+    ref: "micom-run: 0x8133 [01] on ACC off, [02] on ACC on"
+  # 0x810a-0x810d are not ACC or ignition (ACC is reported only by 0x8108
+  # and 0x8133). Their triggers are CAN signals not yet identified.
+  - name: "CAN rheostat flag"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x0a
+    length: 1
+    fields:
+      # Sets the micom's "use the CAN rheostat, not the stored one" bit; the
+      # caller is indirect (vehicle or ignition on, a guess).
+      - { name: "CAN rheostat selected", off: 0 }
+    status: code
+    ref: "micom firmware FUN_00062f9c"
+  - name: "CAN rheostat state"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x0b
+    length: 1
+    fields:
+      # The flag above and a CAN value (0x40016cc6 == 1), debounced 0.5 s.
+      - { name: "CAN rheostat active", off: 0 }
+    status: code
+    ref: "micom firmware, 0x810b sender"
+  - name: "Flag 0x810c"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x0c
+    length: 1
+    fields:
+      - { name: "Flag 0x810c", off: 0 }   # always 0 on this build (FUN_00073e46)
+    status: code
+    ref: "micom firmware FUN_00073e46"
+  - name: "Low brightness flag"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x0d
+    length: 1
+    fields:
+      # NOT(CAN 0x11f == 1); lets brightness go below 100 per mille. Seen 00
+      # right after backlight on. Illumination or night: a guess.
+      - { name: "Low brightness allowed", off: 0 }
+    status: code
+    ref: "micom firmware 0x810d sender; micom-run"
+  # Replies of the display node to SoC queries.
+  - name: "Display 0x880C"
+    dir: from_micom
+    hdr: display_rx
+    cmd: 0x0c
+    min_length: 1
+    fields:
+      - { name: "Display 0x880C", off: 0 }   # RAM 0x400118e8, meaning unknown; 02 in emulation
+    status: code
+    ref: "micom-run: 0x080C [00] answered ff 08 8c 01 88 0c 00 02 02 fe"
+  - name: "Rheostat"
+    dir: from_micom
+    hdr: display_rx
+    cmd: 0x10
+    min_length: 1
+    fields:
+      - { name: "Rheostat step", off: 0 }   # 0-21; 20 in emulation
+    status: code
+    ref: "micom-run: 0x0810 [00] answered 14"
+  - name: "Display 0x8813"
+    dir: from_micom
+    hdr: display_rx
+    cmd: 0x13
+    min_length: 1
+    fields:
+      - { name: "Display 0x8813", off: 0 }   # RAM 0x400172a0; 0x32 in emulation
+    status: code
+    ref: "micom-run: 0x0813 [00] answered 32"
+  # Sent only with the "new display option" (0x40011990 & 0x60000); its
+  # layout is unknown, so only the first byte.
+  - name: "Display 0x881B"
+    dir: from_micom
+    hdr: display_rx
+    cmd: 0x1b
+    min_length: 1
+    fields:
+      - { name: "Display 0x881B byte 0", off: 0 }
+    status: code
+    ref: "micom firmware 0x081B handler"
+
+  # The backlight. Off from power-up until the first on; on is refused while
+  # the supply is low. The micom writes a config byte to EEPROM on every
+  # frame (0x230), so it is spaced like a persistent one, but it is not
+  # persistent: the SoC must send it after each micom start.
+  - name: backlight
+    dir: to_micom
+    hdr: display_tx
+    cmd: 0x02
+    length: 1
+    fields:
+      - { name: "on", off: 0, bits: "0", type: bool }
+    on_change: false     # every input sends: the micom forgets it on reset
+    min_interval: 1s
+    status: code
+    ref: "micom-run: ff 8c 08 01 08 02 00 02 01 73 on, ... 00 72 off; eMIOS0 ch 6 PWM"
+  # The shutdown acks, 0x0109. Latched by the micom and not cleared on ACC
+  # on: send power_off_request only after Power state power_off_request,
+  # and rail_off only after rail_off, or a stale ack cuts the next ACC-off
+  # cycle short. micomd does not check this (docs/messages.md).
+  - name: shutdown-ack
+    dir: to_micom
+    hdr: system_tx
+    cmd: 0x09
+    length: 1
+    fields:
+      - { name: stage, off: 0, enum: shutdown_ack }
+    on_change: false     # an ack repeated is still an ack
+    status: code
+    ref: "micom-run: 0x0109 [01] ff 8a 01 01 01 09 00 02 01 7e, [02] ... 02 7d; status bits b8, b12"
+
+  # Persistent: the micom writes each to EEPROM (block A 0x100 and backup B
+  # 0x300) on every frame. Needs -allow-persistent.
+  - name: backlight-dim-mode
+    dir: to_micom
+    hdr: display_tx
+    cmd: 0x01
+    length: 1
+    fields:
+      - { name: mode, off: 0, enum: dim_mode }
+    persistent: true     # EEPROM 0x1b7, 0x230, 0x286
+    min_interval: 1s
+    status: code
+    ref: "micom firmware 0x0801 handler; micom-run EEPROM trace"
+  # Stores the level of one period; auto applies at once, day and night at
+  # the next dim mode.
+  - name: backlight-period-level
+    dir: to_micom
+    hdr: display_tx
+    cmd: 0x07
+    length: 2
+    fields:
+      - { name: period, off: 0, enum: period }
+      - { name: level,  off: 1, max: 10 }   # the micom does not check: 11 reads the next table row
+    persistent: true     # EEPROM 0x1b8 day, 0x1b9 night
+    min_interval: 1s
+    status: code
+    ref: "micom firmware 0x0807 handler; micom-run EEPROM trace"
+  # The manual level, per mille, applied at once in dim mode manual. Stock
+  # sends it from a slider: min_interval keeps that from wearing the EEPROM.
+  - name: backlight-manual-level
+    dir: to_micom
+    hdr: display_tx
+    cmd: 0x1a
+    length: 2
+    fields:
+      - { name: level, off: 0, type: u16, min: 10, max: 1000 }
+    persistent: true     # EEPROM 0x286
+    min_interval: 1s
+    status: code
+    ref: "micom firmware 0x081A handler; micom-run EEPROM trace"
+
+# The power and backlight tables of the micom firmware.
+enums:
+  power_state: { rail_off: 0, power_off_request: 1, bus_sleep: 3, acc_off_hold: 4, acc_on: 5, stop: 6, standby: 7 }
+  acc_edge: { "off": 1, "on": 2 }
+  shutdown_ack: { power_off_request: 1, rail_off: 2 }
+  dim_mode: { auto: 0, day: 1, night: 2, manual: 3 }
+  period: { day: 1, night: 2 }

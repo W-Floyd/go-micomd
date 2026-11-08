@@ -12,7 +12,7 @@ func (v *Variant) Describe(f Frame) string {
 	if s := v.describe(f); s != "" {
 		return s
 	}
-	fs := v.Decode(f)
+	fs, name := v.decode(f)
 	if fs == nil {
 		return ""
 	}
@@ -20,7 +20,7 @@ func (v *Variant) Describe(f Frame) string {
 	for i, x := range fs {
 		parts[i] = x.String()
 	}
-	return v.FrameName(f) + ": " + strings.Join(parts, " ")
+	return name + ": " + strings.Join(parts, " ")
 }
 
 // describe reads the key and state frames, "" for the rest.
@@ -91,6 +91,13 @@ func (v *Variant) FrameName(f Frame) string {
 
 // Decode reads the fields of a frame whose layout is known; nil for the rest.
 func (v *Variant) Decode(f Frame) []Field {
+	fs, _ := v.decode(f)
+	return fs
+}
+
+// decode is Decode and the name of the message that read f, which, when
+// guards tell apart frames of one header and command, is not FrameName's.
+func (v *Variant) decode(f Frame) ([]Field, string) {
 	p := f.Payload
 	for _, d := range v.decoders[f.Cmd] {
 		if !d.matches(f.Hdr) || !d.match(p) {
@@ -100,9 +107,9 @@ func (v *Variant) Decode(f Frame) []Field {
 		for _, fs := range d.fields {
 			out = append(out, fs.read(p))
 		}
-		return out
+		return out, d.name
 	}
-	return nil
+	return nil, ""
 }
 
 func (d *decoder) match(p []byte) bool {

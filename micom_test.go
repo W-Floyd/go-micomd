@@ -136,6 +136,22 @@ func TestDescribeLive(t *testing.T) {
 		{"0c88018c", "5c", "15ffffffffffffffffff01b1000000000000000000000400ff00000000ff", "AVN motor power=n/a"},
 		{"0c88018c", "55", "4d749148ff550500", "Departure 1 hour=8"},
 		{"0c88018c", "4f", "2d3a200100000000", "Charger ready bits=0"},
+		// The micom firmware's power and display frames, in emulation.
+		{"018a0181", "08", "000400", "Power state: Power state=acc_off_hold"},
+		{"018a0181", "08", "000300", "Power state: Power state=bus_sleep"},
+		{"018a0181", "08", "000100", "Power state: Power state=power_off_request"},
+		{"018a0181", "08", "000000", "Power state: Power state=rail_off"},
+		{"018a0181", "08", "0105", "Power state (ACC on): Power state=acc_on"},
+		{"018a0181", "33", "01", "ACC edge: ACC=off"},
+		{"018a0181", "33", "02", "ACC edge: ACC=on"},
+		{"018a0181", "0a", "01", "CAN rheostat selected=1"},
+		{"018a0181", "0b", "00", "CAN rheostat active=0"},
+		{"018a0181", "0c", "00", "Flag 0x810c=0"},
+		{"018a0181", "0d", "00", "Low brightness allowed=0"},
+		{"088c0188", "0c", "02", "Display 0x880C=2"},
+		{"088c0188", "10", "14", "Rheostat: Rheostat step=20"},
+		{"088c0188", "13", "32", "Display 0x8813=50"},
+		{"088c0188", "1b", "07", "Display 0x881B byte 0=7"},
 	} {
 		var f Frame
 		copy(f.Hdr[:], unhex(t, c.hdr))

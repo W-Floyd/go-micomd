@@ -2,6 +2,7 @@ package micom
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 	"time"
 )
@@ -40,6 +41,17 @@ func TestEV6Messages(t *testing.T) {
 			ack, // the compass kept
 			"ff 8f 0d 01 0d 11 00 02 00 62",
 		}},
+		// The micom firmware's frames, as micom-run took them.
+		{"backlight on", []string{`{"msg":"backlight","on":true}`}, []string{"ff 8c 08 01 08 02 00 02 01 73"}},
+		{"backlight off", []string{`{"msg":"backlight","on":false}`}, []string{"ff 8c 08 01 08 02 00 02 00 72"}},
+		{"shutdown acks, each sent", []string{
+			`{"msg":"shutdown-ack","stage":"power_off_request"}`,
+			`{"msg":"shutdown-ack","stage":"power_off_request"}`,
+			`{"msg":"shutdown-ack","stage":"rail_off"}`,
+		}, []string{"ff 8a 01 01 01 09 00 02 01 7e", "ff 8a 01 01 01 09 00 02 01 7e", "ff 8a 01 01 01 09 00 02 02 7d"}},
+		{"dim mode manual", []string{`{"msg":"backlight-dim-mode","mode":"manual"}`}, []string{"ff 8c 08 01 08 01 00 02 03 72"}},
+		{"night level 5", []string{`{"msg":"backlight-period-level","period":"night","level":5}`}, []string{"ff 8c 08 01 08 07 00 03 02 05 71"}},
+		{"manual level 500", []string{`{"msg":"backlight-manual-level","level":500}`}, []string{"ff 8c 08 01 08 1a 00 03 01 f4 9e"}},
 	} {
 		var sent []Frame
 		send := func(f Frame) error { sent = append(sent, f); return nil }
@@ -77,10 +89,21 @@ func TestEV6Messages(t *testing.T) {
 			}
 		}
 	}
-	// The cluster messages are code: refused without -allow-inferred.
-	e := newInputEngine(v, InputGates{}, func(Frame) error { return nil }, func([]string, bool) {}, time.Now, t.Logf)
-	if ok, _ := e.enabled(); len(ok) != 0 {
-		t.Errorf("enabled without -allow-inferred: %v", ok)
+	// All are code: refused without -allow-inferred. The EEPROM writers also
+	// need -allow-persistent.
+	for _, tc := range []struct {
+		g    InputGates
+		want []string
+	}{
+		{InputGates{}, nil},
+		{InputGates{Persistent: true}, nil},
+		{InputGates{Inferred: true}, []string{"backlight", "cluster-sub-info", "shutdown-ack", "tbt-guiding", "tbt-points", "tbt-turn"}},
+		{InputGates{Inferred: true, Persistent: true}, []string{"backlight", "backlight-dim-mode", "backlight-manual-level", "backlight-period-level", "cluster-sub-info", "shutdown-ack", "tbt-guiding", "tbt-points", "tbt-turn"}},
+	} {
+		e := newInputEngine(v, tc.g, func(Frame) error { return nil }, func([]string, bool) {}, time.Now, t.Logf)
+		if ok, _ := e.enabled(); !slices.Equal(ok, tc.want) {
+			t.Errorf("%+v: enabled %v, want %v", tc.g, ok, tc.want)
+		}
 	}
 	// While cluster-sub-info is active it owns ack and the code entry that
 	// replaces it.

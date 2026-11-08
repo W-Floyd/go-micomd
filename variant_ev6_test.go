@@ -79,9 +79,9 @@ func TestEV6VariantDescribesAsBefore(t *testing.T) {
 			t.Errorf("%v: legacy carDescribe %q, variant %q, carDescribe %q", f, a, b, c)
 			bad++
 		}
-		// The one frame added since the Go tables: the variant-code reply
-		// (01 8a 01 81, cmd 17), named and decoded.
-		added := f.Hdr == hdrAliveReq && f.Cmd == 0x17
+		// What the Go tables knew must read the same; frames they knew
+		// nothing of may be decoded since (the variant code, power state).
+		added := legacyFrameName(f) == "" && legacyDescribe(f) == "" && legacyDecode(f) == nil
 		if a, b, c := legacyDescribe(f), v.Describe(f), Describe(f); (a != b || a != c) && !added {
 			t.Errorf("%v: legacy Describe %q, variant %q, Describe %q", f, a, b, c)
 			bad++
