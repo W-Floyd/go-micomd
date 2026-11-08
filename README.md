@@ -33,6 +33,10 @@ A library first (`package micom`, importable by other modules, such as the
 * `micom.DefaultProfile`, `micom.ClockProfile`: everything it will ever send.
   Frames can be sent only if a `Profile` lists them, never composed freely, and
   nothing in it flashes, resets or reconfigures the micom.
+* `micom.LoadVariant`, `micom.Variant`: what is car-specific (frame headers,
+  keys, climate and other state frames, decoders, the routine frames, what the
+  control socket may send) is a YAML file per car in `variants/`, embedded.
+  A new car is a new file: see [docs/variants.md](docs/variants.md).
 
 Everything comes from captured traffic (logcat's `MicomD` lines) and a
 disassembly of the vendor binary, not from a specification: it says only what has
@@ -52,6 +56,13 @@ serves every frame it receives, with the time, on a unix socket (mode 0660); fro
 another shell, `micomd -attach /run/micomd.sock` prints them live until stopped,
 and any number can attach. A reader that cannot keep up loses lines and never
 slows the daemon.
+
+The car is chosen from the kernel command line's `vehicle_info` (the EV6
+otherwise), or by `-variant NAME` or `-variant-file PATH`; `-list-variants`,
+`-show-variant` and `-variant-check` inspect them. `-keys` injects the
+variant's keys and `-allow-variant` lets the control socket send its captured
+frames (`-allow-inferred` adds the inferred ones). A variant that fails to load
+leaves the keepalive running.
 
 `Main(args, stdout, stderr) int` is the same command for embedding as a
 subcommand of a larger multi-call program.

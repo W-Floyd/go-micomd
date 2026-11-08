@@ -1,0 +1,333 @@
+# Variants
+
+Everything car-specific in go-micomd is a variant: a YAML file in
+`variants/`, embedded in the binary with `go:embed`. Supporting another car is
+a pull request that adds one file, usually extending an existing one and
+listing only what differs. The link itself is code and never depends on a
+variant: the framing, the checksum, and the CPU-alive exchange. The micom
+resets the SoC about 3.5 minutes after its alive requests go unanswered.
+
+Statuses used below: **captured** means seen on the wire or on the live unit,
+**code** means read from stock code, and **inferred** means worked out from
+code or the frame rule.
+
+## How the stock system knows the car
+
+Three layers. The first is there before Linux starts, so micomd has it before
+it says anything to the micom.
+
+1. **Bootloader → kernel command line.**
+   - The stock command line of the EV6 has `vehicle_info=0xcc country_info=0x01
+     daudio_hw_ver=526087 cabin_camera_type=0` (captured).
+   - Mobis' LK source for the earlier TCC897x unit shows where they come from
+     (`gh-c457/lk/target/tcc897x-lcn/mobis/mobis_getdata_micom.c`, `init.c`):
+     - LK raises GPIO B11 and reads an 8-byte record from the micom UART:
+       `'b' 's' 'p'`, vehicle code, country code, flags (OEM, modem, engine
+       type), an unknown byte, then an NMEA XOR checksum.
+     - It passes the two codes as `vehicle_info` and `country_info`, or `0xff`
+       when the read fails.
+     - Countries: 0 KOR, 1 USA, 2 CHN, 3 GEN, 4 MIE, 5 EUR, 6 CAN, …
+   - The G5W bootloader is inferred to do the same, because it writes the same
+     keys.
+   - 0xcc is only known to be this EV6: the G5W vehicle-code table is in no
+     source we have.
+2. **Android: the micom's variant coding.**
+   - `SystemService.requestVariantCode()` is `sendPacket(0x8a, 1, 0x0117)`,
+     retried up to 5 times. Its framing is inferred from the captured 0x010F
+     alive reply: `ff 8a 01 01 01 17 00 01 62`.
+   - The reply is inferred to be func 0x8117. It is cached in
+     `/data/system/variantcoding.dat` and broadcast as
+     `AV_VARIANT_CODING_CHANGED`.
+   - Its fields are listed as format strings in the stock micomd: navigation,
+     modem, AmpType, rearMonitor, radioRegion, RHD, Limo, Lexicon, AMP,
+     Camera, advancedCluster, HUD, rearUSB, RRC, CDC, rearMIC, HD, DMB, CMMB,
+     InternalCDP, ExternalCDP, Telematics. No code references those strings.
+   - Their offsets are unknown.
+   - Code reads index 4 as the amp (0 internal), 23 as the modem and 31 as RDS.
+   - The key mapping changes with the navigation, modem and CMMB codes.
+3. **The climate (DATC) variant.** It is DATC item 17, cached in
+   `persist.sys.climate.variant`, which is 2 on the EV6. `persist.sys.amptype`
+   is 2 on the EV6, an external amp.
+
+The capture so far starts mid-session, so the 0x8117 reply has not been seen.
+A `micomd -attach` from power-on (read-only) would show it.
+
+## Choosing the variant
+
+- `-variant auto` (the default): read `/proc/cmdline` and match each embedded
+  variant's `match.cmdline`.
+  - Every key a rule lists must match.
+  - The rule with the most keys wins.
+  - A tie is an error, and a test fails on it for the embedded files.
+  - No match means the default, `kia-ev6-gen5w`. That is today's behaviour,
+    so the deployed unit runs unchanged even when its command line lacks
+    `vehicle_info`.
+- `-variant NAME`: an embedded variant. If the command line matches another,
+  micomd logs a warning.
+- `-variant-file PATH`: a file on disk, for development or an unlisted car. It
+  may `extends:` an embedded variant. It is logged as unreviewed.
+- `-list-variants`, `-show-variant` (the resolved variant, parents merged in)
+  and `-variant-check [PATH...]` print and exit without a device.
+
+**A variant that fails to load never stops micomd.** That covers a missing
+file, a malformed or unsafe one, and an unknown name. micomd logs the error
+and runs with the keepalive only: no profile, no names, nothing a variant
+would add. `TestMainKeepsAliveWhateverTheVariant` checks the alive answer on
+each of those paths.
+
+What a variant supplies:
+
+| | without flags | opt-in |
+|---|---|---|
+| frame names and decoding (`-dump`, `-tap`, Snapshot) | yes | |
+| the routine profile | yes | `-clock` adds its `opt_in: clock` frames |
+| key injection | no (as before: `-keyfunc`) | `-keys`; `-keyfunc` and `-keymap` override entry by entry |
+| control-socket sends | no (as before: `-allow`) | `-allow-variant` (captured); `-allow-inferred` adds inferred and code entries |
+| the 0x0117 variant-code request | never | `-identify-request`, which while the request is inferred also needs `-allow-inferred` |
+
+The device unit's flags (`-keyfunc 0x8701 -keymap … -allow …`) work as
+before. `-keys -allow-variant -allow-inferred` gives the same keymap and
+allowlist from the EV6 file; the tests prove it.
+
+## The file
+
+Decoded with go.yaml.in/yaml/v4 using `WithKnownFields()` and
+`WithUniqueKeys()`, so an unknown or repeated key is an error. Numbers may be
+decimal or `0x` hex. A header is `"hh hh hh hh"` or the name of one in
+`headers`.
+
+```yaml
+schema: 1                    # required
+name: kia-ev6-gen5w          # required; [a-z0-9-]; an embedded file's must be its file name
+title: "Kia EV6 (CV), ..."   # one line, for -list-variants
+extends: hkmc-gen5w-ev       # one parent, embedded; at most 4 deep, no cycles
+abstract: false              # true: a family layer, never matched
+
+match:                       # not inherited
+  cmdline:                   # vehicle_info, country_info, daudio_hw_ver, cabin_camera_type
+    vehicle_info: 0xcc       # a number, or a list: any of
+  status: captured           # required here
+  ref: "stock /proc/cmdline, 2026-11-07"   # required here
+
+expect:                      # amp_type, climate_variant: what the micom should report.
+  climate_variant: 2         # Recorded and shown; not checked yet (no decoder)
+
+identify:
+  request:                   # a send entry (rules below); sent only with -identify-request
+    name: variant-code-request
+    frame: "ff 8a 01 01 01 17 00 01 62"
+    status: inferred
+    ref: "SystemService.requestVariantCode()"
+  reply: { name: "Variant code", hdr: system_rx, cmd: 0x17 }   # named, not decoded
+
+headers:                     # dir: from_micom | to_micom; status and ref optional
+  keys: { hdr: "07 84 01 87", dir: from_micom, status: captured }
+
+keys:
+  frame: { hdr: keys, cmd: 0x01 }        # Func 0x8701; what -keyfunc gave
+  push:                                  # type 0-7, code 0-15; label for -dump
+    - { type: 2, code: 6, label: "Wheel volume up", key: KEY_VOLUMEUP }   # KEY_* name or number
+  knobs:                                 # type 8-11; a step is a tap of up or down
+    - { type: 9, code: 1, label: "Volume knob", up: KEY_VOLUMEUP, down: KEY_VOLUMEDOWN }
+
+signals:                     # one-byte state frames: a line of text, and maybe CarClimate state
+  - name: climate-driver-set # unique; children replace or remove (remove: true) by name
+    hdr: climate_panel
+    cmd: [0x05, 0x07]        # one or a list; one signal per header and command
+    len: 1                   # payload length (default 1); 0: any, read from the first byte
+    label: "Climate driver set point"
+    # exactly one kind:
+    #   flag:   { on: B, off: B or "*", on_text: on, off_text: off }         state: bool fields
+    #   enum:   { B: text, ... }                                             state: airflow
+    #   number: { add: N, mul: 1, range: [lo, hi], format: "%d F", wrap: false }
+    #           (v*mul+add; wrap takes it modulo 256)                        state: int fields
+    #   fan:    { off: B, auto: B, levels: [lo, hi] }                        state: fan
+    #   bits:   { always: B, none: text, names: { bit: text } }
+    #   burst:  { begin: B }     # ClimateBegin on begin, ClimateEnd otherwise
+    number: { add: 56, format: "%d F" }
+    values: { 0x00: { text: "off", state: 0 } }   # specials first; state only for a number
+    # lines: { B: "whole line" }; unknown: "code %#02x" (default; "" = no line);
+    # unknown_line: "whole line %#02x"; suffix: " (repeat)"
+    state: driver_set_f      # driver_set_f passenger_set_f driver_seat_heat
+                             # passenger_seat_heat airflow auto ac driver_only
+                             # recirculation zones_synced fan
+    status: captured
+
+decode:                      # multi-field frames: Decode, Snapshot readings, Describe
+  - name: "EV power block"   # also the frame's name (FrameName)
+    hdr: "0c 88 ?? 8c"       # a decoder may leave header bytes open (??)
+    cmd: 0x5c
+    min_len: 29
+    when: [ { len: 3 }, { off: 0, eq: 0x57 } ]     # optional guards
+    fields:
+      - { name: "Climate total", off: 10, size: 2, unit: " W" }   # size 1|2, big endian
+      # na: none (always valid); default: 0xff / 0xffff mean n/a
+      # a bit field: { name, off, mask: 0x1f, shift: 5 }
+    status: code
+    ref: "HEVService"
+
+profile:                     # the only frames sent unasked: status must be captured
+  - name: poll
+    every: 1s
+    frame: "ff 88 0c 01 0c 5c 00 01 2b"
+    status: captured
+    ref: "logcat MicomD 2026-10-16"
+  - name: clock-sec
+    every: 1s
+    opt_in: clock            # only with -clock
+    template: "ff 88 0c 01 0c 09 00 06 04 a0 {minute} {second} 80 .."
+    # placeholders: {second} {minute} {hour} {day} {month} {year2}, payload only
+    status: captured
+    ref: "..."
+
+send:                        # what the control socket may send, only when asked
+  - { name: av-mute-set, frame: "ff 85 02 01 02 0b 00 03 02 01 70", status: captured, ref: "strace" }
+  - name: main-volume
+    pattern: "ff 85 02 01 02 03 00 02 [00-23] .."  # ranges over payload bytes, checksum ..
+    status: captured
+    ref: "strace"
+```
+
+Inheritance runs root first:
+
+- Scalars override.
+- `headers` and `expect` merge key by key.
+- `identify` merges by request and by reply.
+- Named lists (`signals`, `decode`, `profile`, `send`, and `keys.push` and
+  `keys.knobs` by type.code) merge by name: the same name replaces the
+  parent's entry, and `remove: true` deletes it.
+- A name used twice in one file is an error.
+- `match` and `abstract` are not inherited.
+
+## Safety
+
+A file can make frames sendable. Nothing in it can send arbitrary frames:
+
+1. **Nothing is computed.**
+   - Every sendable frame is written whole, and must parse with its checksum.
+   - A pattern may range over payload bytes only. The header, command and
+     length are fixed, as `ParsePattern` already demands.
+   - A template's placeholders are the six clock fields, in the payload.
+2. **Only the two existing send paths.**
+   - The profile, sent unasked, takes `status: captured` frames only.
+   - Send entries go out only when asked on the control socket, and only with
+     `-allow-variant`.
+   - Inferred and code entries additionally need `-allow-inferred`.
+3. **Headers.**
+   - A profile or send frame's header must be a `to_micom` header the variant
+     declares.
+   - No variant may name the CPU-alive request or reply: that exchange is
+     micomd's.
+4. **The denylist, in code.** `denylist.go` refuses these whatever a variant,
+   `-allow` or a profile says. They are SystemService requests on
+   `8a 01 01 01` that reset or rewrite the micom:
+   - func 0x0105, rear camera reset
+   - func 0x0107, last-info initialization / micom factory reset
+   - func 0x0118, variant code save
+   - func 0x011e, SPI sending stop
+   - func 0x0128, VBus off/on
+
+   It is enforced twice: at load, and in `Daemon.Send`.
+5. **Provenance.** `status` and `ref` are required on every send, profile and
+   match entry.
+6. **Tests.**
+   - Every embedded file loads, and no two match ambiguously.
+   - `TestLoadVariantRefuses` holds a row per refusal.
+   - The EV6 equivalence tests pin its profile bytes, keymap and allowlist to
+     today's, so a PR that widens what the EV6 may send fails them.
+
+## Code and data
+
+- **Data:**
+  - headers
+  - the key frame, labels and default keys
+  - the signals (climate, seat heat, windows, doors, open doors, rear camera)
+  - the HEV decoders
+  - the profile frames
+  - the send frames and patterns
+  - match, expect, and the identify request and reply
+- **Code:**
+  - framing, checksum, `Decoder`
+  - the CPU-alive exchange
+  - `Daemon.Send`'s allowlist and the denylist
+  - the six signal kinds, decoder fields and template placeholders
+  - the key payload rule (type, code, press) and the `KEY_*` table
+  - uinput, tap, ctl, and the command-line identity
+  - `CarClimate`'s fields
+  - `Stats.Countdown`, which still reads the EV's 0x8c02 frame by its header,
+    as before
+
+Files:
+
+- `variant.go`: embedding, loading, merging, checking and compiling.
+- `variant_yaml.go`: the file as written.
+- `variant_use.go`: Describe, Decode, ApplyClimate, the profile and the sends.
+- `signal.go`: the six signal kinds.
+- `identity.go`: the command-line identity.
+- `denylist.go`.
+- `keynames.go`: the `KEY_*` table.
+
+The package-level `Describe`, `Decode`, `FrameName`, `DefaultProfile`,
+`ClockProfile` and `CarClimate.Apply` read `DefaultVariant()`, the EV6, so
+their callers (micom-livi, the Boot Manager) are unchanged. `Config.Variant`
+gives a Daemon another car.
+
+## How the EV6 moved, and how it is kept equal
+
+The EV6's Go tables were moved to `kia-ev6-gen5w.yaml`, with HEVService's
+layouts in `hkmc-gen5w-ev.yaml`. The Go code they replaced is kept,
+renamed, in `legacy_test.go`. `variant_ev6_test.go` runs both, and the
+package functions, over:
+
+- every header the code knew, plus a few it did not;
+- every command;
+- every one-byte payload;
+- samples of the longer payloads.
+
+Describe, carDescribe, Decode, FrameName and Apply (from an empty and a full
+state) must agree. The profiles must build the same bytes. The keymap, key
+frame and allowlist must equal the device unit's flags.
+
+Running these tests turned up three quirks the data keeps:
+
+- The seat heat frames are read whatever their length (`len: 0`).
+- The auto level reads 00 as 255 (`wrap: true`).
+- The HEV frames match whatever the header's third byte (`??`).
+
+Two differences are deliberate:
+
+- The variant-code reply (01 8a 01 81, cmd 17) now has a name.
+- clock-sec carries the minute: its third byte was a fixed 01, the minute of
+  the capture it was read from. The stock frames of 2026-11-07 show it is
+  the minute. This changes `-clock` only.
+
+## Size
+
+micomd for linux/arm, `CGO_ENABLED=0`:
+
+| | plain | `-s -w` |
+|---|---|---|
+| before variants | 3,912,594 B | 2,621,600 B |
+| with variants | 5,624,084 B | 3,866,784 B |
+
+That is about +1.2 MB. go.yaml.in/yaml/v4 brings its plugins, `regexp` and
+`encoding/base64`. Its encoder, used only by `-show-variant`, is 131 KB of
+that. If this is too much for the u-root initramfs, one option is a
+`go generate` step that converts `variants/*.yaml` to JSON at build time,
+with the YAML loader behind a build tag. `-variant-file` would then take JSON
+in that build.
+
+## Not done yet
+
+- **Decoding the variant-code reply (0x8117) and checking `expect`.** The
+  reply's layout is unknown until it is captured from boot.
+  `-identify-request` sends the request, gated as above, and the reply is
+  named but not decoded.
+- **Sequences.** These would be named orders of send entries for `-send`. The
+  daemon would never run one, but `-send` would have to load a variant to
+  expand them, so they were left out.
+- **micom-livi.** It reads frames with the default variant's
+  `CarClimate.Apply`. It has no `-variant` yet.
+- **Unknown cars.** On an unknown command line micomd runs the EV6, as before.
+  Running the keepalive-only base instead is a behaviour change for its own
+  PR.
