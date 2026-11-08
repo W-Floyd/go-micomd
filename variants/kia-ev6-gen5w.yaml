@@ -28,7 +28,8 @@ headers:
   body:          { hdr: "44 c1 00 c4", dir: from_micom, status: captured, ref: "doors; repeats seat heat and windows" }
   camera:        { hdr: "01 c4 01 81", dir: from_micom, status: captured }
   poll_tx:       { hdr: "88 0c 01 0c", dir: to_micom, status: captured }
-  ack_tx:        { hdr: "8f 0d 01 0d", dir: to_micom, status: captured }
+  # ClusterService.sendPacket: sndId 0x8f, rcvId 0x0d, type 1, funcH 0x0d.
+  cluster_tx:    { hdr: "8f 0d 01 0d", dir: to_micom, status: captured, ref: "the ack profile frame; stock ClusterService" }
   status_tx:     { hdr: "c3 4d 00 4d", dir: to_micom, status: captured }
   clock_tx:      { hdr: "c2 43 00 43", dir: to_micom, status: captured }
 
@@ -186,7 +187,8 @@ profile:
   # Not an ack: the cluster's TBTSubInfo, func 0x0D03. Remaining distance and
   # ETA (invalid: no route), then the compass, byte 3 = heading / 7.5 degrees.
   # The capture's 0e (105 degrees; 1d in the 2026-11-07 strace) was the car's
-  # heading then, so replaying it shows a wrong compass.
+  # heading then, so replaying it shows a wrong compass. With -input, the
+  # cluster-sub-info message replaces it while a client feeds it.
   - name: ack
     every: 600ms
     frame: "ff 8f 0d 01 0d 03 00 0a ff ff ff 0e 03 ff ff 03 ff 76"
@@ -246,3 +248,103 @@ send:
   - { name: av-mute-release-0b, frame: "ff 85 02 01 02 0b 00 03 02 00 71", status: inferred, ref: "0x020B mute control: AV, RELEASE" }
   - { name: amp-mute-release,   frame: "ff 85 02 01 02 0b 00 03 01 00 72", status: inferred, ref: "0x020B mute control: AMP, RELEASE" }
   - { name: amp-mute-set,       frame: "ff 85 02 01 02 0b 00 03 01 01 73", status: inferred, ref: "0x020B mute control: AMP, SET" }
+
+# The cluster's turn-by-turn guidance and compass, filled in from -input
+# (docs/messages.md). Layouts are the stock packers', never captured, so
+# status code: they also need -allow-inferred. The 16-bit integers are
+# guessed big endian (Utils.shortToBytes is in framework.jar, not on disk).
+# Here rather than in the family base because cluster-sub-info owns this
+# car's ack profile entry, and tbt-turn's end names it.
+messages:
+  # TBTInfo, func 0x0D04: the next maneuver.
+  - name: tbt-turn
+    dir: to_micom
+    hdr: cluster_tx
+    cmd: 0x04
+    length: 8
+    fields:
+      - { name: maneuver,          off: 0, enum: maneuver }
+      - { name: side_street,       off: 1, type: u16, invalid: 0xffff }
+      - { name: direction,         off: 3, scale: 7.5, min: 0, max: 360, default: 0 }   # degrees
+      - { name: distance,          off: 4, type: u16, invalid: 0xffff }                 # its integer part
+      - { name: unit,              off: 6, bits: "7:4", enum: distance_unit, invalid: 15 }
+      - { name: side_street_combi, off: 6, bits: "3:0", default: 0 }
+      # The progress bar, percent, in tenths. 0xE ("err -2") is not modelled.
+      - { name: bar,               off: 7, bits: "7:4", scale: 10, min: 0, max: 100, invalid: 15 }
+      - { name: distance_tenths,   off: 7, bits: "3:0", max: 9, invalid: 15 }
+    every: 1s          # a guess: stock sends on change
+    timeout: 30s
+    # Stock's end of route: display type 0 with the distance invalid
+    # ("distanceErr -1": bar invalid, tenths kept, here 0; the unit sent
+    # invalid is a guess), no next points, the route fields of 0x0D03 invalid
+    # (the compass has its own source), guidance off.
+    end:
+      - { msg: tbt-turn, set: { maneuver: none, side_street: null, direction: 0, distance: null, unit: null, side_street_combi: 0, bar: null, distance_tenths: 0 } }
+      - { msg: tbt-points, set: { p1_unit: null, p1_tenths: null, p1_distance: null, p2_unit: null, p2_tenths: null, p2_distance: null, p3_unit: null, p3_tenths: null, p3_distance: null } }
+      - { msg: cluster-sub-info, set: { remaining_unit: null, remaining_tenths: null, eta_hour: null, eta_minute: null, time_type: 3, remaining: null, time_format: 3, est_point_type: null } }
+      - { msg: tbt-guiding, set: { guiding: false } }
+    status: code
+    ref: "stock ClusterService$NaviCluster TBTInfo packer; nemesis-report worked example \"turn right, 0.3 km\""
+
+  # TBTSubInfo2C, func 0x0D02: the distances to the next three points.
+  - name: tbt-points
+    dir: to_micom
+    hdr: cluster_tx
+    cmd: 0x02
+    length: 9
+    fields:
+      - { name: p1_unit,     off: 0, bits: "7:4", enum: distance_unit, invalid: 15 }
+      - { name: p1_tenths,   off: 0, bits: "3:0", max: 9, invalid: 15 }
+      - { name: p1_distance, off: 1, type: u16, invalid: 0xffff }
+      - { name: p2_unit,     off: 3, bits: "7:4", enum: distance_unit, invalid: 15 }
+      - { name: p2_tenths,   off: 3, bits: "3:0", max: 9, invalid: 15 }
+      - { name: p2_distance, off: 4, type: u16, invalid: 0xffff }
+      - { name: p3_unit,     off: 6, bits: "7:4", enum: distance_unit, invalid: 15 }
+      - { name: p3_tenths,   off: 6, bits: "3:0", max: 9, invalid: 15 }
+      - { name: p3_distance, off: 7, type: u16, invalid: 0xffff }
+    every: 1s
+    timeout: 30s
+    end:
+      - { msg: tbt-points, set: { p1_unit: null, p1_tenths: null, p1_distance: null, p2_unit: null, p2_tenths: null, p2_distance: null, p3_unit: null, p3_tenths: null, p3_distance: null } }
+    status: code
+    ref: "stock ClusterService$NaviCluster TBTSubInfo2C packer"
+
+  # TBTSubInfo, func 0x0D03: the route's remaining distance and ETA, and the
+  # compass. Every field at its default with the compass at 105 degrees is
+  # the captured ack frame; with no compass, the code tbt-sub-info frame.
+  # While active it owns ack (and so tbt-sub-info, which replaces it).
+  - name: cluster-sub-info
+    dir: to_micom
+    hdr: cluster_tx
+    cmd: 0x03
+    length: 9
+    fields:
+      - { name: remaining_unit,   off: 0, bits: "7:4", enum: distance_unit, invalid: 15 }
+      - { name: remaining_tenths, off: 0, bits: "3:0", max: 9, invalid: 15 }
+      - { name: eta_hour,         off: 1, max: 23, invalid: 0xff }
+      - { name: eta_minute,       off: 2, max: 59, invalid: 0xff }
+      - { name: compass,          off: 3, scale: 7.5, min: 0, max: 360, invalid: 0x3f }   # heading, degrees
+      # Stock: 1 ETA. The captured 3 is not known.
+      - { name: time_type,        off: 4, default: 3 }
+      - { name: remaining,        off: 5, type: u16, invalid: 0xffff }
+      # Stock: 1 12 h, 2 24 h. The captured 3 is not known.
+      - { name: time_format,      off: 7, default: 3 }
+      - { name: est_point_type,   off: 8, invalid: 0xff }
+    every: 600ms       # the captured ack rate
+    owns: ack
+    timeout: 5s
+    status: code
+    ref: "stock ClusterService$NaviCluster TBTSubInfo packer; the captured ack frame"
+
+  # OperationStatus, func 0x0D11: whether the navigation is guiding.
+  - name: tbt-guiding
+    dir: to_micom
+    hdr: cluster_tx
+    cmd: 0x11
+    length: 1
+    fields:
+      - { name: guiding, off: 0, type: bool }
+    end:
+      - { msg: tbt-guiding, set: { guiding: false } }
+    status: code
+    ref: "stock ClusterService$NaviCluster OperationStatus; GPM claimCluster/onStatus"

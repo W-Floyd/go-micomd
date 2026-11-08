@@ -33,6 +33,50 @@ identify:
     status: code
     ref: "micom firmware CV_E.USA.S5W_M.V002.208.220711, 0x0117 handler (0x7882a); answered in emulation"
 
+# The cluster's turn-by-turn tables, from the stock ClusterService$NaviCluster
+# packers and the GPM/DiPO maneuver setters (status code: never captured).
+enums:
+  # TBTInfo (0x0D04) display type.
+  maneuver:
+    none: 0                # the end of route
+    depart: 2              # sent with no distance
+    roundabout_exit_right: 32
+    roundabout_exit_left: 33
+    unknown: 64
+    straight: 65           # also a merge
+    slight_right: 66
+    turn_right: 67
+    sharp_right: 68
+    sharp_left: 69
+    turn_left: 70
+    slight_left: 71
+    # The setter's "L-hand" and "R-hand": which traffic side, or which way
+    # the U-turn bends, is a guess.
+    uturn_left: 72
+    uturn_right: 73
+    off_ramp_right: 81
+    off_ramp_left: 82
+    off_ramp: 86
+    # Roundabout entries by exit angle; which angle each covers is unknown.
+    roundabout_96: 96
+    roundabout_97: 97
+    roundabout_99: 99
+    roundabout_100: 100
+    roundabout_102: 102
+    roundabout_103: 103
+    roundabout_105: 105
+    roundabout_106: 106
+    # 112-117 are the destination kinds; 115 (the fourth) reads as arrived,
+    # a guess. The others are left unnamed.
+    destination: 112
+    arrived: 115
+    on_ramp: 172           # also a fork
+    on_ramp_right: 173
+    on_ramp_left: 174
+    ferry: 176
+  # The distance scale nibble; 15 is invalid.
+  distance_unit: { m: 0, km: 1, mi: 2, ft: 3, yd: 4 }
+
 messages:
   # The micom's variant record (RAM 0x40011964, EEPROM 0x0000), 13 bytes.
   # Vehicle and country are constants of the micom build (EV6 0xcc, Ioniq 5
