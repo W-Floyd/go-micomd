@@ -349,6 +349,14 @@ describes.
   keeps the message alive. A client that stops should send its fields as
   `null`.
 - **Chunked transport**: see Transports.
+- **Derived values**: Android's amp type is 0 internal if the variant code's
+  W29, else 2 Lexicon if W21, else 1 Actune. A field reads one place, so the
+  variant code keeps the two bits ("Internal amp", "External amp"). A
+  derived field (a value table keyed by several fields) would express it;
+  not added for one use.
+- **Variant code bytes 9-12**: the CPU-variant bytes 9-11 are opaque to
+  Android (Engineering Mode writes them); ADM reads 0 off / 1 on, but the
+  firmware sets bit 7, which reads as 128.
 - **opendbc's Hyundai/Kia DBCs** may name CAN signals the micom relays
   (speed, gear, state of charge). Cross-referencing their layouts and value
   tables against our undecoded frames (0x8D2D, 0x8D43, 0x8D47, the 0x4D17
