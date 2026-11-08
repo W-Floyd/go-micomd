@@ -16,11 +16,15 @@ import (
 )
 
 // inputEngine turns structured inputs into frames by the variant's to_micom
-// messages (docs/messages.md): it validates, merges, encodes and sends.
+// messages (docs/messages.md): it validates, merges, encodes and sends, and
+// runs each message's lifecycle (repeat, own, timeout, end).
 type inputEngine struct {
 	v    *Variant
 	send func(Frame) error
+	// own silences (true) or resumes (false) profile entries by name.
+	own  func(names []string, on bool)
 	now  func() time.Time
+	logf func(string, ...any)
 	// refused says why a message may not be sent, by name.
 	refused map[string]string
 
@@ -33,10 +37,14 @@ type msgState struct {
 	last      Frame
 	sent      bool
 	lastInput time.Time
+	nextSend  time.Time
 }
 
-func newInputEngine(v *Variant, inferred bool, send func(Frame) error, now func() time.Time) *inputEngine {
-	e := &inputEngine{v: v, send: send, now: now, refused: map[string]string{}, state: map[string]*msgState{}}
+// tickEvery bounds how late a repeat or a timeout runs.
+const tickEvery = 50 * time.Millisecond
+
+func newInputEngine(v *Variant, inferred bool, send func(Frame) error, own func([]string, bool), now func() time.Time, logf func(string, ...any)) *inputEngine {
+	e := &inputEngine{v: v, send: send, own: own, now: now, logf: logf, refused: map[string]string{}, state: map[string]*msgState{}}
 	for n, m := range v.messages {
 		if m.status != "captured" && !inferred {
 			e.refused[n] = "status " + m.status + ": needs -allow-inferred"
@@ -95,6 +103,17 @@ func (e *inputEngine) handle(line []byte) error {
 	case e.refused[name] != "":
 		return fmt.Errorf("%s: %s", name, e.refused[name])
 	}
+	if end, ok := obj["end"]; ok {
+		if end != true || len(obj) != 1 {
+			return fmt.Errorf("%s: end is true and takes no fields", name)
+		}
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		if err := e.end(m); err != nil {
+			return fmt.Errorf("%s: end: %v", name, err)
+		}
+		return nil
+	}
 	vals, err := m.parse(obj)
 	if err != nil {
 		return fmt.Errorf("%s: %v", name, err)
@@ -111,20 +130,97 @@ func (e *inputEngine) handle(line []byte) error {
 	if err != nil {
 		return fmt.Errorf("%s: %v", name, err)
 	}
+	now := e.now()
 	if st == nil {
 		st = &msgState{}
 		e.state[name] = st
+		// Before the first frame, so the profile never sends beside it.
+		if o := e.v.owned(m); o != nil {
+			e.own(o, true)
+		}
 	}
-	st.vals, st.lastInput = merged, e.now()
+	st.vals, st.lastInput = merged, now
 	if st.sent && (!m.onChange || sameFrame(f, st.last)) {
 		st.last = f
 		return nil
 	}
-	st.last, st.sent = f, true
+	st.last, st.sent, st.nextSend = f, true, now.Add(m.every)
 	if err := e.send(f); err != nil {
 		return fmt.Errorf("%s: %v", name, err)
 	}
 	return nil
+}
+
+// end runs m's end steps, then makes it inactive and resumes what it owned.
+// e.mu is held.
+func (e *inputEngine) end(m *msgSpec) error {
+	var errs []error
+	for _, s := range m.end {
+		t := e.v.messages[s.msg]
+		ts := e.state[t.name]
+		vals := map[string]inValue{}
+		if ts != nil {
+			maps.Copy(vals, ts.vals)
+		}
+		maps.Copy(vals, s.set)
+		f, err := t.encode(vals)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s: %v", t.name, err))
+			continue
+		}
+		if ts != nil && t != m {
+			// Another active message keeps the new values, and repeats them.
+			ts.vals, ts.last = vals, f
+		}
+		if err := e.send(f); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %v", t.name, err))
+		}
+	}
+	if e.state[m.name] != nil {
+		delete(e.state, m.name)
+		if o := e.v.owned(m); o != nil {
+			e.own(o, false)
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// tick repeats what is due and ends what has gone stale.
+func (e *inputEngine) tick(now time.Time) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for _, n := range sortedKeys(e.state) {
+		st := e.state[n]
+		if st == nil {
+			continue // ended by an earlier message's end
+		}
+		m := e.v.messages[n]
+		if m.timeout > 0 && now.Sub(st.lastInput) >= m.timeout {
+			if err := e.end(m); err != nil {
+				e.logf("input: %s: end after %v without input: %v", n, m.timeout, err)
+			}
+			continue
+		}
+		if m.every > 0 && !now.Before(st.nextSend) {
+			st.nextSend = now.Add(m.every)
+			if err := e.send(st.last); err != nil {
+				e.logf("input: %s: %v", n, err)
+			}
+		}
+	}
+}
+
+func (e *inputEngine) run(ctx context.Context) {
+	t := time.NewTicker(tickEvery)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			e.tick(e.now())
+		}
+	}
 }
 
 // receives is whether name is one of the variant's from_micom messages.
@@ -144,9 +240,10 @@ func (v *Variant) receives(name string) bool {
 // and the CPU-alive frame are refused whatever the variant says. It
 // returns when ctx ends, and removes the socket.
 func ServeInput(ctx context.Context, d *Daemon, path string, inferred bool) error {
-	e := newInputEngine(d.cfg.Variant, inferred, d.sendMessage, d.cfg.Now)
+	e := newInputEngine(d.cfg.Variant, inferred, d.sendMessage, d.own, d.cfg.Now, d.logf)
 	ok, refused := e.enabled()
 	d.logf("input %s: messages %s; refused: %s", path, listOrNone(ok), listOrNone(refused))
+	go e.run(ctx)
 	return serveUnix(ctx, path, func(c net.Conn) { serveInputConn(e, c) })
 }
 

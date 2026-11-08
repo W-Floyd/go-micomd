@@ -94,6 +94,37 @@ type Daemon struct {
 	aliveRx, aliveTx atomic.Uint64
 	aliveCount       byte // reader goroutine only
 	telem            *telemetry
+
+	owned map[string]int // profile entries an active input message replaces; under wmu
+}
+
+// own silences (on) or resumes the profile entries named, for an input
+// message that replaces them while it is active. It takes the write lock,
+// so once it returns no frame of a silenced entry goes out.
+func (d *Daemon) own(names []string, on bool) {
+	d.wmu.Lock()
+	defer d.wmu.Unlock()
+	if d.owned == nil {
+		d.owned = map[string]int{}
+	}
+	for _, n := range names {
+		if on {
+			d.owned[n]++
+		} else if d.owned[n]--; d.owned[n] <= 0 {
+			delete(d.owned, n)
+		}
+	}
+}
+
+// writeRoutine writes a profile entry's frame unless an input message owns
+// the entry.
+func (d *Daemon) writeRoutine(name string, f Frame) error {
+	d.wmu.Lock()
+	defer d.wmu.Unlock()
+	if d.owned[name] > 0 {
+		return nil
+	}
+	return d.writeLocked(f)
 }
 
 // New makes a Daemon; Run starts it.
@@ -174,6 +205,10 @@ func (d *Daemon) sendMessage(f Frame) error {
 func (d *Daemon) write(f Frame) error {
 	d.wmu.Lock()
 	defer d.wmu.Unlock()
+	return d.writeLocked(f)
+}
+
+func (d *Daemon) writeLocked(f Frame) error {
 	if _, err := d.cfg.Port.Write(f.Encode()); err != nil {
 		return err
 	}
@@ -205,7 +240,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 				case <-ctx.Done():
 					return
 				case <-t.C:
-					if err := d.write(p.Build(d.cfg.Now())); err != nil {
+					if err := d.writeRoutine(p.Name, p.Build(d.cfg.Now())); err != nil {
 						errc <- fmt.Errorf("micom: %s: %w", p.Name, err)
 						return
 					}
