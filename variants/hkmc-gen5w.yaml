@@ -1,0 +1,35 @@
+# Family base: Hyundai/Kia/Genesis head units on the Mobis DAudio Plus Gen5 Wide
+# (Telechips TCC803x) software stack. Only what the shared stock code says;
+# what one car showed goes in that car's file.
+#
+# Not here, because it is micomd's own code: framing and checksum, the
+# CPU-alive exchange (01 8a 01 81 / 8a 01 01 01, cmd 0f), the send denylist.
+schema: 1
+name: hkmc-gen5w
+title: "HKMC Gen5 Wide family base: keepalive and shared layouts only"
+abstract: true
+
+headers:
+  # sendPacket(0x8a, module 1, func 0x01xx), the framing of the captured
+  # 0x010F alive reply.
+  system_tx: { hdr: "8a 01 01 01", dir: to_micom, status: captured, ref: "the CPU-alive reply" }
+  system_rx: { hdr: "01 8a 01 81", dir: from_micom, status: captured, ref: "the CPU-alive request" }
+  # MicomAudioService.sendCommand: sndId 0x85, rcvId 2, type 1.
+  audio_tx: { hdr: "85 02 01 02", dir: to_micom, status: captured, ref: "stock micomd strace, source switch" }
+
+identify:
+  # Asks the micom for its variant coding. Sent only with -identify-request,
+  # and, while it is inferred, -allow-inferred.
+  request:
+    name: variant-code-request
+    frame: "ff 8a 01 01 01 17 00 01 62"
+    status: inferred
+    ref: "jadx SystemService.requestVariantCode(): sendPacket(-118, 1, 279) = func 0x0117; retried 5 times (EVENT_VARIANTCODING_RETRY)"
+  # The answer, by analogy with the alive request (func 0x810F = 01 8a 01 81,
+  # cmd 0f). Its layout is unknown: it is named, not decoded.
+  reply:
+    name: "Variant code"
+    hdr: system_rx
+    cmd: 0x17
+    status: inferred
+    ref: "SystemService.onVariantCode / variantCodeFromMicom"
