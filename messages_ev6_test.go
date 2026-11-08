@@ -1,21 +1,26 @@
 package micom
 
 import (
+	"bytes"
 	"encoding/json"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
 
-// The EV6's cluster messages: input lines and the frames they send, whole
-// and with their checksums. Every frame sent also reads back (DecodeInput)
-// into an input that sends it again.
+// The EV6's to_micom messages: input lines and the frames they send, whole
+// and with their checksums. A line "rx FRAME" is a frame received; "INPUT
+// => ERROR" an input refused with that error. Every frame sent also reads
+// back (DecodeInput) into an input that encodes to it again.
 func TestEV6Messages(t *testing.T) {
 	v := ev6(t)
 	const (
 		ack         = "ff 8f 0d 01 0d 03 00 0a ff ff ff 0e 03 ff ff 03 ff 76" // captured
 		subInfoCode = "ff 8f 0d 01 0d 03 00 0a ff ff ff 3f 03 ff ff 03 ff 47" // -code-profile's tbt-sub-info
 		turnRight   = `{"msg":"tbt-turn","maneuver":"turn_right","direction":90,"distance":0,"distance_tenths":3,"unit":"km","bar":30}`
+		ackOff      = `{"msg":"shutdown-ack","stage":"power_off_request"}`
+		ackRail     = `{"msg":"shutdown-ack","stage":"rail_off"}`
 	)
 	for _, tc := range []struct {
 		name   string
@@ -44,11 +49,31 @@ func TestEV6Messages(t *testing.T) {
 		// The micom firmware's frames, as micom-run took them.
 		{"backlight on", []string{`{"msg":"backlight","on":true}`}, []string{"ff 8c 08 01 08 02 00 02 01 73"}},
 		{"backlight off", []string{`{"msg":"backlight","on":false}`}, []string{"ff 8c 08 01 08 02 00 02 00 72"}},
-		{"shutdown acks, each sent", []string{
-			`{"msg":"shutdown-ack","stage":"power_off_request"}`,
-			`{"msg":"shutdown-ack","stage":"power_off_request"}`,
-			`{"msg":"shutdown-ack","stage":"rail_off"}`,
+		{"shutdown acks, each only in its power state", []string{
+			ackOff + " => requires Power state in [power_off_request]: none received yet",
+			ackRail + " => requires Power state in [rail_off]: none received yet",
+			"rx ff 01 8a 01 81 08 00 03 01 05 fb", // ACC on
+			ackOff + " => it is acc_on",
+			"rx ff 01 8a 01 81 08 00 04 00 04 00 fc",
+			ackOff + " => it is acc_off_hold",
+			"rx ff 01 8a 01 81 08 00 04 00 03 00 fb",
+			ackOff + " => it is bus_sleep",
+			ackRail + " => it is bus_sleep",
+			"rx ff 01 8a 01 81 08 00 04 00 01 00 f9",
+			ackRail + " => it is power_off_request",
+			ackOff, ackOff, // an ack repeated is still sent
+			"rx ff 01 8a 01 81 08 00 04 00 00 00 f8",
+			ackOff + " => it is rail_off",
+			ackRail,
+			"rx ff 01 8a 01 81 08 00 03 01 05 fb", // ACC back on
+			ackOff + " => it is acc_on",
+			ackRail + " => it is acc_on",
 		}, []string{"ff 8a 01 01 01 09 00 02 01 7e", "ff 8a 01 01 01 09 00 02 01 7e", "ff 8a 01 01 01 09 00 02 02 7d"}},
+		{"ACC back on before the ack", []string{
+			"rx ff 01 8a 01 81 08 00 04 00 01 00 f9",
+			"rx ff 01 8a 01 81 08 00 03 01 05 fb",
+			ackOff + " => it is acc_on",
+		}, nil},
 		{"dim mode manual", []string{`{"msg":"backlight-dim-mode","mode":"manual"}`}, []string{"ff 8c 08 01 08 01 00 02 03 72"}},
 		{"night level 5", []string{`{"msg":"backlight-period-level","period":"night","level":5}`}, []string{"ff 8c 08 01 08 07 00 03 02 05 71"}},
 		{"manual level 500", []string{`{"msg":"backlight-manual-level","level":500}`}, []string{"ff 8c 08 01 08 1a 00 03 01 f4 9e"}},
@@ -59,8 +84,21 @@ func TestEV6Messages(t *testing.T) {
 		all := InputGates{Inferred: true, Persistent: true}
 		e := newInputEngine(v, all, send, func([]string, bool) {}, now, t.Logf)
 		for _, l := range tc.lines {
+			if s, ok := strings.CutPrefix(l, "rx "); ok {
+				f, err := ParseHexFrame(s)
+				if err != nil {
+					t.Fatalf("%s: %v", tc.name, err)
+				}
+				e.observe(f)
+				continue
+			}
+			l, want, _ := strings.Cut(l, " => ")
+			got := ""
 			if err := e.handle([]byte(l)); err != nil {
-				t.Errorf("%s: %s: %v", tc.name, l, err)
+				got = err.Error()
+			}
+			if want == "" && got != "" || !strings.Contains(got, want) {
+				t.Errorf("%s: %s: %q, want %q", tc.name, l, got, want)
 			}
 		}
 		if len(sent) != len(tc.frames) {
@@ -80,12 +118,21 @@ func TestEV6Messages(t *testing.T) {
 				t.Errorf("%s: %v does not read back", tc.name, sent[i])
 				continue
 			}
-			in["msg"] = name
+			// Through JSON, as a client would send it back; not through an
+			// engine, whose requires would need the state replayed.
 			line, _ := json.Marshal(in)
-			var again []Frame
-			e2 := newInputEngine(v, all, func(f Frame) error { again = append(again, f); return nil }, func([]string, bool) {}, now, t.Logf)
-			if err := e2.handle(line); err != nil || len(again) != 1 || !sameFrame(again[0], sent[i]) {
-				t.Errorf("%s: %s sends %v (%v), want %v", tc.name, line, again, err, sent[i])
+			var back map[string]any
+			dec := json.NewDecoder(bytes.NewReader(line))
+			dec.UseNumber()
+			dec.Decode(&back)
+			m := v.messages[name]
+			vals, err := m.parse(back)
+			var again Frame
+			if err == nil {
+				again, err = m.encode(vals)
+			}
+			if err != nil || !sameFrame(again, sent[i]) {
+				t.Errorf("%s: %s %s encodes to %v (%v), want %v", tc.name, name, line, again, err, sent[i])
 			}
 		}
 	}

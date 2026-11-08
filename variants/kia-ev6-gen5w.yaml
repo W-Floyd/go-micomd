@@ -486,9 +486,8 @@ messages:
     status: code
     ref: "micom-run: ff 8c 08 01 08 02 00 02 01 73 on, ... 00 72 off; eMIOS0 ch 6 PWM"
   # The shutdown acks, 0x0109. Latched by the micom and not cleared on ACC
-  # on: send power_off_request only after Power state power_off_request,
-  # and rail_off only after rail_off, or a stale ack cuts the next ACC-off
-  # cycle short. micomd does not check this (docs/messages.md).
+  # on, so a stale ack cuts the next ACC-off cycle short: each is sent only
+  # while the last power state received is the one it answers.
   - name: shutdown-ack
     dir: to_micom
     hdr: system_tx
@@ -497,6 +496,9 @@ messages:
     fields:
       - { name: stage, off: 0, enum: shutdown_ack }
     on_change: false     # an ack repeated is still an ack
+    requires:
+      - { if: { stage: power_off_request }, field: "Power state", in: [ power_off_request ] }
+      - { if: { stage: rail_off },          field: "Power state", in: [ rail_off ] }
     status: code
     ref: "micom-run: 0x0109 [01] ff 8a 01 01 01 09 00 02 01 7e, [02] ... 02 7d; status bits b8, b12"
 
