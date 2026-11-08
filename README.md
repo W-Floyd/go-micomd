@@ -48,7 +48,10 @@ been seen. The protocol is described in the package documentation.
 
 `-dump` prints every frame received, decoded where known. `-clock` adds the two
 frames that carry the time, from this machine's clock: only use it when that clock
-is right, as the car may store it. `-noalive` stops answering the CPU-alive
+is right, as the car may store it. `-code-profile` sends the variant's
+corrections of captured routine frames, known only from stock code (on the EV6:
+the cluster's compass as "no heading" instead of a stale captured one).
+`-noalive` stops answering the CPU-alive
 requests, which makes the micom reset the SoC.
 
 The daemon owns the UART, so nothing else can read it. `-tap /run/micomd.sock`

@@ -72,6 +72,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	baud := fs.Int("baud", 115200, "baud rate of the link; 115200 8N1 raw is what Android's micomd sets (its tcsetattr: c_cflag 0x1002 = B115200 | CS8)")
 	dump := fs.Bool("dump", false, "print every frame received")
 	clock := fs.Bool("clock", false, "also send the two clock frames, from this machine's clock")
+	codeProfile := fs.Bool("code-profile", false, "send the variant's opt_in code profile entries, known only from stock code, in place of the captured ones they correct")
 	noAlive := fs.Bool("noalive", false, "do not answer the micom's CPU-alive requests (it resets the SoC if they go unanswered)")
 	keyFunc := fs.Uint("keyfunc", 0, "Func (hdr[3]<<8|cmd) of the micom's key frames, from a -dump capture; 0 leaves key injection off unless -keys")
 	keyMap := fs.String("keymap", "", "type.code=KEYNUM for push keys and type.code.up|down=KEYNUM for knobs, comma separated (decimal Linux key numbers: 2.6=115,2.7=114,9.1.up=115,9.1.down=114), for -keyfunc; with -keys, entries over the variant's")
@@ -176,6 +177,9 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 		return 1
 	}
 	profile := v.Profile()
+	if *codeProfile {
+		profile = v.CodeProfile()
+	}
 	if *clock {
 		profile = append(profile, v.ClockProfile()...)
 		lg.Printf("sending the clock frames from this machine's clock: %s", time.Now().Format(time.RFC3339))

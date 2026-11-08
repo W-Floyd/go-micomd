@@ -80,7 +80,7 @@ What a variant supplies:
 | | without flags | opt-in |
 |---|---|---|
 | frame names and decoding (`-dump`, `-tap`, Snapshot) | yes | |
-| the routine profile | yes | `-clock` adds its `opt_in: clock` frames |
+| the routine profile | yes | `-clock` adds its `opt_in: clock` frames; `-code-profile` swaps in its `opt_in: code` ones |
 | key injection | no (as before: `-keyfunc`) | `-keys`; `-keyfunc` and `-keymap` override entry by entry |
 | control-socket sends | no (as before: `-allow`) | `-allow-variant` (captured); `-allow-inferred` adds inferred and code entries |
 | the 0x0117 variant-code request | never | `-identify-request`, which while the request is inferred also needs `-allow-inferred` |
@@ -180,6 +180,13 @@ profile:                     # the only frames sent unasked: status must be capt
     # placeholders: {second} {minute} {hour} {day} {month} {year2}, payload only
     status: captured
     ref: "..."
+  - name: tbt-sub-info       # a captured frame corrected from stock code
+    every: 600ms
+    frame: "ff 8f 0d 01 0d 03 00 0a ff ff ff 3f 03 ff ff 03 ff 47"
+    opt_in: code             # only with -code-profile, in place of...
+    replaces: ack            # ...this routine entry (same header and command)
+    status: code             # the one profile status besides captured
+    ref: "..."
 
 send:                        # what the control socket may send, only when asked
   - { name: av-mute-set, frame: "ff 85 02 01 02 0b 00 03 02 01 70", status: captured, ref: "strace" }
@@ -210,7 +217,10 @@ A file can make frames sendable. Nothing in it can send arbitrary frames:
      length are fixed, as `ParsePattern` already demands.
    - A template's placeholders are the six clock fields, in the payload.
 2. **Only the two existing send paths.**
-   - The profile, sent unasked, takes `status: captured` frames only.
+   - The profile, sent unasked, takes `status: captured` frames only. The one
+     exception is `status: code` with `opt_in: code`: a correction of a
+     captured entry. It names that entry in `replaces`, which must be the
+     same header and command, and is sent only with `-code-profile`.
    - Send entries go out only when asked on the control socket, and only with
      `-allow-variant`.
    - Inferred and code entries additionally need `-allow-inferred`.

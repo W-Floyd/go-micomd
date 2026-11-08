@@ -174,6 +174,7 @@ type rawPeriodic struct {
 	Frame    string        `yaml:"frame,omitempty"`
 	Template string        `yaml:"template,omitempty"`
 	OptIn    string        `yaml:"opt_in,omitempty"`
+	Replaces string        `yaml:"replaces,omitempty"`
 	Status   string        `yaml:"status,omitempty"`
 	Ref      string        `yaml:"ref,omitempty"`
 	Note     string        `yaml:"note,omitempty"`

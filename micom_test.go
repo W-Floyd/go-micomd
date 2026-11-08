@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"net"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -54,8 +55,11 @@ func TestProfilesMatchCapture(t *testing.T) {
 		"status":    captured[2],
 		"clock-sec": captured[3],
 		"clock":     captured[4],
+		// Not captured: ack with the compass as 3f, from stock code.
+		"tbt-sub-info": "ff 8f 0d 01 0d 03 00 0a ff ff ff 3f 03 ff ff 03 ff 47",
 	}
-	for _, p := range append(DefaultProfile(), ClockProfile()...) {
+	code := defaultVariant().CodeProfile()
+	for _, p := range slices.Concat(DefaultProfile(), ClockProfile(), code) {
 		w, ok := want[p.Name]
 		if !ok {
 			t.Fatalf("no capture for %s", p.Name)
@@ -63,6 +67,14 @@ func TestProfilesMatchCapture(t *testing.T) {
 		if got := p.Build(now).Encode(); !bytes.Equal(got, unhex(t, w)) {
 			t.Errorf("%s: built %x, captured %s", p.Name, got, w)
 		}
+	}
+	// -code-profile sends the corrected frame instead of, not beside, ack.
+	names := []string{}
+	for _, p := range code {
+		names = append(names, p.Name)
+	}
+	if !slices.Equal(names, []string{"poll", "tbt-sub-info", "status"}) {
+		t.Errorf("code profile %v", names)
 	}
 }
 

@@ -80,12 +80,13 @@ type fieldSpec struct {
 }
 
 type periodicSpec struct {
-	name  string
-	every time.Duration
-	optIn string
-	hdr   [4]byte
-	cmd   byte
-	slots []slot
+	name     string
+	every    time.Duration
+	optIn    string
+	replaces string
+	hdr      [4]byte
+	cmd      byte
+	slots    []slot
 }
 
 // slot is one payload byte of a profile frame: fixed, or a clock field.
@@ -576,8 +577,14 @@ func compile(rv rawVariant) (*Variant, error) {
 			c.errf(where, "remove: nothing inherited by that name")
 			continue
 		}
-		if p.Status != "captured" {
-			c.errf(where, "status is %q: a profile frame is sent unasked, so it must be captured", p.Status)
+		// A profile frame is sent unasked, so it must be captured. One known
+		// only from stock code is sent only with -code-profile, in place of
+		// the captured frame it corrects.
+		switch {
+		case p.OptIn == "code" && p.Status != "code":
+			c.errf(where, "opt_in code is for status code, not %q", p.Status)
+		case p.OptIn != "code" && p.Status != "captured":
+			c.errf(where, "status is %q: a profile frame is sent unasked, so it must be captured (or code, with opt_in code)", p.Status)
 		}
 		if p.Ref == "" {
 			c.errf(where, "ref is required")
@@ -585,10 +592,19 @@ func compile(rv rawVariant) (*Variant, error) {
 		if p.Every <= 0 {
 			c.errf(where, "every must be positive")
 		}
-		if p.OptIn != "" && p.OptIn != "clock" {
-			c.errf(where, "opt_in is clock or nothing, not %q", p.OptIn)
+		switch p.OptIn {
+		case "", "clock":
+			if p.Replaces != "" {
+				c.errf(where, "replaces is only for opt_in code")
+			}
+		case "code":
+			if p.Replaces == "" {
+				c.errf(where, "opt_in code needs replaces: the captured entry it stands in for")
+			}
+		default:
+			c.errf(where, "opt_in is clock, code or nothing, not %q", p.OptIn)
 		}
-		ps := periodicSpec{name: p.Name, every: p.Every, optIn: p.OptIn}
+		ps := periodicSpec{name: p.Name, every: p.Every, optIn: p.OptIn, replaces: p.Replaces}
 		switch {
 		case (p.Frame == "") == (p.Template == ""):
 			c.errf(where, "exactly one of frame and template")
@@ -613,6 +629,18 @@ func compile(rv rawVariant) (*Variant, error) {
 		}
 		sendable(where, ps.hdr, ps.cmd)
 		v.profile = append(v.profile, ps)
+	}
+	for _, p := range v.profile {
+		if p.replaces == "" {
+			continue
+		}
+		i := slices.IndexFunc(v.profile, func(o periodicSpec) bool { return o.name == p.replaces })
+		switch {
+		case i < 0 || v.profile[i].optIn != "":
+			c.errf("profile["+p.name+"]", "replaces %q: no routine entry by that name", p.replaces)
+		case v.profile[i].hdr != p.hdr || v.profile[i].cmd != p.cmd:
+			c.errf("profile["+p.name+"]", "replaces %q: a different frame (header and command must match)", p.replaces)
+		}
 	}
 
 	seen = map[string]bool{}

@@ -159,6 +159,24 @@ func (v *Variant) Profile() []Periodic { return v.periodic("") }
 // for a caller whose clock is right.
 func (v *Variant) ClockProfile() []Periodic { return v.periodic("clock") }
 
+// CodeProfile is Profile with each opt_in code entry, known only from stock
+// code, in place of the captured entry it replaces: for -code-profile.
+func (v *Variant) CodeProfile() []Periodic {
+	by := map[string]periodicSpec{}
+	for _, p := range v.profile {
+		if p.optIn == "code" {
+			by[p.replaces] = p
+		}
+	}
+	out := v.periodic("")
+	for i, p := range out {
+		if r, ok := by[p.Name]; ok {
+			out[i] = Periodic{Name: r.name, Every: r.every, Build: r.build}
+		}
+	}
+	return out
+}
+
 func (v *Variant) periodic(optIn string) []Periodic {
 	out := []Periodic{}
 	for _, p := range v.profile {

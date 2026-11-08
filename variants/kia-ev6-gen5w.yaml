@@ -183,11 +183,24 @@ profile:
     frame: "ff 88 0c 01 0c 5c 00 01 2b"
     status: captured
     ref: "logcat MicomD 2026-10-16; strace 2026-11-07 identical"
+  # Not an ack: the cluster's TBTSubInfo, func 0x0D03. Remaining distance and
+  # ETA (invalid: no route), then the compass, byte 3 = heading / 7.5 degrees.
+  # The capture's 0e (105 degrees; 1d in the 2026-11-07 strace) was the car's
+  # heading then, so replaying it shows a wrong compass.
   - name: ack
     every: 600ms
     frame: "ff 8f 0d 01 0d 03 00 0a ff ff ff 0e 03 ff ff 03 ff 76"
     status: captured
     ref: "logcat MicomD 2026-10-16"
+  # The same with the compass as 3f, "no heading", as stock sends when its
+  # route ends. Not captured yet: only with -code-profile.
+  - name: tbt-sub-info
+    every: 600ms
+    frame: "ff 8f 0d 01 0d 03 00 0a ff ff ff 3f 03 ff ff 03 ff 47"
+    opt_in: code
+    replaces: ack
+    status: code
+    ref: "stock GpmNaviTBTManager / ClusterService$NaviCluster TBTSubInfo packer (hmg_nemesis projection-tbt, stock automotive-service smali)"
   - name: status
     every: 1s
     frame: "ff c3 4d 00 4d 17 00 09 08 d5 fc db 05 ff 81 2b 88"
