@@ -117,28 +117,6 @@ func (d *decoder) match(p []byte) bool {
 	return true
 }
 
-func (fs fieldSpec) read(p []byte) Field {
-	f := Field{Name: fs.name, Unit: fs.unit}
-	switch {
-	case fs.text:
-		b := p[fs.off : fs.off+fs.size]
-		f.Text, f.Valid = string(b), true
-		for _, c := range b {
-			if c < 0x20 || c > 0x7e {
-				f.Text, f.Valid = "", false
-			}
-		}
-	case fs.bit:
-		f.Value, f.Valid = int(p[fs.off]>>fs.shift&fs.mask), true
-	case fs.size == 1:
-		f.Value, f.Valid = int(p[fs.off]), fs.naNone || p[fs.off] != 0xff
-	default:
-		f.Value = be16(p[fs.off:])
-		f.Valid = fs.naNone || f.Value != 0xffff
-	}
-	return f
-}
-
 // ApplyClimate folds f into c, by the variant's state frames.
 func (v *Variant) ApplyClimate(c *CarClimate, f Frame) ClimateEvent {
 	if len(f.Payload) != 1 {

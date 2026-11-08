@@ -33,29 +33,30 @@ identify:
     status: code
     ref: "micom firmware CV_E.USA.S5W_M.V002.208.220711, 0x0117 handler (0x7882a); answered in emulation"
 
-decode:
+messages:
   # The micom's variant record (RAM 0x40011964, EEPROM 0x0000), 13 bytes.
   # Vehicle and country are constants of the micom build (EV6 0xcc, Ioniq 5
   # 0xbd, Sonata 0x6e; country 01 in US and global builds, 00 in Korean). The
   # rest is the car's coding from the EEPROM. Values seen so far are only the
   # defaults an empty EEPROM gives, in emulation.
   - name: "Variant code"
+    dir: from_micom
     hdr: system_rx
     cmd: 0x17
-    min_len: 13
+    min_length: 13
     fields:
-      - { name: "Vehicle",      off: 0, na: none }
-      - { name: "Country",      off: 1, na: none }
+      - { name: "Vehicle",      off: 0 }
+      - { name: "Country",      off: 1 }
       # A 32-bit word, big-endian. Bit 0 RDS/AF, bit 30 has-modem, bits
       # 27..25 a 3-bit setting (bit 25 set in US builds, clear in Korean).
-      - { name: "Options high", off: 2, size: 2, na: none }
-      - { name: "Options low",  off: 4, size: 2, na: none }
-      - { name: "Byte 6",       off: 6, na: none }
+      - { name: "Options high", off: 2, type: u16 }
+      - { name: "Options low",  off: 4, type: u16 }
+      - { name: "Byte 6",       off: 6 }
       # "en" in US and global builds, "ko" in Korean ones.
-      - { name: "Language",     off: 7, size: 2, text: true }
-      - { name: "Test mode",    off: 9, na: none }
-      - { name: "Setting 10",   off: 10, na: none }
-      - { name: "Setting 11",   off: 11, na: none }
-      - { name: "Test mode 2",  off: 12, na: none }
+      - { name: "Language",     off: 7, type: str, size: 2 }
+      - { name: "Test mode",    off: 9 }
+      - { name: "Setting 10",   off: 10 }
+      - { name: "Setting 11",   off: 11 }
+      - { name: "Test mode 2",  off: 12 }
     status: code
     ref: "micom firmware 0x0117 handler; 61 S5W_M micom builds in emulation (en/ko, country 01/00)"

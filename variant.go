@@ -64,21 +64,13 @@ type decoder struct {
 	hdr, mask [4]byte
 	minLen    int
 	guards    []guard
-	fields    []interface{ read([]byte) Field }
+	fields    []*field
 }
 
 type guard struct {
 	length, off int
 	hasLen      bool
 	eq          byte
-}
-
-type fieldSpec struct {
-	name, unit  string
-	off, size   int
-	naNone, bit bool
-	text        bool
-	mask, shift byte
 }
 
 type periodicSpec struct {
@@ -223,7 +215,9 @@ func duplicates(rv rawVariant) error {
 		}
 	}
 	check("signals", namesOf(rv.Signals, func(x rawSignal) string { return x.Name }))
-	check("decode", namesOf(rv.Decode, func(x rawDecoder) string { return x.Name }))
+	if rv.Decode != nil {
+		errs = append(errs, fmt.Errorf("variant %s: decode: moved to messages: (dir: from_micom), docs/messages.md", rv.Name))
+	}
 	check("messages", namesOf(rv.Messages, func(x rawMessage) string { return x.Name }))
 	check("profile", namesOf(rv.Profile, func(x rawPeriodic) string { return x.Name }))
 	check("send", namesOf(rv.Send, func(x rawSend) string { return x.Name }))
@@ -312,7 +306,6 @@ func mergeVariant(p, c rawVariant) rawVariant {
 		out.Keys = &k
 	}
 	out.Signals = mergeNamed(p.Signals, c.Signals, func(x rawSignal) (string, bool) { return x.Name, x.Remove })
-	out.Decode = mergeNamed(p.Decode, c.Decode, func(x rawDecoder) (string, bool) { return x.Name, x.Remove })
 	out.Enums = mergeMap(p.Enums, c.Enums)
 	out.Messages = mergeNamed(p.Messages, c.Messages, func(x rawMessage) (string, bool) { return x.Name, x.Remove })
 	out.Profile = mergeNamed(p.Profile, c.Profile, func(x rawPeriodic) (string, bool) { return x.Name, x.Remove })
@@ -570,7 +563,6 @@ func compile(rv rawVariant) (*Variant, error) {
 		compileKeys(c, v, *k, hdrOf)
 	}
 	compileSignals(c, v, rv.Signals, hdrOf)
-	compileDecoders(c, v, rv.Decode, hdrOf)
 	compileMessages(c, v, rv.Messages, compileEnums(c, rv.Enums), hdrOf, sendable)
 
 	seen := map[string]bool{}
@@ -888,96 +880,6 @@ func compileSignals(c *checker, v *Variant, raws []rawSignal, hdrOf func(string,
 			}
 			v.signals[hc] = s
 		}
-	}
-}
-
-func compileDecoders(c *checker, v *Variant, raws []rawDecoder, hdrOf func(string, string) ([4]byte, bool)) {
-	names := map[string]bool{}
-	for _, r := range raws {
-		where := "decode[" + r.Name + "]"
-		if r.Name == "" || names[r.Name] {
-			c.errf(where, "a name is required, once")
-		}
-		names[r.Name] = true
-		if r.Remove {
-			c.errf(where, "remove: nothing inherited by that name")
-			continue
-		}
-		checkStatus(c, where, r.Status, false)
-		d := &decoder{name: r.Name, minLen: r.MinLen}
-		need := r.MinLen
-		for _, g := range r.When {
-			switch {
-			case g.Len != nil && g.Off == nil && g.Eq == nil:
-				d.guards = append(d.guards, guard{length: *g.Len, hasLen: true})
-				need = max(need, *g.Len)
-			case g.Len == nil && g.Off != nil && g.Eq != nil:
-				d.guards = append(d.guards, guard{off: *g.Off, eq: *g.Eq})
-			default:
-				c.errf(where, "a guard is {len: N} or {off: N, eq: B}")
-			}
-		}
-		if len(r.Fields) == 0 {
-			c.errf(where, "fields are required")
-		}
-		for _, f := range r.Fields {
-			fs := fieldSpec{name: f.Name, unit: f.Unit, off: f.Off, size: f.Size}
-			if fs.size == 0 {
-				fs.size = 1
-			}
-			switch f.NA {
-			case "":
-			case "none":
-				fs.naNone = true
-			default:
-				c.errf(where+"."+f.Name, "na is none or absent, not %q", f.NA)
-			}
-			if f.Mask != nil || f.Shift != nil {
-				if f.Size != 0 || f.NA != "" {
-					c.errf(where+"."+f.Name, "a bit field (mask, shift) has no size or na")
-				}
-				fs.bit, fs.mask = true, 0xff
-				if f.Mask != nil {
-					fs.mask = *f.Mask
-				}
-				if f.Shift != nil {
-					fs.shift = *f.Shift
-				}
-				if fs.shift > 7 {
-					c.errf(where+"."+f.Name, "shift is 0-7")
-				}
-			}
-			switch {
-			case f.Text:
-				if fs.bit || f.NA != "" || f.Unit != "" {
-					c.errf(where+"."+f.Name, "a text field has no mask, shift, na or unit")
-				}
-				if fs.size > 8 {
-					c.errf(where+"."+f.Name, "a text field's size is 1 to 8")
-				}
-				fs.text = true
-			case fs.size != 1 && fs.size != 2:
-				c.errf(where+"."+f.Name, "size is 1 or 2")
-			}
-			if f.Name == "" || f.Off < 0 || f.Off+fs.size > need {
-				c.errf(where+"."+f.Name, "needs a name and must lie within the %d bytes min_len or a len guard promises", need)
-			}
-			d.fields = append(d.fields, fs)
-		}
-		for _, g := range d.guards {
-			if !g.hasLen && g.off >= need {
-				c.errf(where, "guard off %d is beyond the %d bytes min_len or a len guard promises", g.off, need)
-			}
-		}
-		// A decoder may leave header bytes open ("0c 88 ?? 8c"): it only reads.
-		if hdr, mask, err := parseHdrMask(r.Hdr); err == nil {
-			d.hdr, d.mask = hdr, mask
-		} else if hdr, ok := hdrOf(where, r.Hdr); ok {
-			d.hdr, d.mask = hdr, [4]byte{0xff, 0xff, 0xff, 0xff}
-		} else {
-			continue
-		}
-		v.decoders[r.Cmd] = append(v.decoders[r.Cmd], d)
 	}
 }
 

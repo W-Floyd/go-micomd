@@ -12,18 +12,19 @@ import (
 // It is decoded strictly: an unknown key is an error, as is a repeated one.
 
 type rawVariant struct {
-	Schema   int                         `yaml:"schema"`
-	Name     string                      `yaml:"name"`
-	Title    string                      `yaml:"title,omitempty"`
-	Extends  string                      `yaml:"extends,omitempty"`
-	Abstract bool                        `yaml:"abstract,omitempty"`
-	Match    *rawMatch                   `yaml:"match,omitempty"`
-	Expect   map[string]int              `yaml:"expect,omitempty"`
-	Identify *rawIdentify                `yaml:"identify,omitempty"`
-	Headers  map[string]rawHeader        `yaml:"headers,omitempty"`
-	Keys     *rawKeys                    `yaml:"keys,omitempty"`
-	Signals  []rawSignal                 `yaml:"signals,omitempty"`
-	Decode   []rawDecoder                `yaml:"decode,omitempty"`
+	Schema   int                  `yaml:"schema"`
+	Name     string               `yaml:"name"`
+	Title    string               `yaml:"title,omitempty"`
+	Extends  string               `yaml:"extends,omitempty"`
+	Abstract bool                 `yaml:"abstract,omitempty"`
+	Match    *rawMatch            `yaml:"match,omitempty"`
+	Expect   map[string]int       `yaml:"expect,omitempty"`
+	Identify *rawIdentify         `yaml:"identify,omitempty"`
+	Headers  map[string]rawHeader `yaml:"headers,omitempty"`
+	Keys     *rawKeys             `yaml:"keys,omitempty"`
+	Signals  []rawSignal          `yaml:"signals,omitempty"`
+	// Decode is refused, with where it went: it is now messages:.
+	Decode   any                         `yaml:"decode,omitempty"`
 	Enums    map[string]map[string]int64 `yaml:"enums,omitempty"`
 	Messages []rawMessage                `yaml:"messages,omitempty"`
 	Profile  []rawPeriodic               `yaml:"profile,omitempty"`
@@ -140,34 +141,12 @@ type rawBurst struct {
 	Begin uint8 `yaml:"begin"`
 }
 
-type rawDecoder struct {
-	Name   string     `yaml:"name"`
-	Hdr    string     `yaml:"hdr,omitempty"`
-	Cmd    uint8      `yaml:"cmd"`
-	MinLen int        `yaml:"min_len,omitempty"`
-	When   []rawGuard `yaml:"when,omitempty"`
-	Fields []rawField `yaml:"fields,omitempty"`
-	Status string     `yaml:"status,omitempty"`
-	Ref    string     `yaml:"ref,omitempty"`
-	Note   string     `yaml:"note,omitempty"`
-	Remove bool       `yaml:"remove,omitempty"`
-}
-
+// rawGuard is a from_micom message's guard; len is refused there (it is
+// length:), kept so the error says so.
 type rawGuard struct {
 	Len *int   `yaml:"len,omitempty"`
 	Off *int   `yaml:"off,omitempty"`
 	Eq  *uint8 `yaml:"eq,omitempty"`
-}
-
-type rawField struct {
-	Name  string `yaml:"name"`
-	Off   int    `yaml:"off"`
-	Size  int    `yaml:"size,omitempty"`
-	Unit  string `yaml:"unit,omitempty"`
-	NA    string `yaml:"na,omitempty"`
-	Mask  *uint8 `yaml:"mask,omitempty"`
-	Shift *uint8 `yaml:"shift,omitempty"`
-	Text  bool   `yaml:"text,omitempty"`
 }
 
 type rawPeriodic struct {

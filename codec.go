@@ -86,6 +86,8 @@ func (f *field) read(p []byte) Field {
 	}
 	raw := f.load(p)
 	if f.hasInvalid && raw == f.invalid {
+		// The marker itself, as Decode always reported it.
+		out.Value = int(raw)
 		return out
 	}
 	r := f.signedRaw(raw)
