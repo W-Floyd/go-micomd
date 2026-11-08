@@ -158,6 +158,19 @@ func (d *Daemon) Send(f Frame) error {
 	return d.write(f)
 }
 
+// sendMessage puts a frame built from a to_micom message on the wire. Its
+// header was checked when the variant loaded; the CPU-alive frame and the
+// denylist are refused again here, whatever the variant says.
+func (d *Daemon) sendMessage(f Frame) error {
+	if (f.Hdr == hdrAliveReply || f.Hdr == hdrAliveReq) && f.Cmd == cmdAlive {
+		return fmt.Errorf("micom: %v: the CPU-alive exchange is micomd's own", f)
+	}
+	if why := denied(f.Hdr, f.Cmd); why != "" {
+		return fmt.Errorf("micom: %v is never sent: %s", f, why)
+	}
+	return d.write(f)
+}
+
 func (d *Daemon) write(f Frame) error {
 	d.wmu.Lock()
 	defer d.wmu.Unlock()

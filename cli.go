@@ -91,7 +91,8 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	showVariant := fs.Bool("show-variant", false, "print the chosen variant, its parents merged in, and exit")
 	keys := fs.Bool("keys", false, "inject the variant's keys: its key frame and keymap (-keyfunc and -keymap override)")
 	allowVariant := fs.Bool("allow-variant", false, "the control socket may also send the variant's captured send entries")
-	allowInferred := fs.Bool("allow-inferred", false, "with -allow-variant also the variant's inferred send entries, and with -identify-request an inferred request")
+	allowInferred := fs.Bool("allow-inferred", false, "with -allow-variant also the variant's inferred send entries, with -identify-request an inferred request, and with -input the messages known only from code or inference")
+	inputPath := fs.String("input", "", "serve the structured input here: one JSON object per line, {\"msg\": NAME, field: value, ...}, encoded by the variant's to_micom messages (docs/messages.md)")
 	identify := fs.Bool("identify-request", false, "ask the micom for its variant coding once, at start (the request is inferred: it needs -allow-inferred)")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -247,6 +248,13 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 		go func() {
 			if err := ServeControl(ctx, d, *ctlPath); err != nil {
 				lg.Printf("control socket: %v", err)
+			}
+		}()
+	}
+	if *inputPath != "" {
+		go func() {
+			if err := ServeInput(ctx, d, *inputPath, *allowInferred); err != nil {
+				lg.Printf("input socket: %v", err)
 			}
 		}()
 	}

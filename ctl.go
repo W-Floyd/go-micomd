@@ -163,22 +163,38 @@ func sameFrame(a, b Frame) bool {
 // can do is what the daemon was started with, never more. It returns when ctx
 // ends, and removes the socket.
 func ServeControl(ctx context.Context, d *Daemon, path string) error {
+	return serveUnix(ctx, path, func(c net.Conn) { serveControlConn(d, c) })
+}
+
+// listenUnix listens on a unix socket at path, mode 0660, replacing a stale
+// socket but never a live one or another kind of file.
+func listenUnix(path string) (net.Listener, error) {
 	if c, err := net.Dial("unix", path); err == nil {
 		c.Close()
-		return fmt.Errorf("micom: %s is already served", path)
+		return nil, fmt.Errorf("micom: %s is already served", path)
 	}
 	if fi, err := os.Lstat(path); err == nil {
 		if fi.Mode()&os.ModeSocket == 0 {
-			return fmt.Errorf("micom: %s exists and is not a socket", path)
+			return nil, fmt.Errorf("micom: %s exists and is not a socket", path)
 		}
 		os.Remove(path)
 	}
 	ln, err := net.Listen("unix", path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := os.Chmod(path, 0o660); err != nil {
 		ln.Close()
+		return nil, err
+	}
+	return ln, nil
+}
+
+// serveUnix runs serve on each connection until ctx ends, then removes the
+// socket.
+func serveUnix(ctx context.Context, path string, serve func(net.Conn)) error {
+	ln, err := listenUnix(path)
+	if err != nil {
 		return err
 	}
 	go func() {
@@ -194,7 +210,7 @@ func ServeControl(ctx context.Context, d *Daemon, path string) error {
 			}
 			return err
 		}
-		go serveControlConn(d, c)
+		go serve(c)
 	}
 }
 

@@ -2,7 +2,6 @@ package micom
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"os"
@@ -24,22 +23,8 @@ type Tap struct {
 // ListenTap serves path, which is mode 0660. A leftover socket nobody listens
 // on is replaced; one that is served, or anything else at path, is an error.
 func ListenTap(path string) (*Tap, error) {
-	if c, err := net.Dial("unix", path); err == nil {
-		c.Close()
-		return nil, fmt.Errorf("micom: %s is already served", path)
-	}
-	if fi, err := os.Lstat(path); err == nil {
-		if fi.Mode()&os.ModeSocket == 0 {
-			return nil, fmt.Errorf("micom: %s exists and is not a socket", path)
-		}
-		os.Remove(path)
-	}
-	ln, err := net.Listen("unix", path)
+	ln, err := listenUnix(path)
 	if err != nil {
-		return nil, err
-	}
-	if err := os.Chmod(path, 0o660); err != nil {
-		ln.Close()
 		return nil, err
 	}
 	t := &Tap{path: path, ln: ln, clients: map[chan string]struct{}{}}
