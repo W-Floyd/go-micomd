@@ -110,10 +110,11 @@ type telemetry struct {
 	frames    map[string]*seenFrame
 	lastAlive time.Time
 	markedAt  time.Time
+	variant   *Variant // names and decodes the frames
 }
 
-func newTelemetry() *telemetry {
-	return &telemetry{fields: map[string]*seenField{}, frames: map[string]*seenFrame{}}
+func newTelemetry(v *Variant) *telemetry {
+	return &telemetry{fields: map[string]*seenField{}, frames: map[string]*seenFrame{}, variant: v}
 }
 
 func (t *telemetry) add(f Frame, now time.Time) {
@@ -122,7 +123,7 @@ func (t *telemetry) add(f Frame, now time.Time) {
 	key := fmt.Sprintf("%02x%02x%02x%02x %02x", f.Hdr[0], f.Hdr[1], f.Hdr[2], f.Hdr[3], f.Cmd)
 	sf := t.frames[key]
 	if sf == nil {
-		sf = &seenFrame{name: FrameName(f), first: len(t.frames)}
+		sf = &seenFrame{name: t.variant.FrameName(f), first: len(t.frames)}
 		t.frames[key] = sf
 	}
 	sf.n++
@@ -131,7 +132,7 @@ func (t *telemetry) add(f Frame, now time.Time) {
 	if IsAliveRequest(f) {
 		t.lastAlive = now
 	}
-	for _, fl := range Decode(f) {
+	for _, fl := range t.variant.Decode(f) {
 		sv := t.fields[fl.Name]
 		if sv == nil {
 			sv = &seenField{}

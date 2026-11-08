@@ -15,8 +15,13 @@ import (
 // or any stream, which is how the tests run it. Run closes it on the way out.
 type Config struct {
 	Port io.ReadWriteCloser
-	// Profile is every frame this daemon may send, and when. Nil means
-	// DefaultProfile. It is the allowlist: Send refuses what is not in it.
+	// Variant is the car: it names and decodes the frames for Snapshot, and
+	// gives the profile when Profile is nil. Nil means DefaultVariant. The
+	// CPU-alive answer does not depend on it.
+	Variant *Variant
+	// Profile is every frame this daemon may send, and when. Nil means the
+	// variant's (DefaultProfile for the default). It is the allowlist: Send
+	// refuses what is not in it.
 	Profile []Periodic
 	// OnFrame sees every frame received, valid by its checksum. It runs on
 	// the reader's goroutine: keep it short.
@@ -93,13 +98,16 @@ type Daemon struct {
 
 // New makes a Daemon; Run starts it.
 func New(cfg Config) *Daemon {
+	if cfg.Variant == nil {
+		cfg.Variant = defaultVariant()
+	}
 	if cfg.Profile == nil {
-		cfg.Profile = DefaultProfile()
+		cfg.Profile = cfg.Variant.Profile()
 	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
-	return &Daemon{cfg: cfg, profile: cfg.Profile, rxCmds: map[byte]uint64{}, count: -1, telem: newTelemetry()}
+	return &Daemon{cfg: cfg, profile: cfg.Profile, rxCmds: map[byte]uint64{}, count: -1, telem: newTelemetry(cfg.Variant)}
 }
 
 func (d *Daemon) logf(format string, args ...any) {
@@ -109,10 +117,14 @@ func (d *Daemon) logf(format string, args ...any) {
 }
 
 // allowed reports whether f is one the profile can produce: same header and
-// command as an entry's frame now.
+// command as an entry's frame now; or one Allow or AllowPatterns lists. A
+// denylisted frame never is.
 func (d *Daemon) allowed(f Frame) bool {
 	if !d.cfg.NoAlive && f.Hdr == hdrAliveReply && f.Cmd == cmdAlive {
 		return true
+	}
+	if denied(f.Hdr, f.Cmd) != "" {
+		return false
 	}
 	now := d.cfg.Now()
 	for _, p := range d.profile {
@@ -138,6 +150,9 @@ func (d *Daemon) allowed(f Frame) bool {
 // the daemon cannot be made to send what it was not configured to.
 func (d *Daemon) Send(f Frame) error {
 	if !d.allowed(f) {
+		if why := denied(f.Hdr, f.Cmd); why != "" {
+			return fmt.Errorf("micom: %v is never sent: %s", f, why)
+		}
 		return fmt.Errorf("micom: %v is not in the profile", f)
 	}
 	return d.write(f)
