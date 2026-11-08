@@ -92,6 +92,7 @@ func TestAllow(t *testing.T) {
 		{"pattern, longer payload", volume, longer, false},
 		{"denylisted, though allowed", "ff 8a 01 01 01 07 00 01 72", frame("ff 8a 01 01 01 07 00 01 72"), false},
 		{"denylisted, though a pattern allows it", "ff 8a 01 01 01 18 00 02 [00-ff] ..", frame("ff 8a 01 01 01 18 00 02 00 6e"), false},
+		{"denylisted power configuration", "ff 8a 01 01 01 02 00 02 [00-ff] ..", frame("ff 8a 01 01 01 02 00 02 00 74"), false},
 	} {
 		var al allowList
 		if err := al.Set(c.allow); err != nil {

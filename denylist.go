@@ -10,6 +10,9 @@ var denylist = []struct {
 	cmd byte
 	why string
 }{
+	// From the EV6 micom firmware, not SystemService: it writes EEPROM
+	// 0x1ad, and 0 makes ACC off skip straight to bus sleep.
+	{hdrAliveReply, 0x02, "func 0x0102, SYS_POWER_C (writes the micom's power configuration)"},
 	{hdrAliveReply, 0x05, "func 0x0105, requestRearCameraReset"},
 	{hdrAliveReply, 0x07, "func 0x0107, requestLastInfoInitialization (also requestMicomFactoryReset)"},
 	{hdrAliveReply, 0x18, "func 0x0118, requestVariantCodeSave (writes the variant coding)"},

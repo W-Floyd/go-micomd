@@ -60,6 +60,7 @@ func TestLoadVariantRefuses(t *testing.T) {
 		{"frame and pattern", head + "send: [{name: s, frame: \"ff 85 02 01 02 0b 00 03 02 01 70\", pattern: \"ff 85 02 01 02 03 00 02 [00-23] ..\", status: captured, ref: r}]\n", "exactly one of frame and pattern"},
 		{"alive reply", head + "send: [{name: s, frame: \"ff 8a 01 01 01 0f 00 02 00 79\", status: captured, ref: r}]\n", "CPU-alive"},
 		{"denylisted reset", head + "send: [{name: s, frame: \"ff 8a 01 01 01 07 00 01 72\", status: captured, ref: r}]\n", "denylisted"},
+		{"denylisted power configuration", head + "send: [{name: s, frame: \"ff 8a 01 01 01 02 00 02 01 75\", status: code, ref: r}]\n", "func 0x0102"},
 		{"denylisted pattern", head + "send: [{name: s, pattern: \"ff 8a 01 01 01 18 00 02 [00-ff] ..\", status: inferred, ref: r}]\n", "denylisted"},
 		{"undeclared header", head + "send: [{name: s, frame: \"ff 88 0c 01 0c 5c 00 01 2b\", status: captured, ref: r}]\n", "not a to_micom header"},
 		{"from_micom header", head + "send: [{name: s, frame: \"ff 01 8a 01 81 01 00 01 f4\", status: captured, ref: r}]\n", "not a to_micom header"},
