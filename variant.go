@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -111,8 +110,17 @@ const (
 	maxExtends = 4
 )
 
+// validName is [a-z0-9][a-z0-9-]*: a variant name is also a file name.
+func validName(s string) bool {
+	for i, r := range s {
+		if !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-' && i > 0) {
+			return false
+		}
+	}
+	return s != ""
+}
+
 var (
-	nameRE   = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 	statuses = map[string]bool{"captured": true, "code": true, "inferred": true}
 	// clockFields are a profile template's placeholders.
 	clockFields = map[string]func(time.Time) byte{
@@ -180,7 +188,7 @@ func build(rv rawVariant, source string) (*Variant, error) {
 }
 
 func embeddedRaw(name string) (rawVariant, error) {
-	if !nameRE.MatchString(name) {
+	if !validName(name) {
 		return rawVariant{}, fmt.Errorf("variant %q: not a variant name", name)
 	}
 	data, err := variantFS.ReadFile("variants/" + name + ".yaml")
@@ -454,7 +462,7 @@ func compile(rv rawVariant) (*Variant, error) {
 	if rv.Schema != variantSchema {
 		c.errf("schema", "is %d, want %d", rv.Schema, variantSchema)
 	}
-	if !nameRE.MatchString(rv.Name) {
+	if !validName(rv.Name) {
 		c.errf("name", "%q is not [a-z0-9-]", rv.Name)
 	}
 
