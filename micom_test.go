@@ -109,7 +109,7 @@ func TestSendAllowlist(t *testing.T) {
 func TestDescribeLive(t *testing.T) {
 	// Frames seen live on the stage, 2026-10-16.
 	for _, c := range []struct{ hdr, cmd, payload, want string }{
-		{"0c88018c", "02", "5700f5", "Climate power=245 W"},
+		{"0c88018c", "02", "5700f5", "Climate power draw=245 W"},
 		{"0c88018c", "5c", "15ffffffffffffffffff01b1000000000000000000000400ff00000000ff", "Climate total=433 W"},
 		{"0c88018c", "5c", "15ffffffffffffffffff01b1000000000000000000000400ff00000000ff", "Climate power=255 W"},
 		{"0c88018c", "5c", "15ffffffffffffffffff01b1000000000000000000000400ff00000000ff", "AVN motor power=n/a"},

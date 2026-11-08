@@ -270,7 +270,7 @@ func setPoint(v byte) string {
 	if v == 0 {
 		return "off"
 	}
-	return fmt.Sprintf("%d F", int(v)+56)
+	return fmt.Sprintf("%d F", setPointF(v))
 }
 
 func describeClimate(cmd byte, p []byte) string {

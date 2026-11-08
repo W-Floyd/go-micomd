@@ -59,9 +59,10 @@ func Decode(f Frame) []Field {
 	switch Func(f) {
 	case 0x8c02:
 		// Status flag setter: id, then a 16-bit value. Only id 0x57 (the
-		// HEVFlag 0x4f, climate power draw) has been seen.
+		// HEVFlag 0x4f, climate power draw) has been seen. Named apart from
+		// 0x8c5c's "Climate power": telemetry keys readings by name.
 		if len(p) == 3 && p[0] == 0x57 {
-			return []Field{{Name: "Climate power", Value: be16(p[1:]), Valid: true, Unit: " W"}}
+			return []Field{{Name: "Climate power draw", Value: be16(p[1:]), Valid: true, Unit: " W"}}
 		}
 	case 0x8c5c:
 		if len(p) >= 29 {
