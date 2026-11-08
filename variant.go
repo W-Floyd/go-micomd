@@ -48,6 +48,7 @@ type Variant struct {
 	names    map[hdrCmd]string
 	messages map[string]*msgSpec // to_micom, by name
 	sent     map[hdrCmd]*msgSpec // to_micom, by frame
+	required map[string]bool     // from_micom fields a to_micom message requires
 
 	profile  []periodicSpec
 	sends    []sendSpec
@@ -458,7 +459,7 @@ func compile(rv rawVariant) (*Variant, error) {
 		pushLabels: map[[2]byte]string{}, knobLabels: map[byte]string{},
 		keys:    keymap{push: map[keyKey]uint16{}, knob: map[knobKey]uint16{}},
 		signals: map[hdrCmd]*sigSpec{}, decoders: map[byte][]*decoder{}, names: map[hdrCmd]string{},
-		messages: map[string]*msgSpec{}, sent: map[hdrCmd]*msgSpec{},
+		messages: map[string]*msgSpec{}, sent: map[hdrCmd]*msgSpec{}, required: map[string]bool{},
 	}
 	if rv.Schema != variantSchema {
 		c.errf("schema", "is %d, want %d", rv.Schema, variantSchema)

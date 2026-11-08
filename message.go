@@ -5,6 +5,7 @@ import (
 	"maps"
 	"math"
 	"slices"
+	"strconv"
 	"time"
 
 	"go.yaml.in/yaml/v4"
@@ -32,11 +33,14 @@ type rawMessage struct {
 	// sent when it has passed.
 	MinInterval time.Duration `yaml:"min_interval,omitempty"`
 	// Persistent: the micom writes its EEPROM for every frame.
-	Persistent bool   `yaml:"persistent,omitempty"`
-	Status     string `yaml:"status,omitempty"`
-	Ref        string `yaml:"ref,omitempty"`
-	Note       string `yaml:"note,omitempty"`
-	Remove     bool   `yaml:"remove,omitempty"`
+	Persistent bool `yaml:"persistent,omitempty"`
+	// Requires gates a frame on the last value received of a from_micom
+	// field.
+	Requires []rawRequire `yaml:"requires,omitempty"`
+	Status   string       `yaml:"status,omitempty"`
+	Ref      string       `yaml:"ref,omitempty"`
+	Note     string       `yaml:"note,omitempty"`
+	Remove   bool         `yaml:"remove,omitempty"`
 }
 
 type rawMsgField struct {
@@ -59,6 +63,15 @@ type rawMsgField struct {
 	Size      int      `yaml:"size,omitempty"`
 	Encoding  string   `yaml:"encoding,omitempty"`
 	PadRight  *uint8   `yaml:"pad_right,omitempty"`
+}
+
+// rawRequire: when the frame's fields match If (all of them; empty: always),
+// the from_micom field named Field must last have been received with a
+// value in In.
+type rawRequire struct {
+	If    map[string]any `yaml:"if,omitempty"`
+	Field string         `yaml:"field"`
+	In    []any          `yaml:"in"`
 }
 
 type rawEndStep struct {
@@ -98,6 +111,37 @@ type msgSpec struct {
 	persistent     bool
 	owns           string
 	end            []endStep
+	requires       []requirement
+	rawRequires    []rawRequire // resolved by checkMessageRefs
+}
+
+type requirement struct {
+	when  map[string]inValue
+	field string
+	in    []int64          // raw codes
+	names map[int64]string // the field's enum, to say what it is
+}
+
+// name is a received code as the field's enum names it.
+func (r requirement) name(c int64) string {
+	if n, ok := r.names[c]; ok {
+		return n
+	}
+	return strconv.FormatInt(c, 10)
+}
+
+// applies is whether r gates a frame with these values (defaults filled in).
+func (r requirement) applies(m *msgSpec, vals map[string]inValue) bool {
+	for k, want := range r.when {
+		got, ok := vals[k]
+		if !ok && m.byName[k].def != nil {
+			got, ok = *m.byName[k].def, true
+		}
+		if !ok || got != want {
+			return false
+		}
+	}
+	return true
 }
 
 // minPersistentInterval bounds how often an input can make the micom write
@@ -226,8 +270,8 @@ func compileMessages(c *checker, v *Variant, raws []rawMessage, enums map[string
 
 func compileFromMicom(c *checker, v *Variant, where string, r rawMessage, enums map[string]map[string]int64, hdrOf func(string, string) ([4]byte, bool)) {
 	checkStatus(c, where, r.Status, false)
-	if r.Fill != nil || r.Transport != nil || r.OnChange != nil || r.Every != 0 || r.Owns != "" || r.Timeout != 0 || len(r.End) > 0 || r.MinInterval != 0 || r.Persistent {
-		c.errf(where, "fill, transport, on_change, every, owns, timeout, end, min_interval and persistent are for to_micom")
+	if r.Fill != nil || r.Transport != nil || r.OnChange != nil || r.Every != 0 || r.Owns != "" || r.Timeout != 0 || len(r.End) > 0 || r.MinInterval != 0 || r.Persistent || r.Requires != nil {
+		c.errf(where, "fill, transport, on_change, every, owns, timeout, end, min_interval, persistent and requires are for to_micom")
 	}
 	d := &decoder{name: r.Name}
 	need := 0
@@ -293,7 +337,7 @@ func compileToMicom(c *checker, v *Variant, where string, r rawMessage, enums ma
 	}
 	m := &msgSpec{name: r.Name, status: r.Status, cmd: r.Cmd, byName: map[string]*field{},
 		onChange: r.OnChange == nil || *r.OnChange, every: r.Every, timeout: r.Timeout, owns: r.Owns,
-		minInterval: r.MinInterval, persistent: r.Persistent}
+		minInterval: r.MinInterval, persistent: r.Persistent, rawRequires: r.Requires}
 	if r.Length == nil || *r.Length < 1 || *r.Length > MaxPayload {
 		c.errf(where, "length is required, 1 to %d", MaxPayload)
 		return
@@ -401,6 +445,7 @@ func checkMessageRefs(c *checker, v *Variant) {
 				c.errf(where+".end["+s.msg+"]", "%v", err)
 			}
 		}
+		compileRequires(c, v, m, where+".requires")
 		if m.owns == "" {
 			continue
 		}
@@ -411,6 +456,78 @@ func checkMessageRefs(c *checker, v *Variant) {
 		case v.profile[i].hdr != m.hdr || v.profile[i].cmd != m.cmd:
 			c.errf(where, "owns %q: a different frame (header and command must match)", m.owns)
 		}
+	}
+}
+
+// compileRequires resolves m's requirements against the from_micom fields.
+// A field is named across messages, as telemetry names readings: the two
+// shapes of one frame are two messages with one field.
+func compileRequires(c *checker, v *Variant, m *msgSpec, where string) {
+	for _, r := range m.rawRequires {
+		w := where + "[" + r.Field + "]"
+		var same []*field
+		for _, ds := range v.decoders {
+			for _, d := range ds {
+				for _, f := range d.fields {
+					if f.name == r.Field {
+						same = append(same, f)
+					}
+				}
+			}
+		}
+		if len(same) == 0 {
+			c.errf(w, "no from_micom field %q", r.Field)
+			continue
+		}
+		f := same[0]
+		for _, o := range same[1:] {
+			if o.enum != f.enum || o.typ != f.typ {
+				c.errf(w, "the from_micom fields named %q differ in type or enum", r.Field)
+			}
+		}
+		if f.typ == "str" {
+			c.errf(w, "a str field cannot be required")
+			continue
+		}
+		req := requirement{field: r.Field, when: map[string]inValue{}, names: f.names}
+		if len(r.In) == 0 {
+			c.errf(w, "in lists the values that let the frame go")
+		}
+		for _, x := range r.In {
+			iv, err := toInValue(x)
+			code, ok := int64(0), err == nil
+			switch {
+			case !ok:
+			case f.enum != "" && iv.kind == vStr:
+				code, ok = f.codes[iv.str]
+			case f.enum == "" && iv.kind == vNum && iv.num == math.Trunc(iv.num):
+				code = int64(iv.num)
+			default:
+				ok = false
+			}
+			if !ok {
+				c.errf(w, "%v is not a value of %s (enum %q)", x, r.Field, f.enum)
+				continue
+			}
+			req.in = append(req.in, code)
+		}
+		for _, k := range slices.Sorted(maps.Keys(r.If)) {
+			mf := m.byName[k]
+			iv, err := toInValue(r.If[k])
+			if err == nil && mf != nil {
+				err = mf.put(make([]byte, m.length), iv)
+			}
+			switch {
+			case mf == nil:
+				c.errf(w, "if: %s: no such field", k)
+			case err != nil:
+				c.errf(w, "if: %v", err)
+			default:
+				req.when[k] = iv
+			}
+		}
+		m.requires = append(m.requires, req)
+		v.required[r.Field] = true
 	}
 }
 

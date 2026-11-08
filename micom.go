@@ -96,7 +96,12 @@ type Daemon struct {
 	telem            *telemetry
 
 	owned map[string]int // profile entries an active input message replaces; under wmu
+
+	observer atomic.Pointer[func(Frame)] // the input's, for requires
 }
+
+// observe hands every frame received to fn, before OnFrame.
+func (d *Daemon) observe(fn func(Frame)) { d.observer.Store(&fn) }
 
 // own silences (on) or resumes the profile entries named, for an input
 // message that replaces them while it is active. It takes the write lock,
@@ -283,6 +288,9 @@ func (d *Daemon) read() error {
 			d.rxTotal.Add(uint64(len(frames)))
 			for _, f := range frames {
 				d.telem.add(f, now)
+				if fn := d.observer.Load(); fn != nil {
+					(*fn)(f)
+				}
 				if d.cfg.OnFrame != nil {
 					d.cfg.OnFrame(f)
 				}

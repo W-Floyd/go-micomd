@@ -16,7 +16,7 @@ import (
 const inputVariant = `schema: 1
 name: t
 extends: hkmc-gen5w
-enums: {mode: {media: 0x0e, radio: 1}}
+enums: {mode: {media: 0x0e, radio: 1}, lamp: {"off": 0, "on": 1}}
 profile:
   - {name: q, every: 1s, frame: "ff 85 02 01 02 01 00 03 0e 00 77", status: captured, ref: r}
   - {name: q-code, every: 1s, frame: "ff 85 02 01 02 01 00 03 01 00 78", opt_in: code, replaces: q, status: code, ref: r}
@@ -31,6 +31,12 @@ messages:
      fields: [{name: a, off: 0}], end: [{msg: coded, set: {a: 0}}]}
   - {name: store, dir: to_micom, hdr: audio_tx, cmd: 0x43, length: 1, status: captured, ref: r,
      fields: [{name: a, off: 0}], persistent: true, min_interval: 1s}
+  # needs: a 1 only while the lamp is on, a 2 only while it is off, a 3 always.
+  - {name: Lamp, dir: from_micom, hdr: system_rx, cmd: 0x40, length: 1, fields: [{name: Lamp state, off: 0, enum: lamp, invalid: 0xff}]}
+  - {name: needs, dir: to_micom, hdr: audio_tx, cmd: 0x44, length: 1, status: captured, ref: r, fields: [{name: a, off: 0}],
+     on_change: false, requires: [{if: {a: 1}, field: Lamp state, in: ["on"]}, {if: {a: 2}, field: Lamp state, in: ["off"]}]}
+  - {name: held, dir: to_micom, hdr: audio_tx, cmd: 0x45, length: 1, status: captured, ref: r, fields: [{name: a, off: 0}],
+     min_interval: 1s, requires: [{field: Lamp state, in: ["on"]}]}
 `
 
 // recorder collects what an engine does: frames sent as "cmd:payload" in
@@ -143,6 +149,28 @@ func TestInput(t *testing.T) {
 			{1700 * time.Millisecond, `{"msg":"store","a":3}`, "ok"},
 			{3 * time.Second, "", ""},
 		}, []string{"43:01", "43:03"}},
+		{"requires the last value received, per value of a field", InputGates{}, []step{
+			{0, `{"msg":"needs","a":1}`, `needs: requires Lamp state in [on]: none received yet`},
+			{0, `{"msg":"needs","a":3}`, "ok"},
+			{0, "rx 00", ""},
+			{0, `{"msg":"needs","a":1}`, `needs: requires Lamp state in [on]: it is off`},
+			{0, `{"msg":"needs","a":2}`, "ok"},
+			{0, "rx 01", ""},
+			{0, `{"msg":"needs","a":1}`, "ok"},
+			{0, `{"msg":"needs","a":2}`, `needs: requires Lamp state in [off]: it is on`},
+			{0, "rx ff", ""},
+			{0, `{"msg":"needs","a":1}`, `needs: requires Lamp state in [on]: it is n/a`},
+			{0, "rx 07", ""},
+			{0, `{"msg":"needs","a":1}`, `needs: requires Lamp state in [on]: it is 7`},
+		}, []string{"44:03", "44:02", "44:01"}},
+		{"requires, checked again when a held frame goes out", InputGates{}, []step{
+			{0, "rx 01", ""},
+			{0, `{"msg":"held","a":1}`, "ok"},
+			{200 * time.Millisecond, `{"msg":"held","a":2}`, "ok"},
+			{500 * time.Millisecond, "rx 00", ""},
+			{time.Second, "", ""},
+			{2 * time.Second, "", ""},
+		}, []string{"45:01"}},
 	} {
 		var r recorder
 		start := time.Unix(1000, 0)
@@ -152,6 +180,10 @@ func TestInput(t *testing.T) {
 			now = start.Add(s.at)
 			if s.line == "" {
 				e.tick(now)
+				continue
+			}
+			if p, ok := strings.CutPrefix(s.line, "rx "); ok {
+				e.observe(Frame{Hdr: hdrAliveReq, Cmd: 0x40, Payload: unhex(t, p)})
 				continue
 			}
 			got := "ok"
@@ -240,5 +272,16 @@ func TestServeInput(t *testing.T) {
 	got = what(300 * time.Millisecond)
 	if i := slices.Index(got, "41:09"); i < 1 || got[i-1] != "01:01ff" || !slices.Contains(got[i:], q) {
 		t.Errorf("after the end: %v", got)
+	}
+
+	// requires sees what the daemon receives.
+	ask(`{"msg":"needs","a":1}`, `{"error":"needs: requires Lamp state in [on]: none received yet"}`)
+	if _, err := b.Write(Frame{Hdr: hdrAliveReq, Cmd: 0x40, Payload: []byte{1}}.Encode()); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	ask(`{"msg":"needs","a":1}`, `{"ok":true}`)
+	if got := what(200 * time.Millisecond); !slices.Contains(got, "44:01") {
+		t.Errorf("needs, once the lamp is on: %v", got)
 	}
 }

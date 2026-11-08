@@ -30,6 +30,17 @@ type inputEngine struct {
 
 	mu    sync.Mutex
 	state map[string]*msgState // active messages
+
+	// seen is the last value received of each from_micom field a
+	// requirement names; the reader updates it, apart from mu, so a send
+	// waiting on the wire never holds frames back.
+	seenMu sync.Mutex
+	seen   map[string]seenValue
+}
+
+type seenValue struct {
+	valid bool // false: the field carried its invalid marker
+	code  int64
 }
 
 type msgState struct {
@@ -57,7 +68,7 @@ type InputGates struct {
 }
 
 func newInputEngine(v *Variant, g InputGates, send func(Frame) error, own func([]string, bool), now func() time.Time, logf func(string, ...any)) *inputEngine {
-	e := &inputEngine{v: v, send: send, own: own, now: now, logf: logf, refused: map[string]string{}, state: map[string]*msgState{}}
+	e := &inputEngine{v: v, send: send, own: own, now: now, logf: logf, refused: map[string]string{}, state: map[string]*msgState{}, seen: map[string]seenValue{}}
 	for n, m := range v.messages {
 		var why []string
 		if m.status != "captured" && !g.Inferred {
@@ -150,6 +161,10 @@ func (e *inputEngine) handle(line []byte) error {
 	if err != nil {
 		return fmt.Errorf("%s: %v", name, err)
 	}
+	// Refused outright, never held for later: the state may never come.
+	if why := e.unmet(m, merged); why != "" {
+		return fmt.Errorf("%s: %s", name, why)
+	}
 	now := e.now()
 	if st == nil {
 		st = &msgState{}
@@ -176,9 +191,65 @@ func (e *inputEngine) handle(line []byte) error {
 
 // sendNow sends st.last. e.mu is held.
 func (e *inputEngine) sendNow(m *msgSpec, st *msgState, now time.Time) error {
+	// Again here: a held or repeated frame goes out after the state moved.
+	if why := e.unmet(m, st.vals); why != "" {
+		st.pending = false
+		return fmt.Errorf("not sent: %s", why)
+	}
 	st.sentFrame, st.sent, st.pending = st.last, true, false
 	st.lastSent, st.nextSend = now, now.Add(m.every)
 	return e.send(st.last)
+}
+
+// unmet says which requirement of m stops a frame with vals now, "" when
+// none does.
+func (e *inputEngine) unmet(m *msgSpec, vals map[string]inValue) string {
+	for _, r := range m.requires {
+		if !r.applies(m, vals) {
+			continue
+		}
+		e.seenMu.Lock()
+		s, ok := e.seen[r.field]
+		e.seenMu.Unlock()
+		want := make([]string, len(r.in))
+		for i, c := range r.in {
+			want[i] = r.name(c)
+		}
+		req := fmt.Sprintf("requires %s in [%s]", r.field, strings.Join(want, ", "))
+		switch {
+		case !ok:
+			return req + ": none received yet"
+		case !s.valid:
+			return req + ": it is n/a"
+		case !slices.Contains(r.in, s.code):
+			return req + ": it is " + r.name(s.code)
+		}
+	}
+	return ""
+}
+
+// observe keeps the last value of each required field f carries; the
+// daemon calls it for every frame received.
+func (e *inputEngine) observe(f Frame) {
+	if len(e.v.required) == 0 {
+		return
+	}
+	for _, d := range e.v.decoders[f.Cmd] {
+		if !d.matches(f.Hdr) || !d.match(f.Payload) {
+			continue
+		}
+		for _, fs := range d.fields {
+			if !e.v.required[fs.name] {
+				continue
+			}
+			raw := fs.load(f.Payload)
+			s := seenValue{valid: !fs.hasInvalid || raw != fs.invalid, code: fs.signedRaw(raw)}
+			e.seenMu.Lock()
+			e.seen[fs.name] = s
+			e.seenMu.Unlock()
+		}
+		return // the decoder Decode would use
+	}
 }
 
 // end runs m's end steps, then makes it inactive and resumes what it owned.
@@ -196,6 +267,10 @@ func (e *inputEngine) end(m *msgSpec) error {
 		f, err := t.encode(vals)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %v", t.name, err))
+			continue
+		}
+		if why := e.unmet(t, vals); why != "" {
+			errs = append(errs, fmt.Errorf("%s: not sent: %s", t.name, why))
 			continue
 		}
 		if ts != nil && t != m {
@@ -272,6 +347,7 @@ func (v *Variant) receives(name string) bool {
 // It returns when ctx ends, and removes the socket.
 func ServeInput(ctx context.Context, d *Daemon, path string, g InputGates) error {
 	e := newInputEngine(d.cfg.Variant, g, d.sendMessage, d.own, d.cfg.Now, d.logf)
+	d.observe(e.observe)
 	ok, refused := e.enabled()
 	d.logf("input %s: messages %s; refused: %s", path, listOrNone(ok), listOrNone(refused))
 	go e.run(ctx)
