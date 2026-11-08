@@ -172,9 +172,17 @@ values.
   state (keys not given keep theirs), encodes, and on success makes M active.
   A refused input changes nothing.
 - **on_change** (default true): the frame goes out when it differs from the
-  last one sent, and always on the first input.
-- **every**: while active, the last frame is repeated at that interval. With
-  `on_change: false` the first input still sends at once.
+  last one sent, and always on the first input. `on_change: false`: every
+  input sends, the same frame too (acks, and frames the micom forgets on a
+  reset).
+- **every**: while active, the last frame is repeated at that interval,
+  counted from the last send.
+- **min_interval**: at most one send per interval. An input sooner is
+  accepted (`ok`) and held; the newest held frame goes out when the
+  interval has passed, or is dropped if a later input brings the frame back
+  to the one last sent.
+- **persistent**: the micom writes its EEPROM for every frame of this
+  message. See Persistent frames.
 - **owns**: a profile entry. While M is active that entry is not sent: M's
   frame replaces it, never goes beside it. It must have M's header and
   command. Owning an entry also owns any `opt_in: code` entry that `replaces`
@@ -197,8 +205,72 @@ values.
   message still runs its steps: a client can clear the cluster after a
   restart.
 
-The engine runs off one 50 ms tick, so `every` and `timeout` are honoured to
-within 50 ms.
+The engine runs off one 50 ms tick, so `every`, `timeout` and
+`min_interval` are honoured to within 50 ms.
+
+## Persistent frames
+
+Some frames make the micom write its EEPROM every time it gets one (EV6:
+the backlight dim mode, day/night level and manual level). EEPROM endures a
+bounded number of writes, and a slider or a loop can spend them fast. Such
+a message says `persistent: true`, and then:
+
+- it is sendable only with `-allow-persistent`, on top of the status gate
+  (`-allow-inferred` for code ones);
+- it is sent only from an input, only when its frame changes: no `every`,
+  no `owns`, no `on_change: false`, no `end` of its own, and no other
+  message's `end` may name it (an end runs unasked, on a timeout);
+- its `min_interval` is at least 1 s, so a burst of inputs is one write.
+
+A marker on the message, with its own flag, rather than a new status:
+status says how we know a frame, persistence what it costs the micom, and
+the two are independent. The rules are checked at load (`TestLoadVariantRefuses`).
+
+Some frames are not marked but still write EEPROM: the micom logs every
+frame of its system and display nodes in an EEPROM ring (the stock system
+does the same), and 0x0802, backlight on/off, rewrites a config byte. They
+are not configuration a client chooses, so they are not gated; backlight
+on/off is spaced by `min_interval: 1s`.
+
+## Power (EV6)
+
+From the micom firmware (V002.208) in emulation, with its defaults; the
+car's EEPROM may set other times. The micom reports each step as 0x8108
+"Power state" (`-dump`, `-tap`, Snapshot):
+
+| after ACC off | 0x8108 state | micom |
+|---|---|---|
+| 0 | `acc_off_hold` (4), after 0x8133 `off` | screen-off hold |
+| 180 s | `bus_sleep` (3), twice | CAN bus sleep |
+| 360 s | `power_off_request` (1) | asks the SoC to power off; held while some modules are busy |
+| 450 s | `rail_off` (0) | SoC rail off (modules 0/1) |
+| 630 s | (6/7, not seen as a frame) | stop/standby, after keep-awake checks |
+
+ACC on from 4 or 3 sends 0x8133 `on` and `acc_on` (5); the SoC resumes.
+From 1 or 0 the micom resets the SoC (a guess, from code).
+
+A clean shutdown, by the client (micomd sends nothing unasked):
+
+1. On `power_off_request`: stop, unmount, then
+   `{"msg":"shutdown-ack","stage":"power_off_request"}`. The micom moves to
+   `rail_off` at once.
+2. On `rail_off`: `{"msg":"shutdown-ack","stage":"rail_off"}`. The micom
+   drops its power hold (GPIO 43, a guess) and goes to standby within ms.
+3. Without acks nothing breaks: the micom gets there by its own timers.
+
+Keep answering the CPU-alive requests throughout (micomd does).
+
+**The acks are latched and survive ACC on.** One sent early (before its
+state) waits in the micom and cuts the next ACC-off cycle short. Send each
+only after the 0x8108 state it answers. micomd does not enforce this: a
+precondition on received state ("only after Power state X") would need the
+engine to track decoded frames and condition one field's values on them,
+new machinery for two values of one message. It is the client's duty;
+see Open questions.
+
+Backlight: off from the micom's power-up until `{"msg":"backlight","on":true}`,
+which the micom refuses while its supply is low. A client sends it after
+each micom start (link up, or `acc_on` after a reset).
 
 ## Input
 
@@ -241,6 +313,7 @@ Refusals name the message and the field:
   `inferred` ones also need `-allow-inferred`, the flag that already admits
   such send entries and the identify request. A message is enabled only if
   every message its `end` names is too.
+- `persistent: true` messages also need `-allow-persistent`.
 - At load, a to_micom message's header must be a declared `to_micom` header;
   the CPU-alive header and command, and the denylist, are refused, as for
   send entries. The denylist is checked again on every frame the input sends.
@@ -323,10 +396,22 @@ describes.
   off the wire while its message is active.
 - `TestEV6Messages`: the cluster messages' frames, whole with checksums (the
   report's worked example, the captured `ack`, the end of route), each read
-  back by `DecodeInput` into an input that sends it again.
-- The EV6 equivalence tests, unchanged.
+  back by `DecodeInput` into an input that sends it again; the power and
+  backlight frames as micom-run took them; which messages each gate admits.
+- The EV6 equivalence tests: what the Go tables read is read the same.
 
 ## Open questions
+
+- **Ack preconditions**: the shutdown acks are safe only after the 0x8108
+  state they answer, and micomd leaves that to the client. Enforcing it
+  needs the engine to keep the last decoded value of a received field and
+  a per-value `when` on a to_micom field (`stage: power_off_request` only
+  while "Power state" is `power_off_request`). Worth building if a second
+  use appears.
+- **Power, from a car**: the EEPROM's power settings and timers, what stock
+  sends at each 0x8108 state and when it acks, GPIO 43, the 0x810a trigger
+  and the CAN meaning of 0x810b/0x810d, auto day/night, and stock 0x0801,
+  0x0807 and 0x081A traffic all need a capture.
 
 - **Endianness** of 0x0D02/03/04's int16s: big-endian is a guess
   (`Utils.shortToBytes` is in framework.jar). The worked example has distance

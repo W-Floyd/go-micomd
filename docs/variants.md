@@ -92,7 +92,7 @@ What a variant supplies:
 | key injection | no (as before: `-keyfunc`) | `-keys`; `-keyfunc` and `-keymap` override entry by entry |
 | control-socket sends | no (as before: `-allow`) | `-allow-variant` (captured); `-allow-inferred` adds inferred and code entries |
 | the 0x0117 variant-code request | never | `-identify-request`, which while the request is inferred also needs `-allow-inferred` |
-| to_micom messages (cluster TBT, compass) | never | `-input SOCKET` (captured); `-allow-inferred` adds code and inferred ones ([messages.md](messages.md)) |
+| to_micom messages (cluster TBT, compass, backlight, shutdown acks) | never | `-input SOCKET` (captured); `-allow-inferred` adds code and inferred ones; `-allow-persistent` those that write the micom's EEPROM ([messages.md](messages.md)) |
 
 The device unit's flags (`-keyfunc 0x8701 -keymap … -allow …`) work as
 before. `-keys -allow-variant -allow-inferred` gives the same keymap and
@@ -259,6 +259,8 @@ A file can make frames sendable. Nothing in it can send arbitrary frames:
 4. **The denylist, in code.** `denylist.go` refuses these whatever a variant,
    `-allow` or a profile says. They are SystemService requests on
    `8a 01 01 01` that reset or rewrite the micom:
+   - func 0x0102, SYS_POWER_C: writes the micom's power configuration to
+     EEPROM; 0 makes ACC off skip to bus sleep (from the micom firmware)
    - func 0x0105, rear camera reset
    - func 0x0107, last-info initialization / micom factory reset
    - func 0x0118, variant code save
@@ -389,3 +391,8 @@ decoder is the safer reader of untrusted lines.
 - **Unknown cars.** On an unknown command line micomd runs the EV6, as before.
   Running the keepalive-only base instead is a behaviour change for its own
   PR.
+- **Power from a car.** The EV6's power, ACC and backlight frames come from
+  the micom firmware in emulation; the ACC-off times are its defaults, and
+  what stock Android sends at each step is not captured. micomd decodes the
+  states and offers the shutdown acks; acking at the right state is the
+  client's duty ([messages.md](messages.md), "Power").

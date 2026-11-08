@@ -75,8 +75,17 @@ leaves the keepalive running.
 `{"msg":"tbt-turn","maneuver":"turn_right","distance":0,"distance_tenths":3,"unit":"km"}`,
 and answers `{"ok":true}` or `{"error":"..."}`. Clients never write bytes;
 the variant's messages say what each may set, and how long it stays on the
-wire without input. The EV6's cluster messages come from stock code, so they
-also need `-allow-inferred`. See [docs/messages.md](docs/messages.md).
+wire without input. The EV6's cluster, backlight and shutdown messages come
+from stock or micom code, so they also need `-allow-inferred`; the backlight
+dim mode and levels, which the micom writes to its EEPROM on every frame,
+also need `-allow-persistent` and are rate-limited. See
+[docs/messages.md](docs/messages.md).
+
+A clean power-off is the client's job: on the micom's 0x8108 power state
+`power_off_request`, finish and send `{"msg":"shutdown-ack","stage":"power_off_request"}`;
+on `rail_off`, `{"msg":"shutdown-ack","stage":"rail_off"}`. Never earlier:
+the micom latches an ack across ACC on, so an early one cuts the next
+ACC-off cycle short. Details in [docs/messages.md](docs/messages.md), "Power".
 
 `Main(args, stdout, stderr) int` is the same command for embedding as a
 subcommand of a larger multi-call program.
