@@ -195,12 +195,15 @@ profile:
     ref: "logcat MicomD 2026-10-16"
   # The two frames whose payload follows the wall clock: only with -clock,
   # as a wrong time may be stored by the car.
+  # clock-sec is ?? a0 MM SS 80: the 2026-11-07 strace has 02 a0 14 32 80
+  # at 20:20:50 and 02 a0 15 10 80 at 20:21:16 (the 01 of the first capture
+  # was its minute, 20:01). The first byte was 04 then and 02 since: unknown.
   - name: clock-sec
     every: 1s
     opt_in: clock
-    template: "ff 88 0c 01 0c 09 00 06 04 a0 01 {second} 80 .."
+    template: "ff 88 0c 01 0c 09 00 06 04 a0 {minute} {second} 80 .."
     status: captured
-    ref: "logcat MicomD 2026-10-16 20:01:16-17"
+    ref: "logcat MicomD 2026-10-16 20:01:16-17; stock micomd strace 2026-11-07"
   - name: clock
     every: 1s
     opt_in: clock

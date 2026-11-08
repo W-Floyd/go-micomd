@@ -152,6 +152,12 @@ func TestEV6VariantProfileAsBefore(t *testing.T) {
 				t.Errorf("%s[%d]: %s every %v, variant %s every %v", pair.name, i, o.Name, o.Every, n.Name, n.Every)
 			}
 			for _, at := range times {
+				// clock-sec's third byte was a fixed 01, the minute of the
+				// capture it was read from; it is the minute now
+				// (TestClockSecCarriesTheMinute).
+				if o.Name == "clock-sec" && at.Minute() != 1 {
+					continue
+				}
 				if a, b := o.Build(at).Encode(), n.Build(at).Encode(); !bytes.Equal(a, b) {
 					t.Errorf("%s at %v: %x, variant %x", o.Name, at, a, b)
 				}
@@ -247,5 +253,37 @@ func TestMatchVariant(t *testing.T) {
 	}
 	if !strings.HasPrefix(DefaultVariantName, "kia-ev6") {
 		t.Error(DefaultVariantName)
+	}
+}
+
+// clock-sec is ?? a0 MM SS 80: checked against the stock micomd's frames of
+// 2026-11-07 (strace on its UART, the unit's clock 20:20:50 and 20:21:16),
+// whose first byte, 02, differs from the 04 of the first capture and is
+// left as it was.
+func TestClockSecCarriesTheMinute(t *testing.T) {
+	var cs Periodic
+	for _, p := range ClockProfile() {
+		if p.Name == "clock-sec" {
+			cs = p
+		}
+	}
+	if cs.Build == nil {
+		t.Fatal("no clock-sec")
+	}
+	for _, tc := range []struct {
+		at     time.Time
+		strace string
+	}{
+		{time.Date(2026, 11, 7, 20, 20, 50, 0, time.UTC), "ff880c010c09000602a01432807d"},
+		{time.Date(2026, 11, 7, 20, 21, 16, 0, time.UTC), "ff880c010c09000602a01510805e"},
+	} {
+		got := cs.Build(tc.at)
+		want, err := ParseHexFrame(tc.strace)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Hdr != want.Hdr || got.Cmd != want.Cmd || !bytes.Equal(got.Payload[1:], want.Payload[1:]) {
+			t.Errorf("at %v: %v, stock sent %v", tc.at.Format("15:04:05"), got, want)
+		}
 	}
 }
