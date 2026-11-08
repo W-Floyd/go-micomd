@@ -79,18 +79,18 @@ func TestEV6VariantDescribesAsBefore(t *testing.T) {
 			t.Errorf("%v: legacy carDescribe %q, variant %q, carDescribe %q", f, a, b, c)
 			bad++
 		}
-		if a, b := Describe(f), v.Describe(f); a != b {
-			t.Errorf("%v: Describe %q, variant %q", f, a, b)
+		if a, b, c := legacyDescribe(f), v.Describe(f), Describe(f); a != b || a != c {
+			t.Errorf("%v: legacy Describe %q, variant %q, Describe %q", f, a, b, c)
 			bad++
 		}
-		if a, b := Decode(f), v.Decode(f); !reflect.DeepEqual(a, b) {
-			t.Errorf("%v: Decode %v, variant %v", f, a, b)
+		if a, b, c := legacyDecode(f), v.Decode(f), Decode(f); !reflect.DeepEqual(a, b) || !reflect.DeepEqual(a, c) {
+			t.Errorf("%v: legacy Decode %v, variant %v, Decode %v", f, a, b, c)
 			bad++
 		}
 		// The one name added: the variant-code reply (01 8a 01 81, cmd 17),
 		// never described or decoded.
-		if a, b := FrameName(f), v.FrameName(f); a != b && !(f.Hdr == hdrAliveReq && f.Cmd == 0x17) {
-			t.Errorf("%v: FrameName %q, variant %q", f, a, b)
+		if a, b, c := legacyFrameName(f), v.FrameName(f), FrameName(f); (a != b || a != c) && !(f.Hdr == hdrAliveReq && f.Cmd == 0x17) {
+			t.Errorf("%v: legacy FrameName %q, variant %q, FrameName %q", f, a, b, c)
 			bad++
 		}
 		if bad > 20 {

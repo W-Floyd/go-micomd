@@ -399,3 +399,101 @@ func legacySetSeat(field **int, v byte) ClimateEvent {
 	}
 	return ClimateNone
 }
+
+// decode.go's FrameName, Decode and Describe.
+
+func legacyFrameName(f Frame) string {
+	if IsAliveRequest(f) {
+		return "CPU alive request"
+	}
+	if f.Hdr[0] != 0x0c || f.Hdr[1] != 0x88 {
+		return ""
+	}
+	switch Func(f) {
+	case 0x8c02:
+		return "Status flag"
+	case 0x8c5c:
+		return "EV power block"
+	case 0x8c55:
+		return "Departure timers"
+	case 0x8c4f:
+		return "Charger state"
+	}
+	return ""
+}
+
+func legacyDecode(f Frame) []Field {
+	if f.Hdr[0] != 0x0c || f.Hdr[1] != 0x88 {
+		return nil
+	}
+	p := f.Payload
+	switch Func(f) {
+	case 0x8c02:
+		if len(p) == 3 && p[0] == 0x57 {
+			return []Field{{Name: "Climate power draw", Value: be16(p[1:]), Valid: true, Unit: " W"}}
+		}
+	case 0x8c5c:
+		if len(p) >= 29 {
+			out := make([]Field, 0, len(legacyPowerFields))
+			for _, pf := range legacyPowerFields {
+				out = append(out, pf.read(p))
+			}
+			return out
+		}
+	case 0x8c55:
+		if len(p) >= 5 {
+			return []Field{
+				{Name: "Departure 1 hour", Value: int(p[3] & 0x1f), Valid: true},
+				{Name: "Departure 1 minute bits", Value: int(p[3] >> 5), Valid: true},
+				{Name: "Departure 2 hour", Value: int(p[4] & 0x1f), Valid: true},
+				{Name: "Departure 2 minute bits", Value: int(p[4] >> 5), Valid: true},
+			}
+		}
+	case 0x8c4f:
+		if len(p) >= 4 {
+			return []Field{{Name: "Charger ready bits", Value: int(p[3] >> 6), Valid: true}}
+		}
+	}
+	return nil
+}
+
+func legacyDescribe(f Frame) string {
+	if s := legacyCarDescribe(f); s != "" {
+		return s
+	}
+	fs := legacyDecode(f)
+	if fs == nil {
+		return ""
+	}
+	parts := make([]string, len(fs))
+	for i, x := range fs {
+		parts[i] = x.String()
+	}
+	return legacyFrameName(f) + ": " + strings.Join(parts, " ")
+}
+
+type legacyPowerField struct {
+	name, unit string
+	off, n     int
+}
+
+var legacyPowerFields = []legacyPowerField{
+	{"Other ECUs", "", 0, 1}, {"AVN motor power", "", 1, 2}, {"E-compressor", "", 3, 2},
+	{"PTC heater", "", 8, 2}, {"Climate total", " W", 10, 2},
+	{"Battery heater", " W", 12, 1}, {"Battery heater total", " Wh", 13, 1},
+	{"MG1 power", " kW", 14, 2}, {"MG2 power", " kW", 16, 2},
+	{"MG1 energy", " Wh", 18, 2}, {"MG2 energy", " Wh", 20, 2},
+	{"LDC load", "", 22, 1}, {"Climate power", " W", 23, 2},
+	{"Battery compressor", " W", 25, 2}, {"Battery energy", " Wh", 27, 2},
+}
+
+func (pf legacyPowerField) read(p []byte) Field {
+	f := Field{Name: pf.name, Unit: pf.unit}
+	if pf.n == 1 {
+		f.Value, f.Valid = int(p[pf.off]), p[pf.off] != 0xff
+		return f
+	}
+	f.Value = be16(p[pf.off:])
+	f.Valid = f.Value != 0xffff
+	return f
+}
