@@ -12,6 +12,20 @@ type Periodic struct {
 	Build func(now time.Time) Frame
 }
 
+// ScaledProfile divides every Every by n, for running the daemon against a
+// micom whose own clock runs at n times real speed (for example the Icicle
+// emulator's --realtime N): the daemon's send cadence then matches the
+// micom's clock rather than the wall clock. n must be positive. The CPU-alive
+// reply needs no scaling - it answers inline on receipt, not on a timer.
+func ScaledProfile(n time.Duration, ps []Periodic) []Periodic {
+	out := make([]Periodic, len(ps))
+	for i, p := range ps {
+		p.Every /= n
+		out[i] = p
+	}
+	return out
+}
+
 // The CPU-alive exchange. The micom's stuck detector counts only cmd 0x0F
 // addressed to its module 1, and gives up after 12 silent windows (it then
 // resets the SoC). Android's SystemService answers each request from the
