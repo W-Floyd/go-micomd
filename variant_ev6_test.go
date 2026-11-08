@@ -75,8 +75,8 @@ func TestEV6VariantDescribesAsBefore(t *testing.T) {
 	v := ev6(t)
 	bad := 0
 	for _, f := range ev6Frames() {
-		if a, b := carDescribe(f), v.describe(f); a != b {
-			t.Errorf("%v: carDescribe %q, variant %q", f, a, b)
+		if a, b, c := legacyCarDescribe(f), v.describe(f), carDescribe(f); a != b || a != c {
+			t.Errorf("%v: legacy carDescribe %q, variant %q, carDescribe %q", f, a, b, c)
 			bad++
 		}
 		if a, b := Describe(f), v.Describe(f); a != b {
@@ -111,10 +111,10 @@ func TestEV6VariantAppliesAsBefore(t *testing.T) {
 	bad := 0
 	for _, f := range ev6Frames() {
 		for _, start := range []CarClimate{{}, full} {
-			a, b := start, start
-			ea, eb := a.Apply(f), v.ApplyClimate(&b, f)
-			if ea != eb || !reflect.DeepEqual(a, b) {
-				t.Errorf("%v: Apply %d %+v, variant %d %+v", f, ea, a, eb, b)
+			a, b, c := start, start, start
+			ea, eb, ec := legacyApply(&a, f), v.ApplyClimate(&b, f), c.Apply(f)
+			if ea != eb || ea != ec || !reflect.DeepEqual(a, b) || !reflect.DeepEqual(a, c) {
+				t.Errorf("%v: legacy Apply %d %+v, variant %d %+v, Apply %d %+v", f, ea, a, eb, b, ec, c)
 				bad++
 			}
 		}
@@ -183,8 +183,8 @@ func TestEV6VariantKeysAsBefore(t *testing.T) {
 	for k, l := range v.pushLabels {
 		labels[k] = l
 	}
-	if !reflect.DeepEqual(keyLabels, labels) {
-		t.Errorf("labels %v, variant %v", keyLabels, labels)
+	if !reflect.DeepEqual(legacyKeyLabels, labels) {
+		t.Errorf("labels %v, variant %v", legacyKeyLabels, labels)
 	}
 	if want := map[byte]string{8: "Tune knob", 9: "Volume knob"}; !reflect.DeepEqual(v.knobLabels, want) {
 		t.Errorf("knob labels %v, want %v", v.knobLabels, want)
