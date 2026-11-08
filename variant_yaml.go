@@ -12,20 +12,22 @@ import (
 // It is decoded strictly: an unknown key is an error, as is a repeated one.
 
 type rawVariant struct {
-	Schema   int                  `yaml:"schema"`
-	Name     string               `yaml:"name"`
-	Title    string               `yaml:"title,omitempty"`
-	Extends  string               `yaml:"extends,omitempty"`
-	Abstract bool                 `yaml:"abstract,omitempty"`
-	Match    *rawMatch            `yaml:"match,omitempty"`
-	Expect   map[string]int       `yaml:"expect,omitempty"`
-	Identify *rawIdentify         `yaml:"identify,omitempty"`
-	Headers  map[string]rawHeader `yaml:"headers,omitempty"`
-	Keys     *rawKeys             `yaml:"keys,omitempty"`
-	Signals  []rawSignal          `yaml:"signals,omitempty"`
-	Decode   []rawDecoder         `yaml:"decode,omitempty"`
-	Profile  []rawPeriodic        `yaml:"profile,omitempty"`
-	Send     []rawSend            `yaml:"send,omitempty"`
+	Schema   int                         `yaml:"schema"`
+	Name     string                      `yaml:"name"`
+	Title    string                      `yaml:"title,omitempty"`
+	Extends  string                      `yaml:"extends,omitempty"`
+	Abstract bool                        `yaml:"abstract,omitempty"`
+	Match    *rawMatch                   `yaml:"match,omitempty"`
+	Expect   map[string]int              `yaml:"expect,omitempty"`
+	Identify *rawIdentify                `yaml:"identify,omitempty"`
+	Headers  map[string]rawHeader        `yaml:"headers,omitempty"`
+	Keys     *rawKeys                    `yaml:"keys,omitempty"`
+	Signals  []rawSignal                 `yaml:"signals,omitempty"`
+	Decode   []rawDecoder                `yaml:"decode,omitempty"`
+	Enums    map[string]map[string]int64 `yaml:"enums,omitempty"`
+	Messages []rawMessage                `yaml:"messages,omitempty"`
+	Profile  []rawPeriodic               `yaml:"profile,omitempty"`
+	Send     []rawSend                   `yaml:"send,omitempty"`
 }
 
 type rawMatch struct {

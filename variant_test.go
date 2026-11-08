@@ -34,6 +34,16 @@ func TestVariantsResolve(t *testing.T) {
 // Each file is refused, with the reason in the error.
 func TestLoadVariantRefuses(t *testing.T) {
 	const head = "schema: 1\nname: t\nextends: hkmc-gen5w\n"
+	// A to_micom message m (audio_tx, cmd 0x40, 2 bytes) and a from_micom
+	// one; extra is more keys of the message, or more messages after it.
+	tx := func(fields, extra string) string {
+		return head + "messages: [{name: m, dir: to_micom, hdr: audio_tx, cmd: 0x40, length: 2, status: code, ref: r, fields: [" + fields + "]" + extra + "]\n"
+	}
+	rx := func(fields, extra string) string {
+		return head + "messages: [{name: M, dir: from_micom, hdr: system_rx, cmd: 0x40, fields: [" + fields + "]" + extra + "]\n"
+	}
+	const f0 = "{name: a, off: 0}"
+	const prof = "profile: [{name: q, every: 1s, frame: \"ff 85 02 01 02 0b 00 03 02 01 70\", status: captured, ref: r}]\n"
 	for _, tc := range []struct {
 		name, yaml, want string
 	}{
@@ -94,6 +104,75 @@ func TestLoadVariantRefuses(t *testing.T) {
 		{"text unit", head + "decode: [{name: d, hdr: \"0c 88 01 8c\", cmd: 0x5c, min_len: 4, fields: [{name: f, off: 1, size: 2, text: true, unit: \" W\"}]}]\n", "a text field has no"},
 		{"text mask", head + "decode: [{name: d, hdr: \"0c 88 01 8c\", cmd: 0x5c, min_len: 4, fields: [{name: f, off: 1, mask: 3, text: true}]}]\n", "a text field has no"},
 		{"text size", head + "decode: [{name: d, hdr: \"0c 88 01 8c\", cmd: 0x5c, min_len: 12, fields: [{name: f, off: 1, size: 9, text: true}]}]\n", "size is 1 to 8"},
+		{"message dir", head + "messages: [{name: m, dir: up, cmd: 1, fields: [" + f0 + "]}]\n", "dir is from_micom or to_micom"},
+		{"message twice", tx(f0, "}, {name: m, dir: to_micom, hdr: audio_tx, cmd: 0x41, length: 1, status: code, ref: r, fields: ["+f0+"]}"), "once"},
+		{"message remove nothing", head + "messages: [{name: m, remove: true}]\n", "nothing inherited"},
+		{"to_micom name", head + "messages: [{name: M m, dir: to_micom, hdr: audio_tx, cmd: 0x40, length: 1, status: code, ref: r, fields: [" + f0 + "]}]\n", "a to_micom name is"},
+		{"to_micom status", head + "messages: [{name: m, dir: to_micom, hdr: audio_tx, cmd: 0x40, length: 1, ref: r, fields: [" + f0 + "]}]\n", "status is required"},
+		{"to_micom ref", head + "messages: [{name: m, dir: to_micom, hdr: audio_tx, cmd: 0x40, length: 1, status: code, fields: [" + f0 + "]}]\n", "ref is required"},
+		{"to_micom length", head + "messages: [{name: m, dir: to_micom, hdr: audio_tx, cmd: 0x40, status: code, ref: r, fields: [" + f0 + "]}]\n", "length is required"},
+		{"to_micom open header", head + "messages: [{name: m, dir: to_micom, hdr: \"85 02 ?? 02\", cmd: 0x40, length: 1, status: code, ref: r, fields: [" + f0 + "]}]\n", "neither a header name"},
+		{"to_micom from_micom header", head + "messages: [{name: m, dir: to_micom, hdr: system_rx, cmd: 0x40, length: 1, status: code, ref: r, fields: [" + f0 + "]}]\n", "not a to_micom header"},
+		{"to_micom alive", head + "messages: [{name: m, dir: to_micom, hdr: system_tx, cmd: 0x0f, length: 1, status: code, ref: r, fields: [" + f0 + "]}]\n", "CPU-alive"},
+		{"to_micom denylisted", head + "messages: [{name: m, dir: to_micom, hdr: system_tx, cmd: 0x07, length: 1, status: code, ref: r, fields: [" + f0 + "]}]\n", "denylisted"},
+		{"to_micom guard", tx(f0, ", when: [{off: 0, eq: 1}]}"), "are for from_micom"},
+		{"two messages, one frame", tx(f0, "}, {name: n, dir: to_micom, hdr: audio_tx, cmd: 0x40, length: 1, status: code, ref: r, fields: ["+f0+"]}"), "already sends"},
+		{"chunked", tx(f0, ", transport: {kind: chunked, prefix: 0xf0}}"), "needs the captured TP function byte"},
+		{"transport kind", tx(f0, ", transport: double}"), "transport is single or chunked"},
+		{"never sends", tx(f0, ", on_change: false}"), "would never send"},
+		{"every without timeout", tx(f0, ", every: 1s}"), "need timeout"},
+		{"owns without timeout", tx(f0, ", owns: q}"), "need timeout"},
+		{"owns nothing", tx(f0, ", owns: q, timeout: 1s}"), "no routine profile entry"},
+		{"owns another frame", prof + tx(f0, ", owns: q, timeout: 1s}"), "a different frame"},
+		{"end message", tx(f0, ", end: [{msg: n}]}"), "not a to_micom message"},
+		{"end field", tx(f0, ", end: [{msg: m, set: {b: 1}}]}"), "b: no such field"},
+		{"end required", tx(f0, ", end: [{msg: m}]}"), "a: required"},
+		{"end value", tx("{name: a, off: 0, max: 9, default: 0}", ", end: [{msg: m, set: {a: 10}}]}"), "above the maximum"},
+		{"field type", tx("{name: a, off: 0, type: u64}", "}"), "type is u8"},
+		{"field beyond", tx("{name: a, off: 1, type: u16}", "}"), "must lie within"},
+		{"field overlap", tx("{name: a, off: 0, bits: \"7:4\"}, {name: b, off: 0, bits: \"5:0\"}", "}"), "overlaps"},
+		{"field twice", tx(f0+", {name: a, off: 1}", "}"), "used once"},
+		{"field name", tx("{name: Speed, off: 0}", "}"), "[a-z][a-z0-9_]*"},
+		{"field name msg", tx("{name: msg, off: 0}", "}"), "not msg or end"},
+		{"bits on u16", tx("{name: a, off: 0, type: u16, bits: \"3:0\"}", "}"), "bits are within one byte"},
+		{"bits order", tx("{name: a, off: 0, bits: \"4:7\"}", "}"), "is not \"hi:lo\""},
+		{"invalid too wide", tx("{name: a, off: 0, bits: \"3:0\", invalid: 0x1f}", "}"), "does not fit the field's 4 bits"},
+		{"endian", tx("{name: a, off: 0, type: u16, endian: middle}", "}"), "endian is big or little"},
+		{"no enum", tx("{name: a, off: 0, enum: nope}", "}"), "no enum"},
+		{"enum code too big", "enums: {e: {x: 16}}\n" + tx("{name: a, off: 0, bits: \"3:0\", enum: e}", "}"), "does not fit the field"},
+		{"enum code is invalid", "enums: {e: {x: 15}}\n" + tx("{name: a, off: 0, bits: \"3:0\", enum: e, invalid: 15}", "}"), "its invalid marker"},
+		{"enum code twice", "enums: {e: {x: 1, y: 1}}\n" + tx(f0, "}"), "are both 1"},
+		{"enum name", "enums: {e: {X: 1}}\n" + tx(f0, "}"), "name \"X\""},
+		{"enum bool", "enums: {e: {x: 1}}\n" + tx("{name: a, off: 0, type: bool, enum: e}", "}"), "an enum is an integer field"},
+		{"scale zero", tx("{name: a, off: 0, scale: 0}", "}"), "scale is a finite number"},
+		{"scale on enum", "enums: {e: {x: 1}}\n" + tx("{name: a, off: 0, enum: e, scale: 2}", "}"), "are for numbers"},
+		{"min above max", tx("{name: a, off: 0, min: 5, max: 4}", "}"), "min is above max"},
+		{"default range", tx("{name: a, off: 0, max: 9, default: 12}", "}"), "default: a: 12 is above the maximum 9"},
+		{"default marker", tx("{name: a, off: 0, invalid: 0xff, default: 255}", "}"), "encodes to the invalid marker"},
+		{"default fraction", tx("{name: a, off: 0, default: 1.5}", "}"), "is not an integer"},
+		{"no placement", tx("{name: a}", "}"), "placed by off, or by start_bit"},
+		{"bit_length", tx("{name: a, start_bit: 0, bit_length: 33}", "}"), "bit_length is 1 to 32"},
+		{"start_bit and off", tx("{name: a, off: 0, start_bit: 0, bit_length: 4}", "}"), "without off or bits"},
+		{"start_bit type", tx("{name: a, start_bit: 0, bit_length: 4, type: u8}", "}"), "type is bool or absent"},
+		{"signed byte field", tx("{name: a, off: 0, signed: true}", "}"), "are for start_bit fields"},
+		{"intel beyond", tx("{name: a, start_bit: 15, bit_length: 2, endian: little}", "}"), "must lie within"},
+		{"motorola beyond", tx("{name: a, start_bit: 7, bit_length: 17}", "}"), "must lie within"},
+		{"bit overlap", tx("{name: a, off: 0, bits: \"7:4\"}, {name: b, start_bit: 4, bit_length: 2}", "}"), "overlaps another field at byte 0 bit 4"},
+		{"str size", tx("{name: a, off: 0, type: str}", "}"), "needs a size"},
+		{"str start_bit", tx("{name: a, start_bit: 0, type: str, size: 1}", "}"), "placed by off"},
+		{"str bits", tx("{name: a, off: 0, type: str, size: 2, bits: \"3:0\"}", "}"), "a str field has only"},
+		{"str encoding", tx("{name: a, off: 0, type: str, size: 2, encoding: latin1}", "}"), "encoding is ASCII or UTF-16LE"},
+		{"utf16 size", tx("{name: a, off: 0, type: str, size: 1, encoding: UTF-16LE}", "}"), "size is even"},
+		{"size on a number", tx("{name: a, off: 0, size: 2}", "}"), "are for str"},
+		{"from_micom u32", rx("{name: a, off: 0, type: u32}", ", min_length: 4}"), "must fit 32 bits"},
+		{"from_micom scaled past 32 bits", rx("{name: a, off: 0, type: i32, scale: 2}", ", min_length: 4}"), "must fit 32 bits"},
+		{"from_micom default", rx("{name: a, off: 0, default: 1}", ", min_length: 2}"), "are for to_micom"},
+		{"from_micom every", rx(f0, ", min_length: 2, every: 1s}"), "are for to_micom"},
+		{"from_micom both lengths", rx(f0, ", min_length: 2, length: 2}"), "not both"},
+		{"from_micom len guard", rx(f0, ", min_length: 2, when: [{len: 2}]}"), "a guard is {off"},
+		{"from_micom guard beyond", rx(f0, ", min_length: 2, when: [{off: 2, eq: 1}]}"), "beyond the 2 bytes"},
+		{"from_micom beyond", rx("{name: a, off: 0, type: u16}", ", min_length: 1}"), "must lie within"},
+		{"from_micom fields", head + "messages: [{name: M, dir: from_micom, hdr: system_rx, cmd: 0x40}]\n", "fields are required"},
 		{"identify pattern", head + "identify: {request: {name: r, pattern: \"ff 8a 01 01 01 17 00 02 [00-01] ..\", status: inferred, ref: r}}\n", "not a pattern"},
 	} {
 		_, err := loadVariantData([]byte(tc.yaml), "test")

@@ -46,6 +46,8 @@ type Variant struct {
 	signals  map[hdrCmd]*sigSpec
 	decoders map[byte][]*decoder // by command
 	names    map[hdrCmd]string
+	messages map[string]*msgSpec // to_micom, by name
+	sent     map[hdrCmd]*msgSpec // to_micom, by frame
 
 	profile  []periodicSpec
 	sends    []sendSpec
@@ -62,7 +64,7 @@ type decoder struct {
 	hdr, mask [4]byte
 	minLen    int
 	guards    []guard
-	fields    []fieldSpec
+	fields    []interface{ read([]byte) Field }
 }
 
 type guard struct {
@@ -222,6 +224,7 @@ func duplicates(rv rawVariant) error {
 	}
 	check("signals", namesOf(rv.Signals, func(x rawSignal) string { return x.Name }))
 	check("decode", namesOf(rv.Decode, func(x rawDecoder) string { return x.Name }))
+	check("messages", namesOf(rv.Messages, func(x rawMessage) string { return x.Name }))
 	check("profile", namesOf(rv.Profile, func(x rawPeriodic) string { return x.Name }))
 	check("send", namesOf(rv.Send, func(x rawSend) string { return x.Name }))
 	if rv.Keys != nil {
@@ -310,6 +313,8 @@ func mergeVariant(p, c rawVariant) rawVariant {
 	}
 	out.Signals = mergeNamed(p.Signals, c.Signals, func(x rawSignal) (string, bool) { return x.Name, x.Remove })
 	out.Decode = mergeNamed(p.Decode, c.Decode, func(x rawDecoder) (string, bool) { return x.Name, x.Remove })
+	out.Enums = mergeMap(p.Enums, c.Enums)
+	out.Messages = mergeNamed(p.Messages, c.Messages, func(x rawMessage) (string, bool) { return x.Name, x.Remove })
 	out.Profile = mergeNamed(p.Profile, c.Profile, func(x rawPeriodic) (string, bool) { return x.Name, x.Remove })
 	out.Send = mergeNamed(p.Send, c.Send, func(x rawSend) (string, bool) { return x.Name, x.Remove })
 	return out
@@ -460,6 +465,7 @@ func compile(rv rawVariant) (*Variant, error) {
 		pushLabels: map[[2]byte]string{}, knobLabels: map[byte]string{},
 		keys:    keymap{push: map[keyKey]uint16{}, knob: map[knobKey]uint16{}},
 		signals: map[hdrCmd]*sigSpec{}, decoders: map[byte][]*decoder{}, names: map[hdrCmd]string{},
+		messages: map[string]*msgSpec{}, sent: map[hdrCmd]*msgSpec{},
 	}
 	if rv.Schema != variantSchema {
 		c.errf("schema", "is %d, want %d", rv.Schema, variantSchema)
@@ -565,6 +571,7 @@ func compile(rv rawVariant) (*Variant, error) {
 	}
 	compileSignals(c, v, rv.Signals, hdrOf)
 	compileDecoders(c, v, rv.Decode, hdrOf)
+	compileMessages(c, v, rv.Messages, compileEnums(c, rv.Enums), hdrOf, sendable)
 
 	seen := map[string]bool{}
 	for _, p := range rv.Profile {
@@ -642,6 +649,8 @@ func compile(rv rawVariant) (*Variant, error) {
 			c.errf("profile["+p.name+"]", "replaces %q: a different frame (header and command must match)", p.replaces)
 		}
 	}
+
+	checkMessageRefs(c, v)
 
 	seen = map[string]bool{}
 	for _, s := range rv.Send {
