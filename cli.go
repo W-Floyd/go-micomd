@@ -46,8 +46,8 @@ func Main(args []string, stdout, stderr io.Writer) int {
 	every := fs.Duration("stats", 10*time.Second, "how often to print the link's counters; 0 for never")
 	tapPath := fs.String("tap", "", "serve every frame received, with a timestamp, on this unix socket, for -attach")
 	attach := fs.String("attach", "", "print the frames of the micomd serving this -tap socket, instead of running one")
-	var allow hexList
-	fs.Var(&allow, "allow", "a whole frame in hex (ff 85 02 ...) the control socket may send, exactly as given; repeatable. Nothing is sent unless asked on -ctl")
+	var allow allowList
+	fs.Var(&allow, "allow", "a whole frame in hex (ff 85 02 ...) the control socket may send, exactly as given, or a pattern of them: payload bytes as ranges [lo-hi] and the checksum as .. (ff 85 02 01 02 03 00 02 [00-1e] ..); repeatable. Nothing is sent unless asked on -ctl")
 	ctlPath := fs.String("ctl", "", "serve a control socket here: it takes one hex frame per line and sends it if the profile or -allow lists it")
 	send := fs.String("send", "", "send the frames given as arguments (hex, one per argument) to the micomd serving this -ctl socket, instead of running one")
 	gap := fs.Duration("gap", 200*time.Millisecond, "the pause between the frames of -send")
@@ -91,7 +91,7 @@ func Main(args []string, stdout, stderr io.Writer) int {
 		profile = append(profile, ClockProfile()...)
 		lg.Printf("sending the clock frames from this machine's clock: %s", time.Now().Format(time.RFC3339))
 	}
-	cfg := Config{Port: port, Profile: profile, Logf: lg.Printf, NoAlive: *noAlive, Allow: allow.frames()}
+	cfg := Config{Port: port, Profile: profile, Logf: lg.Printf, NoAlive: *noAlive, Allow: allow.frames, AllowPatterns: allow.patterns}
 	if *dump {
 		cfg.OnFrame = func(f Frame) { io.WriteString(stdout, frameLine(f)) }
 	}

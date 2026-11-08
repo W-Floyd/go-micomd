@@ -41,27 +41,115 @@ func ParseHexFrame(s string) (Frame, error) {
 	return fs[0], nil
 }
 
-// hexList is a repeatable flag of hex frames.
-type hexList []string
-
-func (h *hexList) String() string { return strings.Join(*h, " ") }
-
-func (h *hexList) Set(s string) error {
-	if _, err := ParseHexFrame(s); err != nil {
-		return err
-	}
-	*h = append(*h, s)
-	return nil
+// Pattern is a family of frames that differ only in payload values: the
+// header, command and payload length are fixed, and each payload byte lies in
+// [Lo[i], Hi[i]].
+type Pattern struct {
+	Hdr    [4]byte
+	Cmd    byte
+	Lo, Hi []byte
 }
 
-// frames are the parsed frames; the list was checked as it was set.
-func (h hexList) frames() []Frame {
-	out := make([]Frame, 0, len(h))
-	for _, s := range h {
-		f, _ := ParseHexFrame(s)
-		out = append(out, f)
+// ParsePattern reads a pattern written as a whole frame in hex, in which a
+// payload byte may be a range "[lo-hi]" and the checksum, which follows from
+// the payload, is ".." ("ff 85 02 01 02 03 00 02 [00-1e] .." is the main
+// volume, 0 to 30). The length field must match the payload: a pattern varies
+// values, never which frame it is.
+func ParsePattern(s string) (Pattern, error) {
+	clean := strings.NewReplacer(" ", "", ",", "", "\t", "", "0x", "", "0X", "").Replace(s)
+	var lo, hi []byte
+	sum := false
+	for i := 0; i < len(clean); {
+		if sum {
+			return Pattern{}, fmt.Errorf("micom: %q: the checksum \"..\" comes last", s)
+		}
+		var a, b byte
+		switch {
+		case strings.HasPrefix(clean[i:], ".."):
+			sum = true
+			i += 2
+			continue
+		case clean[i] == '[':
+			if len(clean) < i+7 || clean[i+3] != '-' || clean[i+6] != ']' {
+				return Pattern{}, fmt.Errorf("micom: %q: a range is [lo-hi]", s)
+			}
+			if _, err := fmt.Sscanf(clean[i+1:i+3]+" "+clean[i+4:i+6], "%02x %02x", &a, &b); err != nil || a > b {
+				return Pattern{}, fmt.Errorf("micom: %q: bad range %s", s, clean[i:i+7])
+			}
+			i += 7
+		default:
+			if len(clean) < i+2 {
+				return Pattern{}, fmt.Errorf("micom: %q is not hex", s)
+			}
+			if _, err := fmt.Sscanf(clean[i:i+2], "%02x", &a); err != nil {
+				return Pattern{}, fmt.Errorf("micom: %q is not hex", s)
+			}
+			b = a
+			i += 2
+		}
+		lo = append(lo, a)
+		hi = append(hi, b)
 	}
-	return out
+	// Start, header (4), command, length (2), at least the checksum.
+	if !sum || len(lo) < 8 {
+		return Pattern{}, fmt.Errorf("micom: %q is not a whole frame ending in the checksum \"..\"", s)
+	}
+	if !bytes.Equal(lo[:8], hi[:8]) {
+		return Pattern{}, fmt.Errorf("micom: %q: only payload bytes may be ranges", s)
+	}
+	if lo[0] != Start {
+		return Pattern{}, fmt.Errorf("micom: %q does not start with %02x", s, Start)
+	}
+	n := len(lo) - 8
+	if int(lo[6])<<8|int(lo[7]) != n+1 {
+		return Pattern{}, fmt.Errorf("micom: %q: the length field is not the payload's (%d) plus the checksum", s, n)
+	}
+	var p Pattern
+	copy(p.Hdr[:], lo[1:5])
+	p.Cmd = lo[5]
+	p.Lo, p.Hi = lo[8:], hi[8:]
+	return p, nil
+}
+
+// Match is whether f is one of the pattern's frames.
+func (p Pattern) Match(f Frame) bool {
+	if f.Hdr != p.Hdr || f.Cmd != p.Cmd || len(f.Payload) != len(p.Lo) {
+		return false
+	}
+	for i, v := range f.Payload {
+		if v < p.Lo[i] || v > p.Hi[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// allowList is the repeatable -allow flag: whole frames, matched exactly, and
+// patterns (those with a range or the ".." checksum).
+type allowList struct {
+	specs    []string
+	frames   []Frame
+	patterns []Pattern
+}
+
+func (a *allowList) String() string { return strings.Join(a.specs, " ") }
+
+func (a *allowList) Set(s string) error {
+	if strings.ContainsAny(s, "[.") {
+		p, err := ParsePattern(s)
+		if err != nil {
+			return err
+		}
+		a.patterns = append(a.patterns, p)
+	} else {
+		f, err := ParseHexFrame(s)
+		if err != nil {
+			return err
+		}
+		a.frames = append(a.frames, f)
+	}
+	a.specs = append(a.specs, s)
+	return nil
 }
 
 // sameFrame is exact equality: header, command and payload.

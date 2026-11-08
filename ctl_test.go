@@ -58,23 +58,67 @@ func TestParseHexFrameStockAudio(t *testing.T) {
 	}
 }
 
-func TestAllowIsExact(t *testing.T) {
-	a, b := net.Pipe()
-	defer b.Close()
-	go io.Copy(io.Discard, b)
-	release, _ := ParseHexFrame("ff 85 02 01 02 0b 00 03 02 00 71")
-	set, _ := ParseHexFrame("ff 85 02 01 02 0b 00 03 02 01 70")
-	d := New(Config{Port: a, Profile: []Periodic{}, Allow: []Frame{release}})
-	if err := d.Send(release); err != nil {
-		t.Errorf("an allowed frame was refused: %v", err)
+// A frame goes out only if an -allow spec admits it: an exact frame is matched
+// byte for byte, a pattern only within its ranges, never another header,
+// command or payload length.
+func TestAllow(t *testing.T) {
+	frame := func(s string) Frame {
+		f, err := ParseHexFrame(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return f
 	}
-	if err := d.Send(set); err == nil {
-		t.Error("a frame that differs in its payload was sent")
+	release := "ff 85 02 01 02 0b 00 03 02 00 71"
+	volume := "ff 85 02 01 02 03 00 02 [00-1e] .."
+	otherCmd := frame(release)
+	otherCmd.Cmd = 0x0c
+	longer := frame("ff 85 02 01 02 03 00 02 16 6c")
+	longer.Payload = []byte{0x16, 0x00}
+	for _, c := range []struct {
+		name  string
+		allow string
+		f     Frame
+		sent  bool
+	}{
+		{"exact", release, frame(release), true},
+		{"exact, other payload", release, frame("ff 85 02 01 02 0b 00 03 02 01 70"), false},
+		{"exact, other command", release, otherCmd, false},
+		{"pattern, lowest", volume, frame("ff 85 02 01 02 03 00 02 00 7a"), true},
+		{"pattern, captured 0x16", volume, frame("ff 85 02 01 02 03 00 02 16 6c"), true},
+		{"pattern, highest", volume, frame("ff 85 02 01 02 03 00 02 1e 64"), true},
+		{"pattern, above the range", volume, frame("ff 85 02 01 02 03 00 02 1f 65"), false},
+		{"pattern, other command", volume, frame(release), false},
+		{"pattern, longer payload", volume, longer, false},
+	} {
+		var al allowList
+		if err := al.Set(c.allow); err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		a, b := net.Pipe()
+		go io.Copy(io.Discard, b)
+		d := New(Config{Port: a, Profile: []Periodic{}, Allow: al.frames, AllowPatterns: al.patterns})
+		if err := d.Send(c.f); (err == nil) != c.sent {
+			t.Errorf("%s: sent %v, want %v (%v)", c.name, err == nil, c.sent, err)
+		}
+		b.Close()
 	}
-	other := release
-	other.Cmd = 0x0c
-	if err := d.Send(other); err == nil {
-		t.Error("a frame that differs in its command was sent")
+}
+
+func TestParsePatternRefuses(t *testing.T) {
+	for _, bad := range []string{
+		"ff 85 02 01 02 03 00 02 [00-1e]",         // no checksum
+		"ff 85 02 01 02 03 00 02 .. [00-1e]",      // checksum not last
+		"ff 85 02 01 02 [03-04] 00 02 [00-1e] ..", // range in the command
+		"ff 85 02 01 02 03 00 03 [00-1e] ..",      // length is not the payload's
+		"ff 85 02 01 02 03 00 02 [1e-00] ..",      // empty range
+		"ff 85 02 01 02 03 00 02 [00-1e ..",       // unclosed
+		"fe 85 02 01 02 03 00 02 [00-1e] ..",      // no start byte
+		"ff 85 02 01 ..",                          // too short
+	} {
+		if _, err := ParsePattern(bad); err == nil {
+			t.Errorf("%q parsed", bad)
+		}
 	}
 }
 

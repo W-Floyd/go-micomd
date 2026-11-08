@@ -33,6 +33,10 @@ type Config struct {
 	// socket, ServeControl): nothing here is sent on a schedule. For frames
 	// worked out from the stock system that a person tries one at a time.
 	Allow []Frame
+	// AllowPatterns lists families of frames Send may also put on the wire,
+	// on the same terms as Allow: fixed header, command and length, each
+	// payload byte within its range (a level, say, rather than one value).
+	AllowPatterns []Pattern
 }
 
 // Stats is a snapshot of the link.
@@ -119,6 +123,11 @@ func (d *Daemon) allowed(f Frame) bool {
 	}
 	for _, a := range d.cfg.Allow {
 		if sameFrame(a, f) {
+			return true
+		}
+	}
+	for _, p := range d.cfg.AllowPatterns {
+		if p.Match(f) {
 			return true
 		}
 	}
