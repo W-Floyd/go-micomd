@@ -71,19 +71,41 @@ Migration). `signals`, `profile`, `send`, `keys` and `identify` are unchanged.
 
 One field spec decodes (from_micom) and encodes (to_micom).
 
+Numbers are **CAN DBC signals**: raw bits at a place in the payload, signed
+or unsigned, in a byte order; physical = raw × scale + offset when decoding,
+raw = round((physical − offset) / scale) when encoding; min and max refused
+on encode; a unit; value tables (our enums). So cantools or opendbc serve as
+a mental test oracle: a field written as `start_bit`/`bit_length`/`endian`
+lays out bits exactly as the same DBC signal would (`TestFieldCodec` has
+rows of both byte orders). The DBC file format itself is not used: its
+29-bit IDs are not our 4-byte header and command, and it has no text,
+transports or lifecycle.
+
+Strings, and later the chunked transport and any conditional layout,
+borrow **Kaitai Struct**'s vocabulary where it fits (`type: str`, `size`,
+`encoding: ASCII`/`UTF-16LE`, `pad_right`; `repeat`, `if`, `switch-on`
+when needed), as data, never expressions that run.
+
+A field is placed one of two ways:
+
 | key | meaning |
 |---|---|
-| `off` | payload offset of the field's first byte |
-| `type` | `u8` (default), `u16`, `u32`, `i8`, `i16`, `i32`, `bool`, `text` |
-| `endian` | `big` (default; every layout seen so far) or `little` |
-| `bits` | `"hi:lo"` within the byte at `off`, for `u8`, `bool` or an enum; `"3"` is one bit |
-| `scale`, `offset` | value = raw × scale + offset; raw = round((value − offset) / scale) |
+| `off` + `type` | byte form: `u8` (default), `u16`, `u32`, `i8`, `i16`, `i32`, `bool` at payload byte `off` |
+| `bits` | with `off`: `"hi:lo"` within that byte, for one-byte types; `"3"` is one bit |
+| `start_bit` + `bit_length` | bit form, as DBC: bit k is bit k%8 of byte k/8; 1 to 32 bits; `signed: true` for signed; `type: bool` allowed |
+| `endian` | `big` (default; every layout seen so far; DBC's Motorola, `start_bit` is the most significant bit) or `little` (Intel, `start_bit` the least) |
+
+and coded by:
+
+| key | meaning |
+|---|---|
+| `scale`, `offset` | physical = raw × scale + offset |
 | `enum` | a table name: the input is a name, the frame its code |
 | `invalid` | the raw marker for "not available" (0xff, 0xffff, 0x3f, 15) |
 | `min`, `max` | the input's range, inclusive, before scaling; the raw value must also fit the field |
 | `default` | the input value when none was given |
 | `unit` | appended to a decoded value, as before |
-| `size`, `encoding`, `pad` | `text` only: bytes, `ascii` (default) or `utf16le`, padding byte |
+| `type: str` | `off`, `size` (bytes), `encoding` (`ASCII`, the default, or `UTF-16LE`), `pad_right` (byte) |
 
 Rules:
 
@@ -102,9 +124,10 @@ Rules:
   its marker, checked at load. Decoding gives the code as `Value` and the name
   as `Text`.
 - **bool**: `true`/`false` in, 1/0 out.
-- **text**: refused if longer than `size` or not encodable (ASCII: printable
-  only); the rest is `pad` (default 0x00). Decoding drops trailing pad bytes
-  and, for ASCII, reads n/a when a byte is unprintable, as before.
+- **str**: refused if longer than `size` or not encodable (ASCII: printable
+  only); the rest is `pad_right` (default 0x00). Decoding drops trailing
+  `pad_right` bytes when one is declared and, for ASCII, reads n/a when a
+  byte is unprintable, as before.
 - **32-bit ARM**: `int` is 32 bits there, and `Field.Value` is an `int`. The
   codec computes in 64 bits; a from_micom field must decode into an `int32`
   (so no `u32` from the micom, and scaled fields are bounded at load).
@@ -112,6 +135,11 @@ Rules:
 - **Layout checks at load**: every field lies within `length` (or the
   `min_length` a from_micom message promises); to_micom fields never share a
   bit; `bits` only on one-byte types; a `default` must encode.
+
+The organisation is opendbc's: shared base definitions (`hkmc-gen5w`) and
+per-car files that extend them, framing and checksum in code, the car
+identified at startup (the kernel command line). The lifecycle and the
+safety gates below are ours; no prior art covers them.
 
 ## Transports
 
@@ -126,9 +154,13 @@ Rules:
   transport: { kind: chunked, func: 0x??, prefix: 0xF0 }   # not loadable yet
   ```
 
-  A strace of the stock micomd while the stock navigation guides gives the
-  byte and whether long payloads are split. Until then no field of a text
-  message can be sent, and nothing is guessed.
+  The multiplexed UCLU_9 payloads (0xF1 lanes: a count, then 3 bytes per
+  lane; 0xF2 turn list: 56 bytes per step) are Kaitai's `repeat` and
+  `switch-on` on the prefix byte; they get those keys, as data, when the
+  transport is known. A strace of the stock micomd while the stock
+  navigation guides gives the byte and whether long payloads are split.
+  Until then no str field over this transport can be sent, and nothing is
+  guessed.
 
 ## Lifecycle
 
@@ -252,7 +284,7 @@ entry, and `tbt-turn`'s end names it. The enums are in the base.
 - Every `decode:` entry became a `dir: from_micom` message: `min_len` is
   `min_length`; a `{len: N}` guard is `length: N`; `size: 2` is `type: u16`;
   the implicit 0xff / 0xffff "n/a" is an explicit `invalid:`, and `na: none`
-  is its absence; `mask`/`shift` are `bits`; `text: true` is `type: text`.
+  is its absence; `mask`/`shift` are `bits`; `text: true` is `type: str`.
   Describe, Decode, FrameName and the profile bytes of the EV6 are unchanged
   (the equivalence tests).
 - `decode:` is not accepted alongside: one schema, one code path. A file
@@ -299,6 +331,10 @@ describes.
   keeps the message alive. A client that stops should send its fields as
   `null`.
 - **Chunked transport**: see Transports.
+- **opendbc's Hyundai/Kia DBCs** may name CAN signals the micom relays
+  (speed, gear, state of charge). Cross-referencing their layouts and value
+  tables against our undecoded frames (0x8D2D, 0x8D43, 0x8D47, the 0x4D17
+  pair) could decode some of them. Not done: nothing was fetched.
 
 ## Refs
 
