@@ -208,6 +208,42 @@ values.
 The engine runs off one 50 ms tick, so `every`, `timeout` and
 `min_interval` are honoured to within 50 ms.
 
+## Requires
+
+Some frames are safe only in a state the micom reports. A to_micom message
+may require the last value micomd received of a from_micom field:
+
+```yaml
+requires:
+  - { if: { stage: power_off_request }, field: "Power state", in: [ power_off_request ] }
+  - { if: { stage: rail_off },          field: "Power state", in: [ rail_off ] }
+```
+
+- `field` names a from_micom field, across messages, as telemetry names its
+  readings. The 0x8108 power state comes in two shapes (`[00, s, 00]`
+  going down, `[01, 05]` on ACC on), which are two messages with one field
+  "Power state"; keyed by message, a requirement on the first would never
+  see ACC come back. Every from_micom field of that name must have the same
+  type and enum.
+- `in` lists the values that let the frame go: names of the field's enum,
+  or numbers when it has none. A received invalid marker matches nothing.
+- `if` (Kaitai's word) limits the requirement to frames whose fields have
+  these values, defaults counted; without it, it gates every frame. This is
+  how one message carrying both acks gates each value on its own state; a
+  field-level form would gate a field, not one of its values.
+- An input that fails is refused with the requirement and what was last
+  received (`none received yet` before any frame). It is never held for
+  later: the state may never come, or come back too late to be right.
+- The check runs again whenever the frame would go out: a frame held by
+  `min_interval`, a repeat, an end step. The state may have moved since the
+  input.
+- micomd updates the values as each frame arrives, before `-dump` and the
+  tap see it. A requirement can be no more current than the micom's last
+  report.
+- Checked at load: the field exists on a from_micom message, the `in`
+  values are its values, the `if` fields are the message's and their
+  values encode; `requires` on a from_micom message is refused.
+
 ## Persistent frames
 
 Some frames make the micom write its EEPROM every time it gets one (EV6:
@@ -261,12 +297,18 @@ A clean shutdown, by the client (micomd sends nothing unasked):
 Keep answering the CPU-alive requests throughout (micomd does).
 
 **The acks are latched and survive ACC on.** One sent early (before its
-state) waits in the micom and cuts the next ACC-off cycle short. Send each
-only after the 0x8108 state it answers. micomd does not enforce this: a
-precondition on received state ("only after Power state X") would need the
-engine to track decoded frames and condition one field's values on them,
-new machinery for two values of one message. It is the client's duty;
-see Open questions.
+state) would wait in the micom and cut the next ACC-off cycle short. micomd
+enforces the order (`requires`, above): each ack goes out only while the
+last 0x8108 state it received is the one it answers, and is refused
+otherwise:
+
+```
+> {"msg":"shutdown-ack","stage":"power_off_request"}
+< {"error":"shutdown-ack: requires Power state in [power_off_request]: it is acc_on"}
+```
+
+A client acks when it sees the state (on `-tap`, or in Snapshot), and
+retries on refusal only after the next state arrives.
 
 Backlight: off from the micom's power-up until `{"msg":"backlight","on":true}`,
 which the micom refuses while its supply is low. A client sends it after
@@ -382,7 +424,7 @@ entry, and `tbt-turn`'s end names it. The enums are in the base.
 
 Framing and checksum; the CPU-alive exchange; the denylist; the codec types,
 rounding and the gates; the transports; the lifecycle engine (state, merge,
-repeat, own, timeout, end); the input socket and its JSON. A variant only
+repeat, own, timeout, end, requires); the input socket and its JSON. A variant only
 describes.
 
 ## Tests
@@ -390,24 +432,21 @@ describes.
 - `TestLoadVariantRefuses`: a row per refusal of the schema.
 - `TestFieldCodec`: each codec form, both DBC byte orders, encoded and read
   back.
-- `TestInput`: input lines and engine ticks against a test variant, and
-  everything sent, owned and resumed.
+- `TestInput`: input lines, received frames and engine ticks against a test
+  variant, and everything sent, owned and resumed; requires per value, and
+  again when a held frame goes out.
 - `TestServeInput`: the socket and a running daemon, the owned profile entry
-  off the wire while its message is active.
+  off the wire while its message is active, a requirement met by a frame
+  the daemon received.
 - `TestEV6Messages`: the cluster messages' frames, whole with checksums (the
   report's worked example, the captured `ack`, the end of route), each read
-  back by `DecodeInput` into an input that sends it again; the power and
-  backlight frames as micom-run took them; which messages each gate admits.
+  back by `DecodeInput` into an input that encodes to it again; the power
+  and backlight frames as micom-run took them; the shutdown acks refused
+  before any power state, at 5/4/3, and after ACC returns, and sent at their
+  own; which messages each gate admits.
 - The EV6 equivalence tests: what the Go tables read is read the same.
 
 ## Open questions
-
-- **Ack preconditions**: the shutdown acks are safe only after the 0x8108
-  state they answer, and micomd leaves that to the client. Enforcing it
-  needs the engine to keep the last decoded value of a received field and
-  a per-value `when` on a to_micom field (`stage: power_off_request` only
-  while "Power state" is `power_off_request`). Worth building if a second
-  use appears.
 - **Power, from a car**: the EEPROM's power settings and timers, what stock
   sends at each 0x8108 state and when it acks, GPIO 43, the 0x810a trigger
   and the CAN meaning of 0x810b/0x810d, auto day/night, and stock 0x0801,

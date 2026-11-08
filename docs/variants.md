@@ -394,5 +394,5 @@ decoder is the safer reader of untrusted lines.
 - **Power from a car.** The EV6's power, ACC and backlight frames come from
   the micom firmware in emulation; the ACC-off times are its defaults, and
   what stock Android sends at each step is not captured. micomd decodes the
-  states and offers the shutdown acks; acking at the right state is the
-  client's duty ([messages.md](messages.md), "Power").
+  states and sends each shutdown ack only in the state it answers
+  ([messages.md](messages.md), "Power"); when to ack is the client's.
