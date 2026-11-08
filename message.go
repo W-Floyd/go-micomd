@@ -28,10 +28,15 @@ type rawMessage struct {
 	Owns      string        `yaml:"owns,omitempty"`
 	Timeout   time.Duration `yaml:"timeout,omitempty"`
 	End       []rawEndStep  `yaml:"end,omitempty"`
-	Status    string        `yaml:"status,omitempty"`
-	Ref       string        `yaml:"ref,omitempty"`
-	Note      string        `yaml:"note,omitempty"`
-	Remove    bool          `yaml:"remove,omitempty"`
+	// MinInterval spaces sends; inputs within it are coalesced, the newest
+	// sent when it has passed.
+	MinInterval time.Duration `yaml:"min_interval,omitempty"`
+	// Persistent: the micom writes its EEPROM for every frame.
+	Persistent bool   `yaml:"persistent,omitempty"`
+	Status     string `yaml:"status,omitempty"`
+	Ref        string `yaml:"ref,omitempty"`
+	Note       string `yaml:"note,omitempty"`
+	Remove     bool   `yaml:"remove,omitempty"`
 }
 
 type rawMsgField struct {
@@ -89,9 +94,15 @@ type msgSpec struct {
 	byName         map[string]*field
 	onChange       bool
 	every, timeout time.Duration
+	minInterval    time.Duration
+	persistent     bool
 	owns           string
 	end            []endStep
 }
+
+// minPersistentInterval bounds how often an input can make the micom write
+// its EEPROM.
+const minPersistentInterval = time.Second
 
 type endStep struct {
 	msg string
@@ -215,8 +226,8 @@ func compileMessages(c *checker, v *Variant, raws []rawMessage, enums map[string
 
 func compileFromMicom(c *checker, v *Variant, where string, r rawMessage, enums map[string]map[string]int64, hdrOf func(string, string) ([4]byte, bool)) {
 	checkStatus(c, where, r.Status, false)
-	if r.Fill != nil || r.Transport != nil || r.OnChange != nil || r.Every != 0 || r.Owns != "" || r.Timeout != 0 || len(r.End) > 0 {
-		c.errf(where, "fill, transport, on_change, every, owns, timeout and end are for to_micom")
+	if r.Fill != nil || r.Transport != nil || r.OnChange != nil || r.Every != 0 || r.Owns != "" || r.Timeout != 0 || len(r.End) > 0 || r.MinInterval != 0 || r.Persistent {
+		c.errf(where, "fill, transport, on_change, every, owns, timeout, end, min_interval and persistent are for to_micom")
 	}
 	d := &decoder{name: r.Name}
 	need := 0
@@ -281,19 +292,29 @@ func compileToMicom(c *checker, v *Variant, where string, r rawMessage, enums ma
 		}
 	}
 	m := &msgSpec{name: r.Name, status: r.Status, cmd: r.Cmd, byName: map[string]*field{},
-		onChange: r.OnChange == nil || *r.OnChange, every: r.Every, timeout: r.Timeout, owns: r.Owns}
+		onChange: r.OnChange == nil || *r.OnChange, every: r.Every, timeout: r.Timeout, owns: r.Owns,
+		minInterval: r.MinInterval, persistent: r.Persistent}
 	if r.Length == nil || *r.Length < 1 || *r.Length > MaxPayload {
 		c.errf(where, "length is required, 1 to %d", MaxPayload)
 		return
 	}
 	m.length = *r.Length
 	switch {
-	case r.Every < 0 || r.Timeout < 0:
-		c.errf(where, "every and timeout are positive")
-	case !m.onChange && r.Every == 0:
-		c.errf(where, "on_change false needs every: it would never send")
+	case r.Every < 0 || r.Timeout < 0 || r.MinInterval < 0:
+		c.errf(where, "every, timeout and min_interval are positive")
 	case (r.Every > 0 || r.Owns != "") && r.Timeout == 0:
 		c.errf(where, "every and owns need timeout, so a client that stops cannot leave them running")
+	}
+	// Each frame wears the micom's EEPROM: only an input sends one, only
+	// when it changes, and not more often than minPersistentInterval.
+	switch {
+	case !r.Persistent:
+	case r.Every != 0 || r.Owns != "" || len(r.End) > 0:
+		c.errf(where, "persistent: no every, owns or end (each frame writes the micom's EEPROM)")
+	case !m.onChange:
+		c.errf(where, "persistent: on_change only (each frame writes the micom's EEPROM)")
+	case r.MinInterval < minPersistentInterval:
+		c.errf(where, "persistent: min_interval of at least %v (each frame writes the micom's EEPROM)", minPersistentInterval)
 	}
 	if len(r.Fields) == 0 {
 		c.errf(where, "fields are required")
@@ -365,6 +386,9 @@ func checkMessageRefs(c *checker, v *Variant) {
 			if t == nil {
 				c.errf(where+".end", "%q is not a to_micom message", s.msg)
 				continue
+			}
+			if t.persistent {
+				c.errf(where+".end", "%s is persistent: an end, sent unasked, may not write the micom's EEPROM", s.msg)
 			}
 			bad := false
 			for _, k := range sortedKeys(s.set) {

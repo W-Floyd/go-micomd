@@ -29,6 +29,8 @@ messages:
   - {name: coded, dir: to_micom, hdr: audio_tx, cmd: 0x40, length: 1, status: code, ref: r, fields: [{name: a, off: 0}]}
   - {name: tied, dir: to_micom, hdr: audio_tx, cmd: 0x42, length: 1, status: captured, ref: r,
      fields: [{name: a, off: 0}], end: [{msg: coded, set: {a: 0}}]}
+  - {name: store, dir: to_micom, hdr: audio_tx, cmd: 0x43, length: 1, status: captured, ref: r,
+     fields: [{name: a, off: 0}], persistent: true, min_interval: 1s}
 `
 
 // recorder collects what an engine does: frames sent as "cmd:payload" in
@@ -61,18 +63,18 @@ func TestInput(t *testing.T) {
 		line, reply string
 	}
 	for _, tc := range []struct {
-		name     string
-		inferred bool
-		steps    []step
-		log      []string
+		name  string
+		gates InputGates
+		steps []step
+		log   []string
 	}{
-		{"merged, sent on change", false, []step{
+		{"merged, sent on change", InputGates{}, []step{
 			{0, `{"msg":"mode","mode":"media","level":5}`, "ok"},
 			{0, `{"msg":"mode","level":6}`, "ok"},
 			{0, `{"msg":"mode","level":6}`, "ok"},
 			{0, `{"msg":"mode","level":null}`, "ok"},
 		}, []string{"own q,q-code", "01:0e05", "01:0e06", "01:0eff"}},
-		{"refused", false, []step{
+		{"refused", InputGates{}, []step{
 			{0, `mode media`, "line is not a JSON object"},
 			{0, `{"msg":"mode"} {}`, "line is not a JSON object"},
 			{0, `{"mode":"media"}`, `"msg" is required`},
@@ -91,16 +93,16 @@ func TestInput(t *testing.T) {
 			{0, `{"msg":"coded","a":1}`, "coded: status code: needs -allow-inferred"},
 			{0, `{"msg":"tied","a":1}`, "tied: its end sends coded (status code: needs -allow-inferred)"},
 		}, nil},
-		{"a refused input changes nothing", false, []step{
+		{"a refused input changes nothing", InputGates{}, []step{
 			{0, `{"msg":"mode","mode":"media","level":12}`, "above the maximum"},
 			{0, `{"msg":"mode","level":1}`, "mode: required"},
 			{0, `{"msg":"mode","mode":"radio"}`, "ok"},
 		}, []string{"own q,q-code", "01:01ff"}},
-		{"inferred", true, []step{
+		{"inferred", InputGates{Inferred: true}, []step{
 			{0, `{"msg":"coded","a":1}`, "ok"},
 			{0, `{"msg":"tied","a":1}`, "ok"},
 		}, []string{"40:01", "42:01"}},
-		{"repeats, then the timeout ends it", false, []step{
+		{"repeats, then the timeout ends it", InputGates{}, []step{
 			{0, `{"msg":"mode","mode":"media","level":5}`, "ok"},
 			{500 * time.Millisecond, "", ""},
 			{time.Second, "", ""},
@@ -111,26 +113,41 @@ func TestInput(t *testing.T) {
 			{6200 * time.Millisecond, "", ""},
 			{8 * time.Second, "", ""},
 		}, []string{"own q,q-code", "01:0e05", "01:0e05", "01:0e06", "01:0e06", "01:0e06", "01:01ff", "41:09", "resume q,q-code"}},
-		{"end on request; an active target keeps the end's values", false, []step{
+		{"end on request; an active target keeps the end's values", InputGates{}, []step{
 			{0, `{"msg":"beep","a":1}`, "ok"},
 			{0, `{"msg":"mode","mode":"media"}`, "ok"},
 			{100 * time.Millisecond, `{"msg":"mode","end":true}`, "ok"},
 			{600 * time.Millisecond, "", ""},
 			{3 * time.Second, "", ""},
 		}, []string{"41:01", "own q,q-code", "01:0eff", "01:01ff", "41:09", "resume q,q-code", "41:09"}},
-		{"end of an inactive message", false, []step{
+		{"end of an inactive message", InputGates{}, []step{
 			{0, `{"msg":"mode","end":true}`, "ok"},
 		}, []string{"01:01ff", "41:09"}},
-		{"on_change false: the newest goes at the next repeat", false, []step{
+		{"on_change false: every input sends, and repeats count from it", InputGates{}, []step{
 			{0, `{"msg":"beep","a":1}`, "ok"},
-			{100 * time.Millisecond, `{"msg":"beep","a":2}`, "ok"},
+			{100 * time.Millisecond, `{"msg":"beep","a":1}`, "ok"},
 			{500 * time.Millisecond, "", ""},
-		}, []string{"41:01", "41:02"}},
+			{600 * time.Millisecond, "", ""},
+		}, []string{"41:01", "41:01", "41:01"}},
+		{"persistent: refused without its flag", InputGates{Inferred: true}, []step{
+			{0, `{"msg":"store","a":1}`, "store: persistent (writes the micom's EEPROM): needs -allow-persistent"},
+		}, nil},
+		{"persistent: on change, the newest within min_interval sent when it passes", InputGates{Persistent: true}, []step{
+			{0, `{"msg":"store","a":1}`, "ok"},
+			{200 * time.Millisecond, `{"msg":"store","a":2}`, "ok"},
+			{500 * time.Millisecond, `{"msg":"store","a":3}`, "ok"},
+			{900 * time.Millisecond, "", ""},
+			{time.Second, "", ""},
+			{1500 * time.Millisecond, `{"msg":"store","a":3}`, "ok"},
+			{1600 * time.Millisecond, `{"msg":"store","a":4}`, "ok"},
+			{1700 * time.Millisecond, `{"msg":"store","a":3}`, "ok"},
+			{3 * time.Second, "", ""},
+		}, []string{"43:01", "43:03"}},
 	} {
 		var r recorder
 		start := time.Unix(1000, 0)
 		now := start
-		e := newInputEngine(v, tc.inferred, r.send, r.own, func() time.Time { return now }, t.Logf)
+		e := newInputEngine(v, tc.gates, r.send, r.own, func() time.Time { return now }, t.Logf)
 		for _, s := range tc.steps {
 			now = start.Add(s.at)
 			if s.line == "" {
@@ -179,7 +196,7 @@ func TestServeInput(t *testing.T) {
 	defer cancel()
 	go d.Run(ctx)
 	p := tapPath(t)
-	go ServeInput(ctx, d, p, false)
+	go ServeInput(ctx, d, p, InputGates{})
 	var c net.Conn
 	for i := 0; i < 200 && c == nil; i++ {
 		c, _ = net.Dial("unix", p)

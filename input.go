@@ -38,16 +38,36 @@ type msgState struct {
 	sent      bool
 	lastInput time.Time
 	nextSend  time.Time
+	sentFrame Frame
+	lastSent  time.Time
+	pending   bool // last waits for min_interval
 }
 
-// tickEvery bounds how late a repeat or a timeout runs.
+// tickEvery bounds how late a repeat, a timeout or a coalesced send runs.
 const tickEvery = 50 * time.Millisecond
 
-func newInputEngine(v *Variant, inferred bool, send func(Frame) error, own func([]string, bool), now func() time.Time, logf func(string, ...any)) *inputEngine {
+// InputGates are what the input may send beyond captured messages.
+type InputGates struct {
+	// Inferred admits messages known only from code or inference
+	// (-allow-inferred).
+	Inferred bool
+	// Persistent admits messages whose every frame the micom writes to its
+	// EEPROM (-allow-persistent).
+	Persistent bool
+}
+
+func newInputEngine(v *Variant, g InputGates, send func(Frame) error, own func([]string, bool), now func() time.Time, logf func(string, ...any)) *inputEngine {
 	e := &inputEngine{v: v, send: send, own: own, now: now, logf: logf, refused: map[string]string{}, state: map[string]*msgState{}}
 	for n, m := range v.messages {
-		if m.status != "captured" && !inferred {
-			e.refused[n] = "status " + m.status + ": needs -allow-inferred"
+		var why []string
+		if m.status != "captured" && !g.Inferred {
+			why = append(why, "status "+m.status+": needs -allow-inferred")
+		}
+		if m.persistent && !g.Persistent {
+			why = append(why, "persistent (writes the micom's EEPROM): needs -allow-persistent")
+		}
+		if why != nil {
+			e.refused[n] = strings.Join(why, "; ")
 		}
 	}
 	// A message whose end would send a refused one is refused too.
@@ -139,16 +159,26 @@ func (e *inputEngine) handle(line []byte) error {
 			e.own(o, true)
 		}
 	}
-	st.vals, st.lastInput = merged, now
-	if st.sent && (!m.onChange || sameFrame(f, st.last)) {
-		st.last = f
+	st.vals, st.lastInput, st.last = merged, now, f
+	switch {
+	case m.onChange && st.sent && sameFrame(f, st.sentFrame):
+		st.pending = false
+		return nil
+	case m.minInterval > 0 && st.sent && now.Before(st.lastSent.Add(m.minInterval)):
+		st.pending = true
 		return nil
 	}
-	st.last, st.sent, st.nextSend = f, true, now.Add(m.every)
-	if err := e.send(f); err != nil {
+	if err := e.sendNow(m, st, now); err != nil {
 		return fmt.Errorf("%s: %v", name, err)
 	}
 	return nil
+}
+
+// sendNow sends st.last. e.mu is held.
+func (e *inputEngine) sendNow(m *msgSpec, st *msgState, now time.Time) error {
+	st.sentFrame, st.sent, st.pending = st.last, true, false
+	st.lastSent, st.nextSend = now, now.Add(m.every)
+	return e.send(st.last)
 }
 
 // end runs m's end steps, then makes it inactive and resumes what it owned.
@@ -170,7 +200,7 @@ func (e *inputEngine) end(m *msgSpec) error {
 		}
 		if ts != nil && t != m {
 			// Another active message keeps the new values, and repeats them.
-			ts.vals, ts.last = vals, f
+			ts.vals, ts.last, ts.sentFrame, ts.pending = vals, f, f, false
 		}
 		if err := e.send(f); err != nil {
 			errs = append(errs, fmt.Errorf("%s: %v", t.name, err))
@@ -201,9 +231,10 @@ func (e *inputEngine) tick(now time.Time) {
 			}
 			continue
 		}
-		if m.every > 0 && !now.Before(st.nextSend) {
-			st.nextSend = now.Add(m.every)
-			if err := e.send(st.last); err != nil {
+		due := st.pending && !now.Before(st.lastSent.Add(m.minInterval)) ||
+			m.every > 0 && !now.Before(st.nextSend)
+		if due {
+			if err := e.sendNow(m, st, now); err != nil {
 				e.logf("input: %s: %v", n, err)
 			}
 		}
@@ -236,11 +267,11 @@ func (v *Variant) receives(name string) bool {
 // ServeInput serves the structured input on a unix socket (mode 0660): one
 // JSON object per line, {"msg": NAME, field: value, ...}, each answered
 // with {"ok":true} or {"error":"why"}. Only the daemon's variant's to_micom
-// messages are sent, those not captured only with inferred; the denylist
-// and the CPU-alive frame are refused whatever the variant says. It
-// returns when ctx ends, and removes the socket.
-func ServeInput(ctx context.Context, d *Daemon, path string, inferred bool) error {
-	e := newInputEngine(d.cfg.Variant, inferred, d.sendMessage, d.own, d.cfg.Now, d.logf)
+// messages are sent, those not captured or persistent only as g allows; the
+// denylist and the CPU-alive frame are refused whatever the variant says.
+// It returns when ctx ends, and removes the socket.
+func ServeInput(ctx context.Context, d *Daemon, path string, g InputGates) error {
+	e := newInputEngine(d.cfg.Variant, g, d.sendMessage, d.own, d.cfg.Now, d.logf)
 	ok, refused := e.enabled()
 	d.logf("input %s: messages %s; refused: %s", path, listOrNone(ok), listOrNone(refused))
 	go e.run(ctx)

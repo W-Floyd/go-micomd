@@ -93,6 +93,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	allowVariant := fs.Bool("allow-variant", false, "the control socket may also send the variant's captured send entries")
 	allowInferred := fs.Bool("allow-inferred", false, "with -allow-variant also the variant's inferred send entries, with -identify-request an inferred request, and with -input the messages known only from code or inference")
 	inputPath := fs.String("input", "", "serve the structured input here: one JSON object per line, {\"msg\": NAME, field: value, ...}, encoded by the variant's to_micom messages (docs/messages.md)")
+	allowPersistent := fs.Bool("allow-persistent", false, "with -input also the messages whose every frame the micom writes to its EEPROM (rate-limited; each write wears it)")
 	identify := fs.Bool("identify-request", false, "ask the micom for its variant coding once, at start (the request is inferred: it needs -allow-inferred)")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -253,7 +254,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	}
 	if *inputPath != "" {
 		go func() {
-			if err := ServeInput(ctx, d, *inputPath, *allowInferred); err != nil {
+			if err := ServeInput(ctx, d, *inputPath, InputGates{Inferred: *allowInferred, Persistent: *allowPersistent}); err != nil {
 				lg.Printf("input socket: %v", err)
 			}
 		}()

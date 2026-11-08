@@ -44,7 +44,8 @@ func TestEV6Messages(t *testing.T) {
 		var sent []Frame
 		send := func(f Frame) error { sent = append(sent, f); return nil }
 		now := func() time.Time { return time.Unix(0, 0) }
-		e := newInputEngine(v, true, send, func([]string, bool) {}, now, t.Logf)
+		all := InputGates{Inferred: true, Persistent: true}
+		e := newInputEngine(v, all, send, func([]string, bool) {}, now, t.Logf)
 		for _, l := range tc.lines {
 			if err := e.handle([]byte(l)); err != nil {
 				t.Errorf("%s: %s: %v", tc.name, l, err)
@@ -70,14 +71,14 @@ func TestEV6Messages(t *testing.T) {
 			in["msg"] = name
 			line, _ := json.Marshal(in)
 			var again []Frame
-			e2 := newInputEngine(v, true, func(f Frame) error { again = append(again, f); return nil }, func([]string, bool) {}, now, t.Logf)
+			e2 := newInputEngine(v, all, func(f Frame) error { again = append(again, f); return nil }, func([]string, bool) {}, now, t.Logf)
 			if err := e2.handle(line); err != nil || len(again) != 1 || !sameFrame(again[0], sent[i]) {
 				t.Errorf("%s: %s sends %v (%v), want %v", tc.name, line, again, err, sent[i])
 			}
 		}
 	}
 	// The cluster messages are code: refused without -allow-inferred.
-	e := newInputEngine(v, false, func(Frame) error { return nil }, func([]string, bool) {}, time.Now, t.Logf)
+	e := newInputEngine(v, InputGates{}, func(Frame) error { return nil }, func([]string, bool) {}, time.Now, t.Logf)
 	if ok, _ := e.enabled(); len(ok) != 0 {
 		t.Errorf("enabled without -allow-inferred: %v", ok)
 	}
