@@ -138,8 +138,10 @@ func TestEV6VariantProfileAsBefore(t *testing.T) {
 		name      string
 		old, vari []Periodic
 	}{
-		{"default", DefaultProfile(), v.Profile()},
-		{"clock", ClockProfile(), v.ClockProfile()},
+		{"default", legacyDefaultProfile(), v.Profile()},
+		{"clock", legacyClockProfile(), v.ClockProfile()},
+		{"DefaultProfile", legacyDefaultProfile(), DefaultProfile()},
+		{"ClockProfile", legacyClockProfile(), ClockProfile()},
 	} {
 		if len(pair.old) != len(pair.vari) {
 			t.Fatalf("%s: %d entries, variant %d", pair.name, len(pair.old), len(pair.vari))

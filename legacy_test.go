@@ -3,6 +3,7 @@ package micom
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 // The Go code the EV6 variant replaced, kept unchanged but renamed (legacy*),
@@ -398,6 +399,44 @@ func legacySetSeat(field **int, v byte) ClimateEvent {
 		return set(field, int(v)-5)
 	}
 	return ClimateNone
+}
+
+// profile.go's DefaultProfile and ClockProfile, and the headers the tests
+// still name.
+
+var (
+	hdrPoll   = [4]byte{0x88, 0x0c, 0x01, 0x0c}
+	hdrAck    = [4]byte{0x8f, 0x0d, 0x01, 0x0d}
+	hdrStatus = [4]byte{0xc3, 0x4d, 0x00, 0x4d}
+	hdrClock  = [4]byte{0xc2, 0x43, 0x00, 0x43}
+)
+
+func legacyDefaultProfile() []Periodic {
+	return []Periodic{
+		{Name: "poll", Every: time.Second, Build: func(time.Time) Frame {
+			return Frame{Hdr: hdrPoll, Cmd: 0x5c}
+		}},
+		{Name: "ack", Every: 600 * time.Millisecond, Build: func(time.Time) Frame {
+			return Frame{Hdr: hdrAck, Cmd: 0x03, Payload: []byte{0xff, 0xff, 0xff, 0x0e, 0x03, 0xff, 0xff, 0x03, 0xff}}
+		}},
+		{Name: "status", Every: time.Second, Build: func(time.Time) Frame {
+			return Frame{Hdr: hdrStatus, Cmd: 0x17, Payload: []byte{0x08, 0xd5, 0xfc, 0xdb, 0x05, 0xff, 0x81, 0x2b}}
+		}},
+	}
+}
+
+func legacyClockProfile() []Periodic {
+	return []Periodic{
+		{Name: "clock-sec", Every: time.Second, Build: func(now time.Time) Frame {
+			return Frame{Hdr: hdrPoll, Cmd: 0x09, Payload: []byte{0x04, 0xa0, 0x01, byte(now.Second()), 0x80}}
+		}},
+		{Name: "clock", Every: time.Second, Build: func(now time.Time) Frame {
+			return Frame{Hdr: hdrClock, Cmd: 0x33, Payload: []byte{
+				0x02, 0x02, byte(now.Hour()), byte(now.Minute()), byte(now.Second()),
+				byte(now.Month()), 0x01, byte(now.Year() % 100), byte(now.Day()), 0x00, 0x02,
+			}}
+		}},
+	}
 }
 
 // decode.go's FrameName, Decode and Describe.
