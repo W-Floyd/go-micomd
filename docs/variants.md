@@ -118,7 +118,7 @@ identify:
     frame: "ff 8a 01 01 01 17 00 01 62"
     status: inferred
     ref: "SystemService.requestVariantCode()"
-  reply: { name: "Variant code", hdr: system_rx, cmd: 0x17 }   # named, not decoded
+  reply: { name: "Variant code", hdr: system_rx, cmd: 0x17 }   # named; hkmc-gen5w decodes it
 
 headers:                     # dir: from_micom | to_micom; status and ref optional
   keys: { hdr: "07 84 01 87", dir: from_micom, status: captured }
@@ -163,6 +163,7 @@ decode:                      # multi-field frames: Decode, Snapshot readings, De
       - { name: "Climate total", off: 10, size: 2, unit: " W" }   # size 1|2, big endian
       # na: none (always valid); default: 0xff / 0xffff mean n/a
       # a bit field: { name, off, mask: 0x1f, shift: 5 }
+      # ASCII: { name, off, size: 2, text: true } (size 1-8; n/a if unprintable)
     status: code
     ref: "HEVService"
 
@@ -319,10 +320,11 @@ in that build.
 
 ## Not done yet
 
-- **Decoding the variant-code reply (0x8117) and checking `expect`.** The
-  reply's layout is unknown until it is captured from boot.
-  `-identify-request` sends the request, gated as above, and the reply is
-  named but not decoded.
+- **Checking `expect` against the variant-code reply (0x8117).** The reply
+  is decoded (hkmc-gen5w): vehicle and country, constants of the micom build;
+  the option word; the language, "en" or "ko". The layout comes from the
+  micom firmware and emulated builds, not yet from a car. Which option bits
+  are amp type and climate variant is not known, so nothing is checked.
 - **Sequences.** These would be named orders of send entries for `-send`. The
   daemon would never run one, but `-send` would have to load a variant to
   expand them, so they were left out.

@@ -75,6 +75,7 @@ type fieldSpec struct {
 	name, unit  string
 	off, size   int
 	naNone, bit bool
+	text        bool
 	mask, shift byte
 }
 
@@ -909,7 +910,16 @@ func compileDecoders(c *checker, v *Variant, raws []rawDecoder, hdrOf func(strin
 					c.errf(where+"."+f.Name, "shift is 0-7")
 				}
 			}
-			if fs.size != 1 && fs.size != 2 {
+			switch {
+			case f.Text:
+				if fs.bit || f.NA != "" || f.Unit != "" {
+					c.errf(where+"."+f.Name, "a text field has no mask, shift, na or unit")
+				}
+				if fs.size > 8 {
+					c.errf(where+"."+f.Name, "a text field's size is 1 to 8")
+				}
+				fs.text = true
+			case fs.size != 1 && fs.size != 2:
 				c.errf(where+"."+f.Name, "size is 1 or 2")
 			}
 			if f.Name == "" || f.Off < 0 || f.Off+fs.size > need {

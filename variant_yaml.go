@@ -165,6 +165,7 @@ type rawField struct {
 	NA    string `yaml:"na,omitempty"`
 	Mask  *uint8 `yaml:"mask,omitempty"`
 	Shift *uint8 `yaml:"shift,omitempty"`
+	Text  bool   `yaml:"text,omitempty"`
 }
 
 type rawPeriodic struct {

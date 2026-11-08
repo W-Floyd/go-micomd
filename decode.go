@@ -10,11 +10,16 @@ type Field struct {
 	Value int    `json:"value"`
 	Valid bool   `json:"valid"`
 	Unit  string `json:"unit"`
+	// Text is set, and Value 0, for a field the frame carries as ASCII.
+	Text string `json:"text,omitempty"`
 }
 
 func (f Field) String() string {
-	if !f.Valid {
+	switch {
+	case !f.Valid:
 		return f.Name + "=n/a"
+	case f.Text != "":
+		return f.Name + "=" + f.Text
 	}
 	return fmt.Sprintf("%s=%d%s", f.Name, f.Value, f.Unit)
 }

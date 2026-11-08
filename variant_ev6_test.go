@@ -79,17 +79,18 @@ func TestEV6VariantDescribesAsBefore(t *testing.T) {
 			t.Errorf("%v: legacy carDescribe %q, variant %q, carDescribe %q", f, a, b, c)
 			bad++
 		}
-		if a, b, c := legacyDescribe(f), v.Describe(f), Describe(f); a != b || a != c {
+		// The one frame added since the Go tables: the variant-code reply
+		// (01 8a 01 81, cmd 17), named and decoded.
+		added := f.Hdr == hdrAliveReq && f.Cmd == 0x17
+		if a, b, c := legacyDescribe(f), v.Describe(f), Describe(f); (a != b || a != c) && !added {
 			t.Errorf("%v: legacy Describe %q, variant %q, Describe %q", f, a, b, c)
 			bad++
 		}
-		if a, b, c := legacyDecode(f), v.Decode(f), Decode(f); !reflect.DeepEqual(a, b) || !reflect.DeepEqual(a, c) {
+		if a, b, c := legacyDecode(f), v.Decode(f), Decode(f); (!reflect.DeepEqual(a, b) || !reflect.DeepEqual(a, c)) && !added {
 			t.Errorf("%v: legacy Decode %v, variant %v, Decode %v", f, a, b, c)
 			bad++
 		}
-		// The one name added: the variant-code reply (01 8a 01 81, cmd 17),
-		// never described or decoded.
-		if a, b, c := legacyFrameName(f), v.FrameName(f), FrameName(f); (a != b || a != c) && !(f.Hdr == hdrAliveReq && f.Cmd == 0x17) {
+		if a, b, c := legacyFrameName(f), v.FrameName(f), FrameName(f); (a != b || a != c) && !added {
 			t.Errorf("%v: legacy FrameName %q, variant %q, FrameName %q", f, a, b, c)
 			bad++
 		}

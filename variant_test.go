@@ -85,6 +85,9 @@ func TestLoadVariantRefuses(t *testing.T) {
 		{"field size", head + "decode: [{name: d, hdr: \"0c 88 01 8c\", cmd: 0x5c, min_len: 4, fields: [{name: f, off: 1, size: 4}]}]\n", "size is 1 or 2"},
 		{"guard", head + "decode: [{name: d, hdr: \"0c 88 01 8c\", cmd: 0x5c, min_len: 4, when: [{eq: 1}], fields: [{name: f, off: 1}]}]\n", "a guard is"},
 		{"no fields", head + "decode: [{name: d, hdr: \"0c 88 01 8c\", cmd: 0x5c}]\n", "fields are required"},
+		{"text unit", head + "decode: [{name: d, hdr: \"0c 88 01 8c\", cmd: 0x5c, min_len: 4, fields: [{name: f, off: 1, size: 2, text: true, unit: \" W\"}]}]\n", "a text field has no"},
+		{"text mask", head + "decode: [{name: d, hdr: \"0c 88 01 8c\", cmd: 0x5c, min_len: 4, fields: [{name: f, off: 1, mask: 3, text: true}]}]\n", "a text field has no"},
+		{"text size", head + "decode: [{name: d, hdr: \"0c 88 01 8c\", cmd: 0x5c, min_len: 12, fields: [{name: f, off: 1, size: 9, text: true}]}]\n", "size is 1 to 8"},
 		{"identify pattern", head + "identify: {request: {name: r, pattern: \"ff 8a 01 01 01 17 00 02 [00-01] ..\", status: inferred, ref: r}}\n", "not a pattern"},
 	} {
 		_, err := loadVariantData([]byte(tc.yaml), "test")

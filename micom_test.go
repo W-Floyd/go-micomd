@@ -107,8 +107,13 @@ func TestSendAllowlist(t *testing.T) {
 }
 
 func TestDescribeLive(t *testing.T) {
-	// Frames seen live on the stage, 2026-10-16.
+	// Frames seen live on the stage, 2026-10-16; the variant-code replies are
+	// the EV6 and a Korean micom build's, in emulation.
 	for _, c := range []struct{ hdr, cmd, payload, want string }{
+		{"018a0181", "17", "cc01a2180080 00 656e 00000000", "Vehicle=204 Country=1 Options high=41496 Options low=128"},
+		{"018a0181", "17", "cc01a2180080 00 656e 00000000", "Language=en"},
+		{"018a0181", "17", "c800a0180080 00 6b6f 00000000", "Language=ko"},
+		{"018a0181", "17", "c800a0180080 00 0000 00000000", "Language=n/a"},
 		{"0c88018c", "02", "5700f5", "Climate power draw=245 W"},
 		{"0c88018c", "5c", "15ffffffffffffffffff01b1000000000000000000000400ff00000000ff", "Climate total=433 W"},
 		{"0c88018c", "5c", "15ffffffffffffffffff01b1000000000000000000000400ff00000000ff", "Climate power=255 W"},
