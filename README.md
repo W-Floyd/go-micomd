@@ -34,9 +34,13 @@ A library first (`package micom`, importable by other modules, such as the
   Frames can be sent only if a `Profile` lists them, never composed freely, and
   nothing in it flashes, resets or reconfigures the micom.
 * `micom.LoadVariant`, `micom.Variant`: what is car-specific (frame headers,
-  keys, climate and other state frames, decoders, the routine frames, what the
+  keys, climate and other state frames, messages, the routine frames, what the
   control socket may send) is a YAML file per car in `variants/`, embedded.
   A new car is a new file: see [docs/variants.md](docs/variants.md).
+* Messages: multi-field frames in both directions, described as data
+  ([docs/messages.md](docs/messages.md)). From the micom they are decoded;
+  to it (the cluster's turn-by-turn guidance and compass) a client fills
+  them in by name over `-input`, and micomd validates, encodes and sends.
 
 Everything comes from captured traffic (logcat's `MicomD` lines) and a
 disassembly of the vendor binary, not from a specification: it says only what has
@@ -66,6 +70,13 @@ otherwise), or by `-variant NAME` or `-variant-file PATH`; `-list-variants`,
 variant's keys and `-allow-variant` lets the control socket send its captured
 frames (`-allow-inferred` adds the inferred ones). A variant that fails to load
 leaves the keepalive running.
+
+`-input /run/micomd-input.sock` takes one JSON object per line,
+`{"msg":"tbt-turn","maneuver":"turn_right","distance":0,"distance_tenths":3,"unit":"km"}`,
+and answers `{"ok":true}` or `{"error":"..."}`. Clients never write bytes;
+the variant's messages say what each may set, and how long it stays on the
+wire without input. The EV6's cluster messages come from stock code, so they
+also need `-allow-inferred`. See [docs/messages.md](docs/messages.md).
 
 `Main(args, stdout, stderr) int` is the same command for embedding as a
 subcommand of a larger multi-call program.

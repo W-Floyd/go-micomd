@@ -84,6 +84,7 @@ What a variant supplies:
 | key injection | no (as before: `-keyfunc`) | `-keys`; `-keyfunc` and `-keymap` override entry by entry |
 | control-socket sends | no (as before: `-allow`) | `-allow-variant` (captured); `-allow-inferred` adds inferred and code entries |
 | the 0x0117 variant-code request | never | `-identify-request`, which while the request is inferred also needs `-allow-inferred` |
+| to_micom messages (cluster TBT, compass) | never | `-input SOCKET` (captured); `-allow-inferred` adds code and inferred ones ([messages.md](messages.md)) |
 
 The device unit's flags (`-keyfunc 0x8701 -keymap … -allow …`) work as
 before. `-keys -allow-variant -allow-inferred` gives the same keymap and
@@ -153,19 +154,31 @@ signals:                     # one-byte state frames: a line of text, and maybe 
                              # recirculation zones_synced fan
     status: captured
 
-decode:                      # multi-field frames: Decode, Snapshot readings, Describe
-  - name: "EV power block"   # also the frame's name (FrameName)
-    hdr: "0c 88 ?? 8c"       # a decoder may leave header bytes open (??)
+enums:                       # value tables for message fields: name -> code
+  distance_unit: { m: 0, km: 1, mi: 2, ft: 3, yd: 4 }
+
+messages:                    # multi-field frames, both directions: docs/messages.md
+  - name: "EV power block"   # from_micom: Decode, Snapshot readings, Describe, FrameName
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"       # a from_micom message may leave header bytes open (??)
     cmd: 0x5c
-    min_len: 29
-    when: [ { len: 3 }, { off: 0, eq: 0x57 } ]     # optional guards
+    min_length: 29           # or length: N, exact
+    when: [ { off: 0, eq: 0x57 } ]     # optional guards
     fields:
-      - { name: "Climate total", off: 10, size: 2, unit: " W" }   # size 1|2, big endian
-      # na: none (always valid); default: 0xff / 0xffff mean n/a
-      # a bit field: { name, off, mask: 0x1f, shift: 5 }
-      # ASCII: { name, off, size: 2, text: true } (size 1-8; n/a if unprintable)
+      - { name: "Climate total", off: 10, type: u16, invalid: 0xffff, unit: " W" }
     status: code
     ref: "HEVService"
+  - name: tbt-turn           # to_micom: filled in from -input, with a lifecycle
+    dir: to_micom
+    hdr: cluster_tx
+    cmd: 0x04
+    length: 8
+    fields: [ { name: maneuver, off: 0, enum: maneuver }, ... ]
+    every: 1s
+    timeout: 30s
+    end: [ { msg: tbt-turn, set: { maneuver: none } } ]
+    status: code
+    ref: "..."
 
 profile:                     # the only frames sent unasked: status must be captured
   - name: poll
@@ -199,9 +212,9 @@ send:                        # what the control socket may send, only when asked
 Inheritance runs root first:
 
 - Scalars override.
-- `headers` and `expect` merge key by key.
+- `headers`, `expect` and `enums` merge key by key (an enum table whole).
 - `identify` merges by request and by reply.
-- Named lists (`signals`, `decode`, `profile`, `send`, and `keys.push` and
+- Named lists (`signals`, `messages`, `profile`, `send`, and `keys.push` and
   `keys.knobs` by type.code) merge by name: the same name replaces the
   parent's entry, and `remove: true` deletes it.
 - A name used twice in one file is an error.
@@ -216,7 +229,13 @@ A file can make frames sendable. Nothing in it can send arbitrary frames:
    - A pattern may range over payload bytes only. The header, command and
      length are fixed, as `ParsePattern` already demands.
    - A template's placeholders are the six clock fields, in the payload.
-2. **Only the two existing send paths.**
+   - A to_micom message fixes its header, command and length; an input only
+     fills its declared fields, each checked against its type, range and
+     enum ([messages.md](messages.md)).
+2. **Only the three send paths.**
+   - to_micom messages go out only from `-input`, and code or inferred
+     ones only with `-allow-inferred`. One may stand in for a profile entry
+     of the same header and command (`owns`) while a client feeds it.
    - The profile, sent unasked, takes `status: captured` frames only. The one
      exception is `status: code` with `opt_in: code`: a correction of a
      captured entry. It names that entry in `replaces`, which must be the
@@ -225,8 +244,8 @@ A file can make frames sendable. Nothing in it can send arbitrary frames:
      `-allow-variant`.
    - Inferred and code entries additionally need `-allow-inferred`.
 3. **Headers.**
-   - A profile or send frame's header must be a `to_micom` header the variant
-     declares.
+   - A profile, send or to_micom message frame's header must be a
+     `to_micom` header the variant declares.
    - No variant may name the CPU-alive request or reply: that exchange is
      micomd's.
 4. **The denylist, in code.** `denylist.go` refuses these whatever a variant,
@@ -238,9 +257,10 @@ A file can make frames sendable. Nothing in it can send arbitrary frames:
    - func 0x011e, SPI sending stop
    - func 0x0128, VBus off/on
 
-   It is enforced twice: at load, and in `Daemon.Send`.
-5. **Provenance.** `status` and `ref` are required on every send, profile and
-   match entry.
+   It is enforced twice: at load, and in `Daemon.Send` (and for the input,
+   at each send).
+5. **Provenance.** `status` and `ref` are required on every send, profile,
+   to_micom message and match entry.
 6. **Tests.**
    - Every embedded file loads, and no two match ambiguously.
    - `TestLoadVariantRefuses` holds a row per refusal.
@@ -253,7 +273,8 @@ A file can make frames sendable. Nothing in it can send arbitrary frames:
   - headers
   - the key frame, labels and default keys
   - the signals (climate, seat heat, windows, doors, open doors, rear camera)
-  - the HEV decoders
+  - the messages: the variant code and HEV layouts, the cluster's TBT and
+    compass, and their enums
   - the profile frames
   - the send frames and patterns
   - match, expect, and the identify request and reply
@@ -261,7 +282,8 @@ A file can make frames sendable. Nothing in it can send arbitrary frames:
   - framing, checksum, `Decoder`
   - the CPU-alive exchange
   - `Daemon.Send`'s allowlist and the denylist
-  - the six signal kinds, decoder fields and template placeholders
+  - the six signal kinds, the field codecs and template placeholders
+  - the input socket and the messages' lifecycle
   - the key payload rule (type, code, press) and the `KEY_*` table
   - uinput, tap, ctl, and the command-line identity
   - `CarClimate`'s fields
@@ -273,6 +295,8 @@ Files:
 - `variant.go`: embedding, loading, merging, checking and compiling.
 - `variant_yaml.go`: the file as written.
 - `variant_use.go`: Describe, Decode, ApplyClimate, the profile and the sends.
+- `message.go`, `codec.go`: messages, enums and their field codecs.
+- `input.go`: the input socket and the lifecycle engine.
 - `signal.go`: the six signal kinds.
 - `identity.go`: the command-line identity.
 - `denylist.go`.
@@ -312,6 +336,9 @@ Two differences are deliberate:
   the capture it was read from. The stock frames of 2026-11-07 show it is
   the minute. This changes `-clock` only.
 
+The HEV and variant-code layouts later moved from `decode:` to `messages:`
+([messages.md](messages.md)); these tests passed unchanged.
+
 ## Size
 
 micomd for linux/arm, `CGO_ENABLED=0`:
@@ -320,13 +347,20 @@ micomd for linux/arm, `CGO_ENABLED=0`:
 |---|---|---|
 | before variants | 3,912,594 B | 2,621,600 B |
 | with variants | 5,624,084 B | 3,866,784 B |
+| with messages and `-input` | 6,671,530 B | 4,587,680 B |
 
-That is about +1.2 MB. go.yaml.in/yaml/v4 brings its plugins, `regexp` and
-`encoding/base64`. Its encoder, used only by `-show-variant`, is 131 KB of
+Variants are about +1.2 MB. go.yaml.in/yaml/v4 brings its plugins, `regexp`
+and `encoding/base64`. Its encoder, used only by `-show-variant`, is 131 KB of
 that. If this is too much for the u-root initramfs, one option is a
 `go generate` step that converts `variants/*.yaml` to JSON at build time,
 with the YAML loader behind a build tag. `-variant-file` would then take JSON
 in that build.
+
+Messages are +720 KB stripped: 130 KB the codecs, 590 KB `encoding/json`
+for the input's lines. A program that already links `encoding/json` (the
+Boot Manager's Snapshot, micom-livi) pays only the first. A hand parser of
+flat JSON objects would save the rest; it was not written, as the standard
+decoder is the safer reader of untrusted lines.
 
 ## Not done yet
 
@@ -337,7 +371,8 @@ in that build.
   are amp type and climate variant is not known, so nothing is checked.
 - **Sequences.** These would be named orders of send entries for `-send`. The
   daemon would never run one, but `-send` would have to load a variant to
-  expand them, so they were left out.
+  expand them, so they were left out. A to_micom message's `end` is the one
+  sequence the daemon runs.
 - **micom-livi.** It reads frames with the default variant's
   `CarClimate.Apply`. It has no `-variant` yet.
 - **Unknown cars.** On an unknown command line micomd runs the EV6, as before.

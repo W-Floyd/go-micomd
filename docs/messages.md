@@ -115,8 +115,9 @@ Rules:
   refused, not truncated.
 - **Invalid**: JSON `null` (YAML `null` in `set:`) sends the marker. A field
   without `invalid` refuses `null`. A value whose raw form equals the marker
-  is refused: it would read back as "not available".
-- **Absent** from the input: the field's current value (see State), else its
+  is refused: it would read back as "not available". Decoded, an invalid
+  field is `Valid: false` with the marker as its `Value`, as decode: was.
+- **Absent** from the input: the field's current value (see Lifecycle), else its
   `default`, else its `invalid` marker, else the input is refused as missing a
   required field.
 - **Enums**: a name not in the table is refused; numbers are refused (codes
@@ -178,7 +179,8 @@ values.
   frame replaces it, never goes beside it. It must have M's header and
   command. Owning an entry also owns any `opt_in: code` entry that `replaces`
   it, so `-code-profile` and the input never both drive one frame. When M
-  ends, the entry resumes.
+  ends, the entry resumes. The daemon checks ownership under its write lock:
+  once M's first input returns, no frame of the owned entry goes out.
 - **timeout**: no input for M in this long ends M. Required with `every` or
   `owns`, so a client that dies cannot leave a frame repeating or a profile
   entry silenced. A client keeps M alive by repeating its last input.
@@ -191,7 +193,9 @@ values.
 
   Then M becomes inactive: its state is cleared, its repeats stop, and its
   owned entry resumes. A step must encode from its target's defaults plus
-  `set` alone, checked at load, so an end always works.
+  `set` alone, checked at load, so an end always works. Ending an inactive
+  message still runs its steps: a client can clear the cluster after a
+  restart.
 
 The engine runs off one 50 ms tick, so `every` and `timeout` are honoured to
 within 50 ms.
@@ -225,7 +229,7 @@ Refusals name the message and the field:
 {"error":"tbt-turn: speed: no such field"}
 {"error":"tbt-turn: maneuver: required"}
 {"error":"tbt-turn: distance_tenths: 2.5 is not an integer"}
-{"error":"tbt-turn: end takes no fields"}
+{"error":"tbt-turn: end is true and takes no fields"}
 {"error":"Variant code: from_micom, not an input"}
 {"error":"line is not a JSON object"}
 ```
@@ -307,6 +311,20 @@ Framing and checksum; the CPU-alive exchange; the denylist; the codec types,
 rounding and the gates; the transports; the lifecycle engine (state, merge,
 repeat, own, timeout, end); the input socket and its JSON. A variant only
 describes.
+
+## Tests
+
+- `TestLoadVariantRefuses`: a row per refusal of the schema.
+- `TestFieldCodec`: each codec form, both DBC byte orders, encoded and read
+  back.
+- `TestInput`: input lines and engine ticks against a test variant, and
+  everything sent, owned and resumed.
+- `TestServeInput`: the socket and a running daemon, the owned profile entry
+  off the wire while its message is active.
+- `TestEV6Messages`: the cluster messages' frames, whole with checksums (the
+  report's worked example, the captured `ack`, the end of route), each read
+  back by `DecodeInput` into an input that sends it again.
+- The EV6 equivalence tests, unchanged.
 
 ## Open questions
 
