@@ -3,6 +3,7 @@ package micom
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -110,6 +111,99 @@ func TestMainKeepsAliveWhateverTheVariant(t *testing.T) {
 	}
 }
 
+// -identify-request alone (no -allow-inferred) asks the micom once the link
+// is up; its record is logged against the variant running, and -query
+// reports the choice and the record from another process.
+func TestMainIdentifyAndQuery(t *testing.T) {
+	const record = "cc 01 00 00 00 00 00 65 6e 00 00 00 00" // the EV6's codes
+	for _, tc := range []struct {
+		name   string
+		args   []string
+		log    string
+		header string // the table's variant line
+	}{
+		{"auto, as the micom says", nil, "variant kia-ev6-gen5w, as running",
+			"variant kia-ev6-gen5w (default: no variant matches (no identity keys))"},
+		{"named, the micom says another", []string{"-variant", "hkmc-gen5w"}, "running hkmc-gen5w: restart with -variant kia-ev6-gen5w",
+			"variant hkmc-gen5w (-variant)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a, b := net.Pipe()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			ctl := tapPath(t)
+			var stdout, stderr syncBuffer
+			done := make(chan int, 1)
+			env := runEnv{
+				open:    func(string, int) (io.ReadWriteCloser, error) { return a, nil },
+				ctx:     ctx,
+				cmdline: func() (string, error) { return "", nil },
+			}
+			go func() {
+				done <- run(append([]string{"-dev", "pipe", "-stats", "0", "-ctl", ctl, "-identify-request"}, tc.args...), &stdout, &stderr, env)
+			}()
+			asked := make(chan struct{}, 8)
+			go func() {
+				var dec Decoder
+				buf := make([]byte, 256)
+				for {
+					n, err := b.Read(buf)
+					if err != nil {
+						return
+					}
+					for _, f := range dec.Write(buf[:n]) {
+						if f.Hdr == hdrAliveReply && f.Cmd == 0x17 {
+							asked <- struct{}{}
+						}
+					}
+				}
+			}()
+			// The micom speaks first: the request waits for the link.
+			b.Write(Frame{Hdr: hdrAliveReq, Cmd: cmdAlive, Payload: []byte{0}}.Encode())
+			select {
+			case <-asked:
+			case <-time.After(3 * time.Second):
+				t.Fatalf("no identify request; stderr %q", stderr.String())
+			}
+			b.Write(Frame{Hdr: hdrAliveReq, Cmd: 0x17, Payload: unhex(t, record)}.Encode())
+			for i := 0; i < 100 && !strings.Contains(stderr.String(), tc.log); i++ {
+				time.Sleep(10 * time.Millisecond)
+			}
+			if !strings.Contains(stderr.String(), tc.log) {
+				t.Errorf("stderr %q lacks %q", stderr.String(), tc.log)
+			}
+
+			var out, errb bytes.Buffer
+			if code := Main([]string{"-query", ctl, "snapshot"}, &out, &errb); code != 0 {
+				t.Fatalf("-query snapshot: exit %d, %q", code, errb.String())
+			}
+			norm := strings.Join(strings.Fields(out.String()), " ")
+			for _, w := range []string{tc.header, tc.log, "record ", "Vehicle=cvev Country=us"} {
+				if !strings.Contains(norm, w) {
+					t.Errorf("table lacks %q:\n%s", w, out.String())
+				}
+			}
+			out.Reset()
+			if code := Main([]string{"-query", ctl, "snapshot", "-json"}, &out, &errb); code != 0 {
+				t.Fatalf("-query snapshot -json: exit %d, %q", code, errb.String())
+			}
+			var s Snapshot
+			if err := json.Unmarshal(out.Bytes(), &s); err != nil || s.Variant.Reply == nil || s.Variant.Reply.Matched != DefaultVariantName {
+				t.Errorf("-json: %v %+v", err, s.Variant)
+			}
+			out.Reset()
+			if code := Main([]string{"-query", ctl, "mark"}, &out, &errb); code != 0 || out.String() != "ok\n" {
+				t.Errorf("-query mark: exit %d, %q %q", code, out.String(), errb.String())
+			}
+			cancel()
+			b.Close()
+			if code := <-done; code != 0 {
+				t.Errorf("exit %d; stderr %q", code, stderr.String())
+			}
+		})
+	}
+}
+
 // The variant commands print and exit, without a device.
 func TestMainVariantCommands(t *testing.T) {
 	good := writeFile(t, "good.yaml", "schema: 1\nname: good\nextends: kia-ev6-gen5w\ntitle: An EV6 with a test title\n")
@@ -147,19 +241,19 @@ func TestMainVariantCommands(t *testing.T) {
 func TestChooseVariant(t *testing.T) {
 	const ev6Line = "vehicle_info=0xcc country_info=0x01"
 	for _, tc := range []struct {
-		name, flag, cmdline, want, log string
+		name, flag, cmdline, want, log, source string
 	}{
-		{"auto on the EV6", "auto", ev6Line, DefaultVariantName, ""},
-		{"auto elsewhere", "auto", "vehicle_info=0x12", DefaultVariantName, "no variant matches"},
-		{"auto without identity", "", "", DefaultVariantName, "no variant matches"},
-		{"named", "hkmc-gen5w", ev6Line, "hkmc-gen5w", "but the kernel command line matches kia-ev6-gen5w"},
-		{"named, as detected", DefaultVariantName, ev6Line, DefaultVariantName, ""},
+		{"auto on the EV6", "auto", ev6Line, DefaultVariantName, "", "cmdline"},
+		{"auto elsewhere", "auto", "vehicle_info=0x12", DefaultVariantName, "no variant matches", "default"},
+		{"auto without identity", "", "", DefaultVariantName, "no variant matches", "default"},
+		{"named", "hkmc-gen5w", ev6Line, "hkmc-gen5w", "but the kernel command line matches kia-ev6-gen5w", "flag"},
+		{"named, as detected", DefaultVariantName, ev6Line, DefaultVariantName, "", "flag"},
 	} {
 		var logs []string
 		logf := func(f string, a ...any) { logs = append(logs, fmt.Sprintf(f, a...)) }
-		v, err := chooseVariant(tc.flag, "", func() (string, error) { return tc.cmdline, nil }, logf)
-		if err != nil || v.Name != tc.want {
-			t.Errorf("%s: %v %v, want %s", tc.name, v, err, tc.want)
+		v, ch, err := chooseVariant(tc.flag, "", func() (string, error) { return tc.cmdline, nil }, logf)
+		if err != nil || v.Name != tc.want || ch.Name != tc.want || ch.Source != tc.source {
+			t.Errorf("%s: %v %+v %v, want %s from %s", tc.name, v, ch, err, tc.want, tc.source)
 			continue
 		}
 		if all := strings.Join(logs, "|"); tc.log == "" && all != "" || !strings.Contains(all, tc.log) {

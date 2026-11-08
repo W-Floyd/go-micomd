@@ -2,6 +2,7 @@ package micom
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -39,7 +40,10 @@ import (
 //
 // -tap SOCKET lets another process watch the frames of a running daemon, which
 // owns the UART and so cannot be read from otherwise: micomd -attach SOCKET
-// prints them, one line each with the time, until it is stopped.
+// prints them, one line each with the time, until it is stopped. micomd
+// -query SOCKET snapshot asks the daemon serving -ctl SOCKET what it has
+// received, per frame kind, and which variant it runs and why; -query
+// SOCKET mark restarts the count of changed bytes. Neither sends a frame.
 //
 // What it sends is the variant's profile and nothing else. -clock adds the
 // two frames that carry the time, from this machine's clock: only use it when
@@ -84,6 +88,9 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	ctlPath := fs.String("ctl", "", "serve a control socket here: it takes one hex frame per line and sends it if the profile or -allow lists it")
 	send := fs.String("send", "", "send the frames given as arguments (hex, one per argument) to the micomd serving this -ctl socket, instead of running one")
 	gap := fs.Duration("gap", 200*time.Millisecond, "the pause between the frames of -send")
+	query := fs.String("query", "", "ask the micomd serving this -ctl socket a read-only question given as the argument, instead of running one: snapshot (a table of what it has received, and its variant) or mark (start counting changed bytes afresh); never sends a frame")
+	jsonOut := fs.Bool("json", false, "with -query snapshot, print the raw JSON")
+	watch := fs.Duration("watch", 0, "with -query snapshot, repeat it this often until stopped")
 	variantName := fs.String("variant", "auto", "the car: an embedded variant's name (-list-variants), or auto for the one the kernel command line matches, else "+DefaultVariantName)
 	variantFile := fs.String("variant-file", "", "read the car's variant from this file instead (it may extend an embedded one)")
 	listVariants := fs.Bool("list-variants", false, "list the embedded variants and exit")
@@ -91,10 +98,10 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	showVariant := fs.Bool("show-variant", false, "print the chosen variant, its parents merged in, and exit")
 	keys := fs.Bool("keys", false, "inject the variant's keys: its key frame and keymap (-keyfunc and -keymap override)")
 	allowVariant := fs.Bool("allow-variant", false, "the control socket may also send the variant's captured send entries")
-	allowInferred := fs.Bool("allow-inferred", false, "with -allow-variant also the variant's inferred send entries, with -identify-request an inferred request, and with -input the messages known only from code or inference")
+	allowInferred := fs.Bool("allow-inferred", false, "with -allow-variant also the variant's inferred send entries, and with -input the messages known only from code or inference")
 	inputPath := fs.String("input", "", "serve the structured input here: one JSON object per line, {\"msg\": NAME, field: value, ...}, encoded by the variant's to_micom messages (docs/messages.md)")
 	allowPersistent := fs.Bool("allow-persistent", false, "with -input also the messages whose every frame the micom writes to its EEPROM (rate-limited; each write wears it)")
-	identify := fs.Bool("identify-request", false, "ask the micom for its variant coding once, at start (the request is inferred: it needs -allow-inferred)")
+	identify := fs.Bool("identify-request", false, "ask the micom for its variant coding once the link is up, retried up to 5 times 3 s apart until it answers; the answer is logged against the variant running and reported by -query snapshot. The only frame it adds is the variant's identify request (inferred on HKMC: this flag alone allows it)")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
@@ -107,6 +114,24 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 			return 2
 		}
 		if err := SendControl(*send, fs.Args(), *gap, stdout); err != nil {
+			fmt.Fprintln(stderr, err)
+			return 1
+		}
+		return 0
+	}
+	if *query != "" {
+		req := fs.Arg(0)
+		// Flags may follow the request too: -query S snapshot -json.
+		if fs.NArg() > 0 {
+			if err := fs.Parse(fs.Args()[1:]); err != nil {
+				return 2
+			}
+		}
+		if req == "" || fs.NArg() != 0 {
+			fmt.Fprintln(stderr, "micomd -query SOCKET snapshot|mark: give one request")
+			return 2
+		}
+		if err := runQuery(env.ctx, *query, req, *jsonOut, *watch, stdout); err != nil {
 			fmt.Fprintln(stderr, err)
 			return 1
 		}
@@ -148,7 +173,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 		return 2
 	}
 	lg := log.New(stderr, "", log.LstdFlags)
-	v, err := chooseVariant(*variantName, *variantFile, env.cmdline, lg.Printf)
+	v, choice, err := chooseVariant(*variantName, *variantFile, env.cmdline, lg.Printf)
 	if *variantCheck || *showVariant {
 		if err != nil {
 			fmt.Fprintln(stderr, err)
@@ -171,6 +196,8 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 		// resets the unit, so a bad variant leaves the keepalive running.
 		lg.Printf("%v; running the keepalive only", err)
 		v = emptyVariant
+		choice.Name = v.Name
+		choice.Note = strings.TrimPrefix(choice.Note+"; ", "; ") + err.Error()
 	}
 
 	port, err := env.open(*dev, *baud)
@@ -186,7 +213,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 		profile = append(profile, v.ClockProfile()...)
 		lg.Printf("sending the clock frames from this machine's clock: %s", time.Now().Format(time.RFC3339))
 	}
-	cfg := Config{Port: port, Variant: v, Profile: profile, Logf: lg.Printf, NoAlive: *noAlive, Allow: allow.frames, AllowPatterns: allow.patterns}
+	cfg := Config{Port: port, Variant: v, Choice: choice, Profile: profile, Logf: lg.Printf, NoAlive: *noAlive, Allow: allow.frames, AllowPatterns: allow.patterns}
 	if *allowVariant {
 		frames, patterns := v.Sends(*allowInferred)
 		cfg.Allow = append(cfg.Allow, frames...)
@@ -194,7 +221,9 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	}
 	var identifyFrame *Frame
 	if *identify {
-		if f, err := v.IdentifyRequest(*allowInferred); err != nil {
+		// The flag is the opt-in for this one frame, inferred or not, so a
+		// service can ask without -allow-inferred's other frames.
+		if f, err := v.IdentifyRequest(true); err != nil {
 			lg.Printf("-identify-request: %v", err)
 		} else {
 			identifyFrame = &f
@@ -203,6 +232,22 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	}
 	if *dump {
 		cfg.OnFrame = func(f Frame) { io.WriteString(stdout, frameLine(v, f)) }
+	}
+	// The micom's variant record, whoever asked for it, is logged against the
+	// variant running, once per distinct verdict.
+	{
+		prev, said := cfg.OnFrame, ""
+		cfg.OnFrame = func(f Frame) {
+			if prev != nil {
+				prev(f)
+			}
+			if id, ok := v.ReplyIdentity(f); ok {
+				if _, msg := recordVerdict(choice.Name, id); msg != said {
+					lg.Print(msg)
+					said = msg
+				}
+			}
+		}
 	}
 	if *tapPath != "" {
 		tap, err := ListenTap(*tapPath)
@@ -272,17 +317,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 		}()
 	}
 	if identifyFrame != nil {
-		go func() {
-			select {
-			case <-ctx.Done():
-			case <-time.After(time.Second):
-				if err := d.Send(*identifyFrame); err != nil {
-					lg.Printf("-identify-request: %v", err)
-				} else {
-					lg.Printf("asked the micom for its variant coding: %v", *identifyFrame)
-				}
-			}
-		}()
+		go d.askVariant(ctx, *identifyFrame, identifyTries, identifyWait)
 	}
 	if err := d.Run(ctx); err != nil && ctx.Err() == nil {
 		lg.Print(err)
@@ -292,37 +327,90 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 }
 
 // chooseVariant is the car: the file, else the named variant, else (auto)
-// the one the kernel command line matches, else the default. An error
-// leaves the caller to decide; the variant is nil then.
-func chooseVariant(name, file string, cmdline func() (string, error), logf func(string, ...any)) (*Variant, error) {
+// the one the kernel command line matches, else the default, and why, for
+// Snapshot. An error leaves the caller to decide; the variant is nil then.
+func chooseVariant(name, file string, cmdline func() (string, error), logf func(string, ...any)) (*Variant, VariantChoice, error) {
+	var ch VariantChoice
+	// Read even with a file, so the snapshot shows what the car says.
+	s, cmdErr := cmdline()
+	var matchErr error
+	if cmdErr != nil {
+		ch.Note = fmt.Sprintf("kernel command line: %v", cmdErr)
+	} else {
+		ch.Cmdline = ParseIdentity(s)
+		if ch.Matched, matchErr = MatchVariant(ch.Cmdline); matchErr != nil {
+			ch.Note = matchErr.Error()
+		}
+	}
 	if file != "" {
+		ch.Source, ch.File = "file", file
 		v, err := LoadVariantFile(file)
 		if err == nil {
+			ch.Name = v.Name
 			logf("variant %s from %s (not reviewed: check what it sends)", v.Name, file)
 		}
-		return v, err
+		return v, ch, err
 	}
-	detected := ""
-	if s, err := cmdline(); err == nil {
-		id := ParseIdentity(s)
-		n, err := MatchVariant(id)
-		switch {
-		case err != nil:
-			logf("%v", err)
-		case n == "" && (name == "" || name == "auto"):
-			logf("no variant matches %v: running as %s", id, DefaultVariantName)
+	auto := name == "" || name == "auto"
+	switch {
+	case matchErr != nil:
+		logf("%v", matchErr)
+	case cmdErr == nil && ch.Matched == "" && auto:
+		logf("no variant matches %v: running as %s", ch.Cmdline, DefaultVariantName)
+	}
+	switch {
+	case !auto:
+		ch.Source = "flag"
+		if ch.Matched != "" && ch.Matched != name {
+			logf("variant %s chosen, but the kernel command line matches %s", name, ch.Matched)
 		}
-		detected = n
+	case ch.Matched != "":
+		ch.Source, name = "cmdline", ch.Matched
+	default:
+		ch.Source, name = "default", DefaultVariantName
 	}
-	if name == "" || name == "auto" {
-		name = detected
-		if name == "" {
-			name = DefaultVariantName
+	ch.Name = name
+	v, err := LoadVariant(name)
+	return v, ch, err
+}
+
+// runQuery prints the answer to req from the daemon at path: a snapshot as a
+// table, or its JSON; with watch, again every watch until ctx ends (nil:
+// until SIGINT or SIGTERM).
+func runQuery(ctx context.Context, path, req string, raw bool, watch time.Duration, w io.Writer) error {
+	if watch > 0 && ctx == nil {
+		var stop context.CancelFunc
+		ctx, stop = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+	}
+	for {
+		ans, err := Query(path, req)
+		if err != nil {
+			return err
 		}
-	} else if detected != "" && detected != name {
-		logf("variant %s chosen, but the kernel command line matches %s", name, detected)
+		if req != "snapshot" || raw {
+			fmt.Fprintln(w, ans)
+		} else {
+			var s Snapshot
+			if err := json.Unmarshal([]byte(ans), &s); err != nil {
+				return fmt.Errorf("micom: the snapshot: %w", err)
+			}
+			if watch > 0 {
+				io.WriteString(w, "\x1b[H\x1b[2J") // home and clear: each table replaces the last
+			}
+			if err := s.WriteTable(w); err != nil {
+				return err
+			}
+		}
+		if watch <= 0 || req != "snapshot" {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(watch):
+		}
 	}
-	return LoadVariant(name)
 }
 
 // keySetup is the key frame's Func, the keymap and its keys: -keyfunc and

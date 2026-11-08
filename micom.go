@@ -19,6 +19,8 @@ type Config struct {
 	// gives the profile when Profile is nil. Nil means DefaultVariant. The
 	// CPU-alive answer does not depend on it.
 	Variant *Variant
+	// Choice is how Variant was chosen, reported by Snapshot.
+	Choice VariantChoice
 	// Profile is every frame this daemon may send, and when. Nil means the
 	// variant's (DefaultProfile for the default). It is the allowlist: Send
 	// refuses what is not in it.

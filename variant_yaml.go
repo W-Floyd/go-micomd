@@ -43,11 +43,14 @@ type rawIdentify struct {
 }
 
 type rawReply struct {
-	Name   string `yaml:"name"`
-	Hdr    string `yaml:"hdr"`
-	Cmd    uint8  `yaml:"cmd"`
-	Status string `yaml:"status,omitempty"`
-	Ref    string `yaml:"ref,omitempty"`
+	Name string `yaml:"name"`
+	Hdr  string `yaml:"hdr"`
+	Cmd  uint8  `yaml:"cmd"`
+	// Identity names, by command-line identity key, the reply's fields that
+	// carry the same codes, so the reply is matched like the command line.
+	Identity map[string]string `yaml:"identity,omitempty"`
+	Status   string            `yaml:"status,omitempty"`
+	Ref      string            `yaml:"ref,omitempty"`
 }
 
 type rawHeader struct {

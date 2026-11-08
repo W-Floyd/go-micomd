@@ -60,6 +60,22 @@ it says anything to the micom.
 The capture so far starts mid-session, so the 0x8117 reply has not been seen.
 A `micomd -attach` from power-on (read-only) would show it.
 
+Our kexec chain drops the stock command line, so on the unit layer 1 is
+empty and `auto` falls back to the default. `-identify-request` asks the
+micom instead, as stock Android does: once the first frame arrives it sends
+the 0x0117 request, again every 3 s until a 0x8117 arrives, 5 times at most.
+That request is the only frame it adds, and the flag alone allows it (it is
+inferred, but needs no `-allow-inferred`). The reply's fields named by
+`identify.reply.identity` (on HKMC its Vehicle and Country, the codes the
+bootloader passes as `vehicle_info` and `country_info`) are matched like the
+command line, and logged against the variant running: `the micom reports
+vehicle_info=0xcc …, variant X; running Y: restart with -variant X` on a
+mismatch. The variant is not switched live: the profile's senders, the
+allowlist, the virtual keyboard's keys and the input's messages are all made
+from it at start, and a variant changed under them would change what is
+sent with nobody reviewing it. `micomd -query SOCKET snapshot` shows the
+record and that verdict.
+
 ## Choosing the variant
 
 - `-variant auto` (the default): read `/proc/cmdline` and match each embedded
@@ -76,6 +92,10 @@ A `micomd -attach` from power-on (read-only) would show it.
   may `extends:` an embedded variant. It is logged as unreviewed.
 - `-list-variants`, `-show-variant` (the resolved variant, parents merged in)
   and `-variant-check [PATH...]` print and exit without a device.
+- On a running daemon, `micomd -query CTL_SOCKET snapshot` prints which
+  variant runs and why: its source (`file`, `flag`, `cmdline`, `default`),
+  the command line's identity keys and what they match, any load error that
+  left the keepalive only, and the micom's variant record once received.
 
 **A variant that fails to load never stops micomd.** That covers a missing
 file, a malformed or unsafe one, and an unknown name. micomd logs the error
@@ -91,7 +111,7 @@ What a variant supplies:
 | the routine profile | yes | `-clock` adds its `opt_in: clock` frames; `-code-profile` swaps in its `opt_in: code` ones |
 | key injection | no (as before: `-keyfunc`) | `-keys`; `-keyfunc` and `-keymap` override entry by entry |
 | control-socket sends | no (as before: `-allow`) | `-allow-variant` (captured); `-allow-inferred` adds inferred and code entries |
-| the 0x0117 variant-code request | never | `-identify-request`, which while the request is inferred also needs `-allow-inferred` |
+| the 0x0117 variant-code request | never | `-identify-request` (alone, though inferred) |
 | to_micom messages (cluster TBT, compass, backlight, shutdown acks) | never | `-input SOCKET` (captured); `-allow-inferred` adds code and inferred ones; `-allow-persistent` those that write the micom's EEPROM ([messages.md](messages.md)) |
 
 The device unit's flags (`-keyfunc 0x8701 -keymap … -allow …`) work as
@@ -127,7 +147,11 @@ identify:
     frame: "ff 8a 01 01 01 17 00 01 62"
     status: inferred
     ref: "SystemService.requestVariantCode()"
-  reply: { name: "Variant code", hdr: system_rx, cmd: 0x17 }   # named; hkmc-gen5w decodes it
+  reply:                     # named; hkmc-gen5w decodes it
+    name: "Variant code"
+    hdr: system_rx
+    cmd: 0x17
+    identity: { vehicle_info: Vehicle }   # identity key: a field of the reply, matched like the command line
 
 headers:                     # dir: from_micom | to_micom; status and ref optional
   keys: { hdr: "07 84 01 87", dir: from_micom, status: captured }

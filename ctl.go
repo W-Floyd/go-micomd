@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -160,8 +161,9 @@ func sameFrame(a, b Frame) bool {
 // ServeControl accepts frames, one hex frame per line, on a unix socket (mode
 // 0660) and answers each with "ok" or "refused: why". A frame goes out only if
 // the daemon's profile or Config.Allow lists it (Send), so what the socket
-// can do is what the daemon was started with, never more. It returns when ctx
-// ends, and removes the socket.
+// can do is what the daemon was started with, never more. The read-only
+// queries (query) are answered on the same socket. It returns when ctx ends,
+// and removes the socket.
 func ServeControl(ctx context.Context, d *Daemon, path string) error {
 	return serveUnix(ctx, path, func(c net.Conn) { serveControlConn(d, c) })
 }
@@ -222,6 +224,10 @@ func serveControlConn(d *Daemon, c net.Conn) {
 		if line == "" {
 			continue
 		}
+		if ans, ok := d.query(line); ok {
+			fmt.Fprintln(c, ans)
+			continue
+		}
 		f, err := ParseHexFrame(line)
 		if err == nil {
 			err = d.Send(f)
@@ -233,6 +239,49 @@ func serveControlConn(d *Daemon, c net.Conn) {
 		d.logf("control: sent %v", f)
 		fmt.Fprintln(c, "ok")
 	}
+}
+
+// query answers the control socket's read-only requests, words no hex frame
+// can be: "snapshot" (the Snapshot as one line of JSON) and "mark" (Mark,
+// then "ok"). Neither reaches Send.
+func (d *Daemon) query(req string) (string, bool) {
+	switch req {
+	case "snapshot":
+		b, err := json.Marshal(d.Snapshot())
+		if err != nil {
+			return "refused: " + err.Error(), true
+		}
+		return string(b), true
+	case "mark":
+		d.Mark()
+		return "ok", true
+	}
+	return "", false
+}
+
+// Query asks the daemon serving the control socket at path a read-only
+// request ("snapshot" or "mark") and returns its answer, without the newline.
+func Query(path, req string) (string, error) {
+	if req != "snapshot" && req != "mark" {
+		return "", fmt.Errorf("micom: %q is not a query: snapshot or mark", req)
+	}
+	c, err := net.Dial("unix", path)
+	if err != nil {
+		return "", err
+	}
+	defer c.Close()
+	if _, err := fmt.Fprintln(c, req); err != nil {
+		return "", err
+	}
+	ans, err := bufio.NewReader(c).ReadString('\n')
+	if err != nil {
+		return "", errors.Join(fmt.Errorf("micom: no answer to %q", req), err)
+	}
+	ans = strings.TrimSuffix(ans, "\n")
+	if strings.HasPrefix(ans, "refused") {
+		return "", fmt.Errorf("micom: %s", ans)
+	}
+	return ans, nil
 }
 
 // SendControl is the client: it sends each frame to the daemon serving path,

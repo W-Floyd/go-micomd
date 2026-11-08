@@ -64,12 +64,30 @@ another shell, `micomd -attach /run/micomd.sock` prints them live until stopped,
 and any number can attach. A reader that cannot keep up loses lines and never
 slows the daemon.
 
+The control socket (`-ctl /run/micomd.ctl`) also answers read-only queries,
+which never send a frame:
+
+    micomd -query /run/micomd.ctl snapshot [-json] [-watch 1s]
+    micomd -query /run/micomd.ctl mark
+
+`snapshot` prints the variant running and why (and the micom's own variant
+record, once received), the link's counters, then one line per frame kind:
+key, name, count, age, latest payload, and the bytes changed since the last
+`mark` as `idx:from->to×changes`. `-json` prints the Snapshot as received;
+`-watch` repeats the table. `mark` takes the latest payloads as the baseline:
+mark, change something on the car, and the bytes that moved are the ones
+that mean it.
+
 The car is chosen from the kernel command line's `vehicle_info` (the EV6
 otherwise), or by `-variant NAME` or `-variant-file PATH`; `-list-variants`,
 `-show-variant` and `-variant-check` inspect them. `-keys` injects the
 variant's keys and `-allow-variant` lets the control socket send its captured
 frames (`-allow-inferred` adds the inferred ones). A variant that fails to load
-leaves the keepalive running.
+leaves the keepalive running. `-identify-request` asks the micom for its
+variant record once the link is up (retried, 5 times at most) and logs which
+variant it matches against the one running; a mismatch asks for a restart
+with `-variant`, as the variant is never switched live. See
+[docs/variants.md](docs/variants.md).
 
 `-input /run/micomd-input.sock` takes one JSON object per line,
 `{"msg":"tbt-turn","maneuver":"turn_right","distance":0,"distance_tenths":3,"unit":"km"}`,

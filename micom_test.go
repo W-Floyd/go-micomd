@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"fmt"
 	"net"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -241,6 +243,121 @@ func TestMarkAndDiffs(t *testing.T) {
 	}
 	if s := d.Snapshot(); s.MarkedAgeMs != 5000 {
 		t.Errorf("MarkedAgeMs = %d, want 5000", s.MarkedAgeMs)
+	}
+}
+
+// The table says which variant runs and why, and gives each frame kind one
+// line: key, name, count, age, payload, changed bytes.
+func TestSnapshotTable(t *testing.T) {
+	counter := FrameCount{Key: "0d8f018d 2d", Count: 3, AgeMs: 1500, Payload: "060007",
+		Diffs: []ByteDiff{{Idx: 0, From: 3, To: 6, Changes: 3}, {Idx: 2, From: 0, To: 7, Changes: 1}}}
+	climate := FrameCount{Key: "0c88018c 02", Name: "Status flag", Count: 40, AgeMs: 100, Payload: "5700ff", Diffs: []ByteDiff{}}
+	unmarked := FrameCount{Key: "0d8f018d 2d", Count: 3, AgeMs: 0, Payload: "06",
+		Diffs: []ByteDiff{{Idx: 0, From: -1, To: 6, Changes: 2}}}
+	ev6ID := Identity{"vehicle_info": 0xcc, "country_info": 1}
+	for _, tc := range []struct {
+		name string
+		s    Snapshot
+		want []string
+	}{
+		{"marked", Snapshot{Up: true, RxFrames: 43, TxFrames: 9, AliveRx: 4, AliveTx: 4, LastAliveAgeMs: 500, MarkedAgeMs: 5000,
+			Frames:  []FrameCount{climate, counter},
+			Variant: VariantChoice{Name: DefaultVariantName, Source: "cmdline", Cmdline: ev6ID, Matched: DefaultVariantName}},
+			[]string{
+				"variant kia-ev6-gen5w (kernel command line country_info=0x1 vehicle_info=0xcc)",
+				"link up rx 43 tx 9 alive 4/4, last 0.5s ago badsum 0 dropped 0",
+				"mark 5.0s ago",
+				"KEY NAME COUNT AGE PAYLOAD CHANGED",
+				"0c88018c 02 Status flag 40 0.1s 5700ff",
+				"0d8f018d 2d - 3 1.5s 060007 0:03->06×3 2:00->07×1",
+			}},
+		{"no mark, default", Snapshot{LastAliveAgeMs: -1, MarkedAgeMs: -1, Frames: []FrameCount{unmarked},
+			Variant: VariantChoice{Name: DefaultVariantName, Source: "default"}},
+			[]string{
+				"variant kia-ev6-gen5w (default: no variant matches (no identity keys))",
+				"link down rx 0 tx 0 alive 0/0, last never badsum 0 dropped 0",
+				"mark none: changes since the start",
+				"0d8f018d 2d - 3 0.0s 06 0:??->06×2",
+			}},
+		{"flag over the command line", Snapshot{MarkedAgeMs: -1, Variant: VariantChoice{Name: "hkmc-gen5w", Source: "flag", Cmdline: ev6ID, Matched: DefaultVariantName}},
+			[]string{"variant hkmc-gen5w (-variant; the kernel command line matches kia-ev6-gen5w)"}},
+		{"keepalive only", Snapshot{MarkedAgeMs: -1, Variant: VariantChoice{Name: "none", Source: "file", File: "/x.yaml", Note: "open /x.yaml: no such file"}},
+			[]string{"variant none (from /x.yaml; open /x.yaml: no such file)"}},
+		{"micom record", Snapshot{MarkedAgeMs: -1, Variant: VariantChoice{Name: DefaultVariantName, Source: "default",
+			Reply: &VariantReply{Payload: "cc01", AgeMs: 2000, Fields: []Field{{Name: "Vehicle", Value: 0xcc, Valid: true}}, Identity: ev6ID, Matched: DefaultVariantName, Verdict: "the micom reports it"}}},
+			[]string{"micom the micom reports it", "record 2.0s ago: cc01 Vehicle=204"}},
+	} {
+		var b bytes.Buffer
+		if err := tc.s.WriteTable(&b); err != nil {
+			t.Fatal(err)
+		}
+		lines := map[string]bool{}
+		for _, l := range strings.Split(b.String(), "\n") {
+			lines[strings.Join(strings.Fields(l), " ")] = true
+		}
+		for _, w := range tc.want {
+			if !lines[w] {
+				t.Errorf("%s: no line %q in\n%s", tc.name, w, b.String())
+			}
+		}
+	}
+}
+
+// The identify request goes out once the link is up, and again until the
+// variant record arrives, a bounded number of times.
+func TestAskVariant(t *testing.T) {
+	req, err := ParseHexFrame("ff 8a 01 01 01 17 00 01 62")
+	if err != nil {
+		t.Fatal(err)
+	}
+	record := Frame{Hdr: hdrAliveReq, Cmd: 0x17, Payload: unhex(t, "cc 01 00 00 00 00 00 65 6e 00 00 00 00")}
+	for _, tc := range []struct {
+		name     string
+		linkUp   bool
+		answerAt int // the request the micom answers, 0 for none
+		want     int
+		log      string
+	}{
+		{"answered at once", true, 1, 1, ""},
+		{"answered on a retry", true, 2, 2, ""},
+		{"never answered", true, 0, 3, "no variant record after 3 requests"},
+		{"link never up", false, 1, 0, ""},
+	} {
+		a, b := net.Pipe()
+		var logs syncBuffer
+		d := New(Config{Port: a, Profile: []Periodic{}, Allow: []Frame{req}, Logf: func(f string, args ...any) { fmt.Fprintf(&logs, f+"\n", args...) }})
+		if tc.linkUp {
+			d.lastRx = time.Now()
+		}
+		var sent atomic.Int32
+		go func() {
+			var dec Decoder
+			buf := make([]byte, 64)
+			for {
+				n, err := b.Read(buf)
+				if err != nil {
+					return
+				}
+				for _, f := range dec.Write(buf[:n]) {
+					if sameFrame(f, req) && int(sent.Add(1)) == tc.answerAt {
+						d.telem.add(record, time.Now())
+					}
+				}
+			}
+		}()
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		if !tc.linkUp {
+			cancel()
+		}
+		d.askVariant(ctx, req, 3, 50*time.Millisecond)
+		cancel()
+		b.Close()
+		if got := int(sent.Load()); got != tc.want {
+			t.Errorf("%s: %d requests, want %d", tc.name, got, tc.want)
+		}
+		if !strings.Contains(logs.String(), tc.log) {
+			t.Errorf("%s: logged %q, want %q", tc.name, logs.String(), tc.log)
+		}
 	}
 }
 

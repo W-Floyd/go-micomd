@@ -192,6 +192,8 @@ func TestLoadVariantRefuses(t *testing.T) {
 		{"from_micom beyond", rx("{name: a, off: 0, type: u16}", ", min_length: 1}"), "must lie within"},
 		{"from_micom fields", head + "messages: [{name: M, dir: from_micom, hdr: system_rx, cmd: 0x40}]\n", "fields are required"},
 		{"identify pattern", head + "identify: {request: {name: r, pattern: \"ff 8a 01 01 01 17 00 02 [00-01] ..\", status: inferred, ref: r}}\n", "not a pattern"},
+		{"reply identity key", head + "identify: {reply: {name: V, hdr: system_rx, cmd: 0x17, status: code, identity: {vin: Vehicle}}}\n", "\"vin\" is not an identity key"},
+		{"reply identity field", head + "identify: {reply: {name: V, hdr: system_rx, cmd: 0x17, status: code, identity: {vehicle_info: Colour}}}\n", "no from_micom field \"Colour\""},
 	} {
 		_, err := loadVariantData([]byte(tc.yaml), "test")
 		if err == nil || !strings.Contains(err.Error(), tc.want) {
@@ -200,21 +202,60 @@ func TestLoadVariantRefuses(t *testing.T) {
 	}
 }
 
+// The identity is read from the kernel command line, or from the micom's
+// variant record (0x8117), whose leading codes are the same.
 func TestParseIdentity(t *testing.T) {
 	// From the stock /proc/cmdline of the EV6 unit (2026-11-07).
 	stock := "console=null androidboot.mode=emmc daudio_hw_ver=526087 daudio_info_id=0 vehicle_info=0xcc country_info=0x01 cabin_camera_type=0 vmalloc=480M"
+	v := ev6(t)
 	for _, tc := range []struct {
 		name, cmdline string
+		record        string // a variant record's payload in hex, read in place of cmdline
 		want          Identity
 	}{
-		{"stock EV6", stock, Identity{"vehicle_info": 0xcc, "country_info": 1, "daudio_hw_ver": 526087, "cabin_camera_type": 0}},
-		{"read failed", "vehicle_info=0xff country_info=0xff", Identity{}},
-		{"not a number", "vehicle_info=zz country_info=1", Identity{"country_info": 1}},
-		{"none", "console=ttyAMA0 root=/dev/sda1", Identity{}},
-		{"empty", "", Identity{}},
+		{"stock EV6", stock, "", Identity{"vehicle_info": 0xcc, "country_info": 1, "daudio_hw_ver": 526087, "cabin_camera_type": 0}},
+		{"read failed", "vehicle_info=0xff country_info=0xff", "", Identity{}},
+		{"not a number", "vehicle_info=zz country_info=1", "", Identity{"country_info": 1}},
+		{"none", "console=ttyAMA0 root=/dev/sda1", "", Identity{}},
+		{"empty", "", "", Identity{}},
+		{"record, EV6 US", "", "cc 01 a0 00 00 00 00 65 6e 00 00 00 00", Identity{"vehicle_info": 0xcc, "country_info": 1}},
+		{"record, Ioniq 5 Korea", "", "bd 00 00 00 00 00 00 6b 6f 00 00 00 00", Identity{"vehicle_info": 0xbd, "country_info": 0}},
+		{"record unread", "", "ff ff 00 00 00 00 00 65 6e 00 00 00 00", Identity{}},
 	} {
-		if got := ParseIdentity(tc.cmdline); !reflect.DeepEqual(got, tc.want) {
+		got := ParseIdentity(tc.cmdline)
+		if tc.record != "" {
+			var ok bool
+			got, ok = v.ReplyIdentity(Frame{Hdr: hdrAliveReq, Cmd: 0x17, Payload: unhex(t, tc.record)})
+			if !ok {
+				t.Errorf("%s: not read as the variant record", tc.name)
+			}
+		}
+		if !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%s: %v, want %v", tc.name, got, tc.want)
+		}
+	}
+	if _, ok := v.ReplyIdentity(Frame{Hdr: hdrAliveReq, Cmd: cmdAlive, Payload: []byte{0}}); ok {
+		t.Error("the CPU-alive request read as the variant record")
+	}
+}
+
+// The record is matched like the command line, and a mismatch asks for a
+// restart: the variant is never switched live.
+func TestRecordVerdict(t *testing.T) {
+	ev6ID := Identity{"vehicle_info": 0xcc, "country_info": 1}
+	for _, tc := range []struct {
+		name, running string
+		id            Identity
+		matched, msg  string
+	}{
+		{"as running", DefaultVariantName, ev6ID, DefaultVariantName, "variant kia-ev6-gen5w, as running"},
+		{"another running", "hkmc-gen5w", ev6ID, DefaultVariantName, "running hkmc-gen5w: restart with -variant kia-ev6-gen5w"},
+		{"unknown car", DefaultVariantName, Identity{"vehicle_info": 0xbd}, "", "vehicle_info=0xbd, which no variant matches; running kia-ev6-gen5w"},
+		{"nothing read", DefaultVariantName, Identity{}, "", "(no identity keys), which no variant matches"},
+	} {
+		matched, msg := recordVerdict(tc.running, tc.id)
+		if matched != tc.matched || !strings.Contains(msg, tc.msg) {
+			t.Errorf("%s: %q %q, want %q and %q", tc.name, matched, msg, tc.matched, tc.msg)
 		}
 	}
 }

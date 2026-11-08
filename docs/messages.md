@@ -353,7 +353,7 @@ Refusals name the message and the field:
 - Nothing is sent from the input without `-input`.
 - `status: captured` messages are sendable once `-input` is given. `code` and
   `inferred` ones also need `-allow-inferred`, the flag that already admits
-  such send entries and the identify request. A message is enabled only if
+  such send entries. A message is enabled only if
   every message its `end` names is too.
 - `persistent: true` messages also need `-allow-persistent`.
 - At load, a to_micom message's header must be a declared `to_micom` header;

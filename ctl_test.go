@@ -1,8 +1,11 @@
 package micom
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -122,6 +125,102 @@ func TestParsePatternRefuses(t *testing.T) {
 		if _, err := ParsePattern(bad); err == nil {
 			t.Errorf("%q parsed", bad)
 		}
+	}
+}
+
+// The queries are answered on the control socket and never write to the
+// port; a word that is not one is refused like any other non-frame.
+func TestControlQuery(t *testing.T) {
+	a, b := net.Pipe()
+	var wire syncBuf
+	go func() {
+		buf := make([]byte, 256)
+		for {
+			n, err := b.Read(buf)
+			wire.Write(buf[:n])
+			if err != nil {
+				return
+			}
+		}
+	}()
+	defer b.Close()
+	now := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
+	release, _ := ParseHexFrame("ff 85 02 01 02 0b 00 03 02 00 71")
+	d := New(Config{Port: a, Profile: []Periodic{}, Allow: []Frame{release}, Now: func() time.Time { return now }})
+	d.telem.add(Frame{Hdr: [4]byte{0x0d, 0x8f, 0x01, 0x8d}, Cmd: 0x2d, Payload: []byte{1, 0}}, now)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	p := tapPath(t)
+	go ServeControl(ctx, d, p)
+	for i := 0; i < 200; i++ {
+		if c, err := net.Dial("unix", p); err == nil {
+			c.Close()
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	snap := func(ans string) Snapshot {
+		var s Snapshot
+		if err := json.Unmarshal([]byte(ans), &s); err != nil {
+			t.Fatalf("%q: %v", ans, err)
+		}
+		return s
+	}
+	for _, tc := range []struct {
+		req   string
+		check func(ans string) bool
+		err   string
+	}{
+		{"snapshot", func(ans string) bool {
+			s := snap(ans)
+			return len(s.Frames) == 1 && s.MarkedAgeMs == -1 && s.Variant.Name == DefaultVariantName && s.Variant.Source == ""
+		}, ""},
+		{"mark", func(ans string) bool { return ans == "ok" }, ""},
+		{"snapshot", func(ans string) bool { return snap(ans).MarkedAgeMs == 0 }, ""},
+		{"status", nil, "not a query"},
+		{"ff 85 02 01 02 0b 00 03 02 00 71", nil, "not a query"},
+	} {
+		ans, err := Query(p, tc.req)
+		if tc.err != "" {
+			if err == nil || !strings.Contains(err.Error(), tc.err) {
+				t.Errorf("%s: %q %v, want %q", tc.req, ans, err, tc.err)
+			}
+			continue
+		}
+		if err != nil || !tc.check(ans) {
+			t.Errorf("%s: %q %v", tc.req, ans, err)
+		}
+	}
+
+	// On the wire, past the client's own check: queries answer, other words
+	// are refused, and none of it reaches the port.
+	c, err := net.Dial("unix", p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	fmt.Fprint(c, "snapshot\nmark\nsnapshots\nMARK\n")
+	r := bufio.NewReader(c)
+	for i, want := range []string{"{", "ok", "refused", "refused"} {
+		line, err := r.ReadString('\n')
+		if err != nil || !strings.HasPrefix(line, want) {
+			t.Errorf("answer %d: %q %v, want %q...", i, line, err, want)
+		}
+	}
+	time.Sleep(50 * time.Millisecond)
+	if wire.String() != "" {
+		t.Errorf("queries wrote %x to the port", wire.String())
+	}
+	// Queries leave the allow list as it was: an allowed frame goes out, a
+	// frame outside it is still refused.
+	var out bytes.Buffer
+	if err := SendControl(p, []string{"ff 85 02 01 02 0b 00 03 01 00 72"}, 0, &out); err == nil {
+		t.Errorf("a frame outside the allow list after queries: %q", out.String())
+	}
+	if err := SendControl(p, []string{"ff 85 02 01 02 0b 00 03 02 00 71"}, 0, &out); err != nil {
+		t.Errorf("an allowed frame after queries: %v", err)
 	}
 }
 

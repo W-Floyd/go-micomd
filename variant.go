@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"slices"
 	"sort"
@@ -53,6 +54,9 @@ type Variant struct {
 	profile  []periodicSpec
 	sends    []sendSpec
 	identify *sendSpec
+	reply    *hdrCmd // the micom's variant record, kept for Snapshot
+	// replyIdentity names the record's fields by identity key.
+	replyIdentity map[string]string
 }
 
 type hdrCmd struct {
@@ -555,8 +559,15 @@ func compile(rv rawVariant) (*Variant, error) {
 					c.errf("identify.reply", "name is required")
 				}
 				v.names[hdrCmd{hdr, r.Cmd}] = r.Name
+				v.reply = &hdrCmd{hdr, r.Cmd}
 			}
 			checkStatus(c, "identify.reply", r.Status, false)
+			for k := range r.Identity {
+				if !isIdentityKey(k) {
+					c.errf("identify.reply.identity", "%q is not an identity key (%s)", k, strings.Join(identityKeys, ", "))
+				}
+			}
+			v.replyIdentity = r.Identity
 		}
 	}
 
@@ -565,6 +576,13 @@ func compile(rv rawVariant) (*Variant, error) {
 	}
 	compileSignals(c, v, rv.Signals, hdrOf)
 	compileMessages(c, v, rv.Messages, compileEnums(c, rv.Enums), hdrOf, sendable)
+	if v.reply != nil {
+		for _, k := range slices.Sorted(maps.Keys(v.replyIdentity)) {
+			if !v.decodesField(*v.reply, v.replyIdentity[k]) {
+				c.errf("identify.reply.identity", "%s: no from_micom field %q decodes the reply", k, v.replyIdentity[k])
+			}
+		}
+	}
 
 	seen := map[string]bool{}
 	for _, p := range rv.Profile {

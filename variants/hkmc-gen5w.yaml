@@ -25,11 +25,14 @@ identify:
     frame: "ff 8a 01 01 01 17 00 01 62"
     status: inferred
     ref: "jadx SystemService.requestVariantCode(): sendPacket(-118, 1, 279) = func 0x0117; retried 5 times (EVENT_VARIANTCODING_RETRY)"
-  # The answer, func 0x8117; decoded below.
+  # The answer, func 0x8117; decoded below. Its first two bytes are the codes
+  # the bootloader passes as vehicle_info and country_info, so micomd matches
+  # it as it does the command line, which a kexec does not carry over.
   reply:
     name: "Variant code"
     hdr: system_rx
     cmd: 0x17
+    identity: { vehicle_info: Vehicle, country_info: Country }
     status: code
     ref: "micom firmware CV_E.USA.S5W_M.V002.208.220711, 0x0117 handler (0x7882a); answered in emulation"
 

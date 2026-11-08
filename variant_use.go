@@ -215,6 +215,45 @@ func (v *Variant) Sends(inferred bool) ([]Frame, []Pattern) {
 	return fs, ps
 }
 
+// ReplyIdentity reads the identity out of the micom's variant record, by the
+// variant's identify.reply.identity; false when f is not that record. Like
+// ParseIdentity it leaves out an invalid field and the 0xff of an unread
+// vehicle or country code.
+func (v *Variant) ReplyIdentity(f Frame) (Identity, bool) {
+	if v.reply == nil || f.Hdr != v.reply.hdr || f.Cmd != v.reply.cmd {
+		return nil, false
+	}
+	byName := map[string]Field{}
+	for _, fl := range v.Decode(f) {
+		byName[fl.Name] = fl
+	}
+	id := Identity{}
+	for k, name := range v.replyIdentity {
+		fl, ok := byName[name]
+		if !ok || !fl.Valid || (k == "vehicle_info" || k == "country_info") && fl.Value == 0xff {
+			continue
+		}
+		id[k] = fl.Value
+	}
+	return id, true
+}
+
+// decodesField is whether a from_micom message decoding frames of hc has a
+// field called name.
+func (v *Variant) decodesField(hc hdrCmd, name string) bool {
+	for _, d := range v.decoders[hc.cmd] {
+		if !d.matches(hc.hdr) {
+			continue
+		}
+		for _, f := range d.fields {
+			if f.name == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // IdentifyRequest is the frame that asks the micom for its variant coding.
 // One that was not captured is refused unless inferred is set.
 func (v *Variant) IdentifyRequest(inferred bool) (Frame, error) {
