@@ -44,8 +44,8 @@ type Variant struct {
 	keys       keymap
 	keyList    []uint16
 
-	signals  map[hdrCmd][]*sigSpec
-	decoders map[hdrCmd][]*decoder
+	signals  map[hdrCmd]*sigSpec
+	decoders map[byte][]*decoder // by command
 	names    map[hdrCmd]string
 
 	profile  []periodicSpec
@@ -59,10 +59,11 @@ type hdrCmd struct {
 }
 
 type decoder struct {
-	name   string
-	minLen int
-	guards []guard
-	fields []fieldSpec
+	name      string
+	hdr, mask [4]byte
+	minLen    int
+	guards    []guard
+	fields    []fieldSpec
 }
 
 type guard struct {
@@ -99,6 +100,10 @@ type sendSpec struct {
 	frame   *Frame
 	pattern *Pattern
 }
+
+// DefaultVariantName is the car micomd was written for, and what it runs as
+// when nothing better is known.
+const DefaultVariantName = "kia-ev6-gen5w"
 
 const (
 	variantSchema = 1
@@ -444,7 +449,7 @@ func compile(rv rawVariant) (*Variant, error) {
 		Name: rv.Name, Title: rv.Title, Extends: rv.Extends, Abstract: rv.Abstract, raw: rv,
 		pushLabels: map[[2]byte]string{}, knobLabels: map[byte]string{},
 		keys:    keymap{push: map[keyKey]uint16{}, knob: map[knobKey]uint16{}},
-		signals: map[hdrCmd][]*sigSpec{}, decoders: map[hdrCmd][]*decoder{}, names: map[hdrCmd]string{},
+		signals: map[hdrCmd]*sigSpec{}, decoders: map[byte][]*decoder{}, names: map[hdrCmd]string{},
 	}
 	if rv.Schema != variantSchema {
 		c.errf("schema", "is %d, want %d", rv.Schema, variantSchema)
@@ -710,11 +715,6 @@ func compileKeys(c *checker, v *Variant, k rawKeys, hdrOf func(string, string) (
 
 func compileSignals(c *checker, v *Variant, raws []rawSignal, hdrOf func(string, string) ([4]byte, bool)) {
 	names := map[string]bool{}
-	type slotKey struct {
-		hc  hdrCmd
-		len int
-	}
-	taken := map[slotKey]string{}
 	for _, r := range raws {
 		where := "signals[" + r.Name + "]"
 		if r.Name == "" || names[r.Name] {
@@ -732,8 +732,8 @@ func compileSignals(c *checker, v *Variant, raws []rawSignal, hdrOf func(string,
 		if r.Len != nil {
 			s.length = *r.Len
 		}
-		if s.length < 1 {
-			c.errf(where, "len must be at least 1")
+		if s.length < 0 {
+			c.errf(where, "len is 0 (any) or more")
 		}
 		kinds := 0
 		if f := r.Flag; f != nil {
@@ -747,7 +747,7 @@ func compileSignals(c *checker, v *Variant, raws []rawSignal, hdrOf func(string,
 		}
 		if n := r.Number; n != nil {
 			kinds++
-			s.kind, s.add, s.format = kindNumber, n.Add, n.Format
+			s.kind, s.add, s.format, s.wrap = kindNumber, n.Add, n.Format, n.Wrap
 			if n.Mul != nil {
 				s.mul = *n.Mul
 			}
@@ -835,13 +835,12 @@ func compileSignals(c *checker, v *Variant, raws []rawSignal, hdrOf func(string,
 			continue
 		}
 		for _, cmd := range r.Cmd {
-			k := slotKey{hdrCmd{hdr, cmd}, s.length}
-			if other, dup := taken[k]; dup {
-				c.errf(where, "cmd %#02x of %x is already signal %s", cmd, hdr, other)
+			hc := hdrCmd{hdr, cmd}
+			if other, dup := v.signals[hc]; dup {
+				c.errf(where, "cmd %#02x of %x is already signal %s", cmd, hdr, other.name)
 				continue
 			}
-			taken[k] = r.Name
-			v.signals[k.hc] = append(v.signals[k.hc], s)
+			v.signals[hc] = s
 		}
 	}
 }
@@ -915,16 +914,45 @@ func compileDecoders(c *checker, v *Variant, raws []rawDecoder, hdrOf func(strin
 				c.errf(where, "guard off %d is beyond the %d bytes min_len or a len guard promises", g.off, need)
 			}
 		}
-		hdr, ok := hdrOf(where, r.Hdr)
-		if !ok {
+		// A decoder may leave header bytes open ("0c 88 ?? 8c"): it only reads.
+		if hdr, mask, err := parseHdrMask(r.Hdr); err == nil {
+			d.hdr, d.mask = hdr, mask
+		} else if hdr, ok := hdrOf(where, r.Hdr); ok {
+			d.hdr, d.mask = hdr, [4]byte{0xff, 0xff, 0xff, 0xff}
+		} else {
 			continue
 		}
-		hc := hdrCmd{hdr, r.Cmd}
-		v.decoders[hc] = append(v.decoders[hc], d)
-		if _, ok := v.names[hc]; !ok {
-			v.names[hc] = r.Name
+		v.decoders[r.Cmd] = append(v.decoders[r.Cmd], d)
+	}
+}
+
+// parseHdrMask reads a header with open bytes, "0c 88 ?? 8c": the bytes and
+// the mask of those that must match.
+func parseHdrMask(s string) (hdr, mask [4]byte, err error) {
+	f := strings.Fields(s)
+	if len(f) != 4 || !slices.Contains(f, "??") {
+		return hdr, mask, fmt.Errorf("header %q has no open byte", s)
+	}
+	for i, x := range f {
+		if x == "??" {
+			continue
+		}
+		if _, err := fmt.Sscanf(x, "%02x", &hdr[i]); err != nil || len(x) != 2 {
+			return hdr, mask, fmt.Errorf("header %q is not 4 hex bytes or ??", s)
+		}
+		mask[i] = 0xff
+	}
+	return hdr, mask, nil
+}
+
+// matches is whether a frame's header is the decoder's.
+func (d *decoder) matches(h [4]byte) bool {
+	for i := range h {
+		if h[i]&d.mask[i] != d.hdr[i] {
+			return false
 		}
 	}
+	return true
 }
 
 // parseHdr reads "hh hh hh hh".

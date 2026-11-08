@@ -118,6 +118,8 @@ type rawNumber struct {
 	Mul    *int    `yaml:"mul,omitempty"`
 	Range  []uint8 `yaml:"range,omitempty"`
 	Format string  `yaml:"format"`
+	// Wrap takes the result modulo 256, as byte arithmetic does.
+	Wrap bool `yaml:"wrap,omitempty"`
 }
 
 type rawFan struct {

@@ -1,0 +1,71 @@
+# The EV/HEV layer of the family: HEVService's frames on 0c 88 01 8c, which
+# any electrified car on this software stack shares. Decoders only.
+schema: 1
+name: hkmc-gen5w-ev
+extends: hkmc-gen5w
+title: "HKMC Gen5 Wide, EV/HEV layouts (HEVService)"
+abstract: true
+
+headers:
+  hev: { hdr: "0c 88 01 8c", dir: from_micom, status: captured, ref: "logcat MicomD 2026-10-16" }
+
+# Layouts are HEVService's handlers (func = hdr[3]<<8 | cmd, offsets as they
+# index the payload, integers big endian); units are the HEVFlag names'
+# (_W, _WH, KW), other scales unknown. The header's third byte is left open
+# ("??"): these frames were always matched on the rest of it.
+decode:
+  - name: "Status flag"
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    # Id, then a 16-bit value. Only id 0x57 (HEVFlag 0x4f, the climate power
+    # draw) has been seen. Named apart from the power block's "Climate power":
+    # telemetry keys readings by name.
+    when: [ { len: 3 }, { off: 0, eq: 0x57 } ]
+    fields:
+      - { name: "Climate power draw", off: 1, size: 2, unit: " W", na: none }
+    status: code
+    ref: "HEVService status-flag setter; seen live as 57 00 NN"
+
+  - name: "EV power block"
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x5c
+    min_len: 29
+    fields:
+      - { name: "Other ECUs",           off: 0,  size: 1 }
+      - { name: "AVN motor power",      off: 1,  size: 2 }
+      - { name: "E-compressor",         off: 3,  size: 2 }
+      - { name: "PTC heater",           off: 8,  size: 2 }
+      - { name: "Climate total",        off: 10, size: 2, unit: " W" }
+      - { name: "Battery heater",       off: 12, size: 1, unit: " W" }
+      - { name: "Battery heater total", off: 13, size: 1, unit: " Wh" }
+      - { name: "MG1 power",            off: 14, size: 2, unit: " kW" }
+      - { name: "MG2 power",            off: 16, size: 2, unit: " kW" }
+      - { name: "MG1 energy",           off: 18, size: 2, unit: " Wh" }
+      - { name: "MG2 energy",           off: 20, size: 2, unit: " Wh" }
+      - { name: "LDC load",             off: 22, size: 1 }
+      - { name: "Climate power",        off: 23, size: 2, unit: " W" }
+      - { name: "Battery compressor",   off: 25, size: 2, unit: " W" }
+      - { name: "Battery energy",       off: 27, size: 2, unit: " Wh" }
+    status: code
+    ref: "HEVService setHEVStatusValue calls"
+
+  - name: "Departure timers"
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x55
+    min_len: 5
+    fields:
+      - { name: "Departure 1 hour",        off: 3, mask: 0x1f }
+      - { name: "Departure 1 minute bits", off: 3, shift: 5 }
+      - { name: "Departure 2 hour",        off: 4, mask: 0x1f }
+      - { name: "Departure 2 minute bits", off: 4, shift: 5 }
+    status: code
+    ref: "HEVService"
+
+  - name: "Charger state"
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x4f
+    min_len: 4
+    fields:
+      - { name: "Charger ready bits", off: 3, shift: 6 }
+    status: code
+    ref: "HEVService"

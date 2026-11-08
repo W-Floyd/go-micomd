@@ -29,10 +29,14 @@ func (v *Variant) describe(f Frame) string {
 	if v.hasKeys && hc == v.keyFrame {
 		return v.describeKey(f.Payload)
 	}
-	for _, s := range v.signals[hc] {
-		if len(f.Payload) == s.length {
-			return s.describe(f.Payload[0])
-		}
+	s := v.signals[hc]
+	switch {
+	case s == nil:
+		return ""
+	case s.length == 0 && len(f.Payload) == 0:
+		return s.label + ": " + s.suffix
+	case s.length == 0 || len(f.Payload) == s.length:
+		return s.describe(f.Payload[0])
 	}
 	return ""
 }
@@ -74,14 +78,22 @@ func (v *Variant) FrameName(f Frame) string {
 	if IsAliveRequest(f) {
 		return "CPU alive request"
 	}
-	return v.names[hdrCmd{f.Hdr, f.Cmd}]
+	if n, ok := v.names[hdrCmd{f.Hdr, f.Cmd}]; ok {
+		return n
+	}
+	for _, d := range v.decoders[f.Cmd] {
+		if d.matches(f.Hdr) {
+			return d.name
+		}
+	}
+	return ""
 }
 
 // Decode reads the fields of a frame whose layout is known; nil for the rest.
 func (v *Variant) Decode(f Frame) []Field {
 	p := f.Payload
-	for _, d := range v.decoders[hdrCmd{f.Hdr, f.Cmd}] {
-		if !d.match(p) {
+	for _, d := range v.decoders[f.Cmd] {
+		if !d.matches(f.Hdr) || !d.match(p) {
 			continue
 		}
 		out := make([]Field, 0, len(d.fields))
@@ -124,12 +136,11 @@ func (v *Variant) ApplyClimate(c *CarClimate, f Frame) ClimateEvent {
 	if len(f.Payload) != 1 {
 		return ClimateNone
 	}
-	for _, s := range v.signals[hdrCmd{f.Hdr, f.Cmd}] {
-		if s.length == 1 && (s.state != "" || s.kind == kindBurst) {
-			return s.apply(c, f.Payload[0])
-		}
+	s := v.signals[hdrCmd{f.Hdr, f.Cmd}]
+	if s == nil || s.length > 1 || s.state == "" && s.kind != kindBurst {
+		return ClimateNone
 	}
-	return ClimateNone
+	return s.apply(c, f.Payload[0])
 }
 
 // Profile is the routine traffic the variant sends unasked, without the

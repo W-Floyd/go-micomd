@@ -1,0 +1,232 @@
+# Kia EV6 (project CV), Mobis DAudio Plus Gen5 Wide. Every value was seen on
+# this car, by pressing the control or in a capture, unless its status says
+# otherwise. The send entries and key bindings are those the device's systemd
+# unit passes as -allow and -keymap (pmaports device-mobis-g5w).
+schema: 1
+name: kia-ev6-gen5w
+extends: hkmc-gen5w-ev
+title: "Kia EV6 (CV), Mobis DAudio Plus Gen5 Wide"
+
+match:
+  cmdline:
+    # The stock bootloader's vehicle code for this car. country_info=0x01
+    # (USA) was on the same command line; left out so an EV6 of another
+    # region matches until it shows a difference.
+    vehicle_info: 0xcc
+  status: captured
+  ref: "stock /proc/cmdline, 2026-11-07 (ro.product.device=wp_daudioplus_cvev_us)"
+
+expect:
+  climate_variant: 2   # persist.sys.climate.variant on the stock unit
+  amp_type: 2          # persist.sys.amptype on the stock unit (0 is the internal amp)
+
+# The micom relays these from other nodes of the car, each with its own header.
+headers:
+  keys:          { hdr: "07 84 01 87", dir: from_micom, status: captured }
+  climate_panel: { hdr: "43 c2 00 c3", dir: from_micom, status: captured }
+  seat_node:     { hdr: "55 ca 00 d5", dir: from_micom, status: captured, ref: "seat heat; the driver's door switches" }
+  body:          { hdr: "44 c1 00 c4", dir: from_micom, status: captured, ref: "doors; repeats seat heat and windows" }
+  camera:        { hdr: "01 c4 01 81", dir: from_micom, status: captured }
+  poll_tx:       { hdr: "88 0c 01 0c", dir: to_micom, status: captured }
+  ack_tx:        { hdr: "8f 0d 01 0d", dir: to_micom, status: captured }
+  status_tx:     { hdr: "c3 4d 00 4d", dir: to_micom, status: captured }
+  clock_tx:      { hdr: "c2 43 00 43", dir: to_micom, status: captured }
+
+keys:
+  frame: { hdr: keys, cmd: 0x01 }   # Func 0x8701
+  # Labels from pressing each; the keys are the LIVI mapping of the unit's
+  # -keymap (LIVI's scancode table has no phone or voice keys, so those are
+  # F13-F22). They are injected only with -keys; -keymap still wins.
+  push:
+    - { type: 0, code: 1,  label: "Volume knob",       key: KEY_MUTE }
+    - { type: 0, code: 2,  label: "Seek <",            key: KEY_PREVIOUSSONG }
+    - { type: 0, code: 3,  label: "Track >",           key: KEY_NEXTSONG }
+    - { type: 0, code: 4,  label: "Map",               key: KEY_F17 }
+    - { type: 0, code: 5,  label: "Nav",               key: KEY_HOME }
+    - { type: 1, code: 1,  label: "Tune knob",         key: KEY_ENTER }
+    - { type: 1, code: 2,  label: "Radio",             key: KEY_F18 }
+    - { type: 1, code: 3,  label: "Media",             key: KEY_F19 }
+    - { type: 1, code: 4,  label: "Star",              key: KEY_F20 }
+    - { type: 1, code: 5,  label: "Setup",             key: KEY_F22 }
+    # The steering wheel.
+    - { type: 2, code: 2,  label: "Wheel up",          key: KEY_NEXTSONG }
+    - { type: 2, code: 3,  label: "Wheel down",        key: KEY_PREVIOUSSONG }
+    - { type: 2, code: 4,  label: "Wheel mode",        key: KEY_PLAYPAUSE }
+    - { type: 2, code: 5,  label: "Wheel volume push", key: KEY_MUTE }
+    - { type: 2, code: 6,  label: "Wheel volume up",   key: KEY_VOLUMEUP }
+    - { type: 2, code: 7,  label: "Wheel volume down", key: KEY_VOLUMEDOWN }
+    - { type: 2, code: 8,  label: "Wheel voice",       key: KEY_F13 }
+    - { type: 2, code: 10, label: "Wheel call",        key: KEY_F14 }
+    - { type: 2, code: 11, label: "Wheel star",        key: KEY_F21 }
+  # A knob step is the high nibble of the second byte: 1 up, 0 down.
+  knobs:
+    - { type: 8, code: 1, label: "Tune knob",   up: KEY_F15,      down: KEY_F16 }
+    - { type: 9, code: 1, label: "Volume knob", up: KEY_VOLUMEUP, down: KEY_VOLUMEDOWN }
+
+signals:
+  # The climate panel. One change arrives as a burst of fields, 1b 01 ... 1b 00.
+  - name: climate-burst
+    hdr: climate_panel
+    cmd: 0x1b
+    burst: { begin: 0x01 }
+    lines: { 0x01: "Climate update begins" }
+    unknown_line: "Climate update ends"
+  - name: climate-driver-set
+    hdr: climate_panel
+    cmd: [0x05, 0x07]
+    label: "Climate driver set point"
+    number: { add: 56, format: "%d F" }          # degrees Fahrenheit less 56
+    values: { 0x00: { text: "off", state: 0 } }  # the zone off
+    state: driver_set_f
+  - name: climate-passenger-set
+    hdr: climate_panel
+    cmd: [0x09, 0x0b]
+    label: "Climate passenger set point"
+    number: { add: 56, format: "%d F" }
+    values: { 0x00: { text: "off", state: 0 } }  # off with driver only
+    state: passenger_set_f
+  - name: climate-airflow
+    hdr: climate_panel
+    cmd: 0x0d
+    label: "Climate airflow"
+    enum: { 0: "off", 1: "face", 2: "face and feet", 3: "feet", 4: "feet and defrost", 5: "defrost", 8: "auto" }
+    state: airflow
+  - { name: climate-auto,        hdr: climate_panel, cmd: 0x0f, label: "Climate auto",        flag: { on: 1, off: 0 }, state: auto }
+  - { name: climate-ac,          hdr: climate_panel, cmd: 0x11, label: "Climate A/C",         flag: { on: 1, off: 0 }, state: ac }
+  - name: climate-fan
+    hdr: climate_panel
+    cmd: 0x15
+    label: "Climate fan"
+    fan: { off: 0x00, auto: 0x0a, levels: [2, 9] }   # levels 1 to 8
+    state: fan
+  - { name: climate-driver-only, hdr: climate_panel, cmd: 0x19, label: "Climate driver only", flag: { on: 1, off: 0 }, state: driver_only }
+  # Recirculation off is the car's 2.
+  - { name: climate-recirculation, hdr: climate_panel, cmd: [0x1e, 0x43], label: "Climate recirculation", flag: { on: 1, off: 2 }, state: recirculation }
+  - name: climate-zones
+    hdr: climate_panel
+    cmd: 0x27
+    label: "Climate zones"
+    flag: { on: 1, off: "*", on_text: "synced", off_text: "independent" }
+    state: zones_synced
+  - { name: climate-heat, hdr: climate_panel, cmd: 0x33, label: "Climate heat", flag: { on: 1, off: 0 } }
+  - name: climate-auto-level
+    hdr: climate_panel
+    cmd: 0x4f
+    label: "Climate auto level"
+    number: { add: -1, format: "%d", wrap: true }   # 00 reads as 255, as it always did
+    values: { 0x01: "off" }
+  - name: climate-auto-level-inverse
+    hdr: climate_panel
+    cmd: 0x50
+    label: "Climate auto level (inverse)"
+    number: { mul: -1, add: 5, format: "%d" }
+    values: { 0x01: "off" }
+
+  # Seat heat: 02 off, 06 to 08 levels 1 to 3; repeated on the body node.
+  # Read from the first byte whatever the length (len: 0), as it always was.
+  - { name: seat-heat-driver,            hdr: seat_node, cmd: 0x20, len: 0, label: "Seat heat, driver",             number: &seat { add: -5, range: [6, 8], format: "heat level %d" }, values: &seatoff { 0x02: { text: "off", state: 0 } }, state: driver_seat_heat }
+  - { name: seat-heat-passenger,         hdr: seat_node, cmd: 0x21, len: 0, label: "Seat heat, passenger",         number: *seat, values: *seatoff, state: passenger_seat_heat }
+  - { name: seat-heat-driver-repeat,     hdr: body,      cmd: 0x19, len: 0, label: "Seat heat, driver (repeat)",   number: *seat, values: *seatoff, state: driver_seat_heat }
+  - { name: seat-heat-passenger-repeat,  hdr: body,      cmd: 0x1b, len: 0, label: "Seat heat, passenger (repeat)",number: *seat, values: *seatoff, state: passenger_seat_heat }
+
+  # Power windows of the driver and front passenger, from the driver's door
+  # switches. Switch: 0 released, 1 and 2 held down and up, 5 and 6 pressed
+  # hard (auto down and up). Position: coarse, 0 closed (top) to 3 fully
+  # down, sent when it crosses a step. The rear windows were not tried.
+  - { name: window-driver-switch,    hdr: seat_node, cmd: 0x08, label: "Window driver",    enum: &winsw { 0: "switch released", 1: "switch down", 2: "switch up", 5: "switch hard down (auto)", 6: "switch hard up (auto)" }, unknown: "switch code %#02x" }
+  - { name: window-passenger-switch, hdr: seat_node, cmd: 0x0b, label: "Window passenger", enum: *winsw, unknown: "switch code %#02x" }
+  - { name: window-driver-position,    hdr: seat_node, cmd: 0x06, label: "Window driver",    enum: &winpos { 0: "position 0 of 3 (closed)", 1: "position 1 of 3", 2: "position 2 of 3", 3: "position 3 of 3 (fully down)" }, unknown: "position code %#02x" }
+  - { name: window-passenger-position, hdr: seat_node, cmd: 0x09, label: "Window passenger", enum: *winpos, unknown: "position code %#02x" }
+  - { name: window-driver-switch-repeat,      hdr: body, cmd: 0x26, label: "Window driver",    enum: *winsw,  unknown: "switch code %#02x",   suffix: " (repeat)" }
+  - { name: window-passenger-switch-repeat,   hdr: body, cmd: 0x27, label: "Window passenger", enum: *winsw,  unknown: "switch code %#02x",   suffix: " (repeat)" }
+  - { name: window-driver-position-repeat,    hdr: body, cmd: 0x24, label: "Window driver",    enum: *winpos, unknown: "position code %#02x", suffix: " (repeat)" }
+  - { name: window-passenger-position-repeat, hdr: body, cmd: 0x25, label: "Window passenger", enum: *winpos, unknown: "position code %#02x", suffix: " (repeat)" }
+
+  # Doors, on the body node: each door has a lock command (00 locked, 01
+  # unlocked) and the next number is its open one (01 open, 00 closed).
+  # The trunk and the hood have no lock command. Other values: no line.
+  - { name: door-front-right-lock, hdr: body, cmd: 0x00, label: "Door front right", enum: &lock { 0: "locked", 1: "unlocked" }, unknown: "" }
+  - { name: door-front-right-open, hdr: body, cmd: 0x01, label: "Door front right", enum: &open { 0: "closed", 1: "open" }, unknown: "" }
+  - { name: door-driver-lock,      hdr: body, cmd: 0x02, label: "Door driver",      enum: *lock, unknown: "" }
+  - { name: door-driver-open,      hdr: body, cmd: 0x03, label: "Door driver",      enum: *open, unknown: "" }
+  - { name: door-rear-left-lock,   hdr: body, cmd: 0x04, label: "Door rear left",   enum: *lock, unknown: "" }
+  - { name: door-rear-left-open,   hdr: body, cmd: 0x05, label: "Door rear left",   enum: *open, unknown: "" }
+  - { name: door-rear-right-lock,  hdr: body, cmd: 0x07, label: "Door rear right",  enum: *lock, unknown: "" }
+  - { name: door-rear-right-open,  hdr: body, cmd: 0x08, label: "Door rear right",  enum: *open, unknown: "" }
+  - { name: trunk,                 hdr: body, cmd: 0x06, label: "Trunk",            enum: *open, unknown: "" }
+  - { name: hood,                  hdr: body, cmd: 0x11, label: "Hood",             enum: *open, unknown: "" }
+
+  # The system node's bitmask of what keeps the micom awake: bit 0 always
+  # set, then one bit per open door and the trunk. Other bits not known.
+  - name: open-doors
+    hdr: system_rx
+    cmd: 0x2f
+    label: "Open doors"
+    bits: { always: 0x01, none: "none", names: { 1: "trunk", 2: "front right", 3: "driver", 4: "rear right", 5: "rear left" } }
+
+  # The rear camera button: 09 when pressed on, 00 off, with cmd 52 (six
+  # bytes) following. Two presses seen, so the other values are unknown.
+  - name: rear-camera
+    hdr: camera
+    cmd: 0x51
+    label: "Rear camera"
+    enum: { 0x00: "off", 0x09: "on" }
+    unknown_line: "Rear camera mode: code %#02x"
+
+# Routine traffic Android sent at a steady rate (logcat MicomD, 2026-10-16),
+# sent as seen: what each means, and which the micom needs, is not known. The
+# ack and status payloads are not constant: a strace of 2026-11-07 has ack
+# byte 3 = 1d and status 08 c6 b0 73 06 32 ab 37, so they carry state.
+profile:
+  - name: poll        # answered by the 31-byte EV power block
+    every: 1s
+    frame: "ff 88 0c 01 0c 5c 00 01 2b"
+    status: captured
+    ref: "logcat MicomD 2026-10-16; strace 2026-11-07 identical"
+  - name: ack
+    every: 600ms
+    frame: "ff 8f 0d 01 0d 03 00 0a ff ff ff 0e 03 ff ff 03 ff 76"
+    status: captured
+    ref: "logcat MicomD 2026-10-16"
+  - name: status
+    every: 1s
+    frame: "ff c3 4d 00 4d 17 00 09 08 d5 fc db 05 ff 81 2b 88"
+    status: captured
+    ref: "logcat MicomD 2026-10-16"
+  # The two frames whose payload follows the wall clock: only with -clock,
+  # as a wrong time may be stored by the car.
+  - name: clock-sec
+    every: 1s
+    opt_in: clock
+    template: "ff 88 0c 01 0c 09 00 06 04 a0 01 {second} 80 .."
+    status: captured
+    ref: "logcat MicomD 2026-10-16 20:01:16-17"
+  - name: clock
+    every: 1s
+    opt_in: clock
+    template: "ff c2 43 00 43 33 00 0c 02 02 {hour} {minute} {second} {month} 01 {year2} {day} 00 02 .."
+    status: captured
+    ref: "logcat MicomD 2026-10-16 20:01; strace 2026-11-07 matches the unit's clock"
+
+# What the control socket may send when asked, with -allow-variant (inferred
+# ones also need -allow-inferred). Captured from the stock micomd (strace on
+# its UART) on a source switch: 0x020B AV mute set, 0x0201 mode (0e Media,
+# 01 Radio), 0x0203 volume, then 0.2-1.3 s later 0x0238 AV mute release,
+# which the micom answers with 0x820B.
+send:
+  - { name: av-mute-set,     frame: "ff 85 02 01 02 0b 00 03 02 01 70", status: captured, ref: "stock micomd strace, source switch" }
+  - { name: mode-media,      frame: "ff 85 02 01 02 01 00 03 0e 00 77", status: captured, ref: "stock micomd strace, source switch" }
+  - { name: mode-radio,      frame: "ff 85 02 01 02 01 00 03 01 00 78", status: captured, ref: "stock micomd strace, source switch" }
+  - { name: av-mute-release, frame: "ff 85 02 01 02 38 00 03 02 00 42", status: captured, ref: "stock micomd strace, source switch" }
+  - name: main-volume
+    pattern: "ff 85 02 01 02 03 00 02 [00-23] .."
+    status: captured
+    ref: "stock micomd strace, source switch: levels 22-31"
+    note: "levels 0-35: the maximum is unknown, 35 is the cap (the I2S card's control)"
+  # Inferred statically, never seen sent.
+  - { name: boot-mode-request,  frame: "ff 8a 01 01 01 01 00 01 74", status: inferred, ref: "SystemService; the micom answers 0x8101 with its last mode, mute and volume" }
+  - { name: mode-09,            frame: "ff 85 02 01 02 01 00 03 09 00 70", status: inferred, ref: "MicomAudioService audio mode USB" }
+  - { name: mode-12,            frame: "ff 85 02 01 02 01 00 03 12 00 6b", status: inferred, ref: "MicomAudioService audio mode MUSIC" }
+  - { name: av-mute-release-0b, frame: "ff 85 02 01 02 0b 00 03 02 00 71", status: inferred, ref: "0x020B mute control: AV, RELEASE" }
+  - { name: amp-mute-release,   frame: "ff 85 02 01 02 0b 00 03 01 00 72", status: inferred, ref: "0x020B mute control: AMP, RELEASE" }
+  - { name: amp-mute-set,       frame: "ff 85 02 01 02 0b 00 03 01 01 73", status: inferred, ref: "0x020B mute control: AMP, SET" }

@@ -31,6 +31,7 @@ type sigSpec struct {
 	enum       map[byte]string // enum
 	add, mul   int             // number
 	ranged     bool
+	wrap       bool
 	lo, hi     byte
 	format     string
 	fanOff     byte // fan
@@ -122,7 +123,11 @@ func (s *sigSpec) number(v byte) (int, bool) {
 	if s.ranged && (v < s.lo || v > s.hi) {
 		return 0, false
 	}
-	return int(v)*s.mul + s.add, true
+	n := int(v)*s.mul + s.add
+	if s.wrap {
+		n = int(byte(n))
+	}
+	return n, true
 }
 
 // format1 applies a format checked by checkFormat: no verb, or one %d or %#02x.
