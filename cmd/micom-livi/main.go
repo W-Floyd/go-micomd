@@ -273,7 +273,7 @@ func liviClimate(c micom.CarClimate) map[string]any {
 // poster sends the car's telemetry to LIVI from its own goroutine (run): the
 // newest value of each top-level field, only those LIVI has not already
 // taken, at most once every every. While LIVI does not answer it retries, and
-// once it does, sends every field again.
+// once it does, sends every field again; every fullEvery too.
 type poster struct {
 	url    string
 	every  time.Duration
@@ -333,12 +333,22 @@ func (p *poster) changes(sent map[string]string) (map[string]any, map[string]str
 	return body, js
 }
 
+// fullEvery is how often every field goes again: a LIVI restarted between
+// two posts never fails one, and would otherwise lack what does not change,
+// such as the illumination.
+const fullEvery = 30 * time.Second
+
 func (p *poster) run() {
 	sent := map[string]string{} // each field's JSON as LIVI last took it
+	full := time.Now()
 	for {
 		select {
 		case <-p.wake:
 		case <-time.After(5 * time.Second):
+		}
+		if time.Since(full) >= fullEvery {
+			clear(sent)
+			full = time.Now()
 		}
 		body, js := p.changes(sent)
 		if body == nil {
