@@ -45,6 +45,9 @@ func main() {
 	navEvery := flag.Duration("nav-every", 500*time.Millisecond, "how often to read LIVI's route guidance")
 	units := flag.String("units", "imperial", "the cluster's distances: imperial (mi, ft) or metric (km, m)")
 	clock24 := flag.Bool("clock24", false, "show the arrival time on the cluster as 24 h, not 12 h")
+	gpsd := flag.String("gpsd", "", "gpsd's host:port: the cluster's compass from its track, with -input; empty for none")
+	minSpeed := flag.Float64("heading-min-speed", 2, "m/s: the track is taken as the heading only at this speed or above")
+	hold := flag.Duration("heading-hold", 10*time.Minute, "how long the last heading stays on the compass below -heading-min-speed")
 	flag.Parse()
 
 	lg := log.New(os.Stderr, "", log.LstdFlags)
@@ -52,7 +55,12 @@ func main() {
 		lg.Fatalf("-units %q: imperial or metric", *units)
 	}
 	if *input != "" {
-		go runNav(*navURL, *input, *navEvery, navOptions{imperial: *units == "imperial", clock24: *clock24, loc: time.Local}, lg.Printf)
+		var h *heading
+		if *gpsd != "" {
+			h = &heading{minSpeed: *minSpeed, hold: *hold}
+			go followGpsd(*gpsd, h, lg.Printf)
+		}
+		go runNav(*navURL, *input, *navEvery, navOptions{imperial: *units == "imperial", clock24: *clock24, loc: time.Local}, h, lg.Printf)
 	}
 	p := newPoster(*url, *every, lg.Printf)
 	if *capacity > 0 {

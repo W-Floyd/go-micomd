@@ -203,8 +203,19 @@ func TestBridgeLinesAreTakenByMicomd(t *testing.T) {
 	rd := bufio.NewReader(c)
 	now := time.Date(2026, 11, 8, 16, 1, 0, 0, time.UTC)
 	b := newBridge(time.Second)
+	// With a compass: 352.5, then none, then 0, an hour apart.
+	bc := newBridge(time.Second)
+	bc.heading = func(t time.Time) *float64 {
+		if h := t.Sub(now).Hours(); int(h)%3 == 1 {
+			return nil
+		} else if int(h)%3 == 2 {
+			return ptr(0.0)
+		}
+		return ptr(352.5)
+	}
 	var lines []string
 	for i, js := range []string{
+		`{"active":false}`,
 		`{"active":true}`,
 		`{"active":true,"maneuverType":11,"remainDistance":0}`,
 		`{"active":true,"maneuverType":2,"turnSide":0,"turnAngle":-90,"remainDistance":482.8,"distanceToDestination":78940,"etaText":"16:47"}`,
@@ -213,7 +224,9 @@ func TestBridgeLinesAreTakenByMicomd(t *testing.T) {
 		`{"active":false}`,
 	} {
 		for _, imperial := range []bool{true, false} {
-			lines = append(lines, b.step(navOf(js), now.Add(time.Duration(i)*time.Hour), navOptions{imperial: imperial, clock24: !imperial, loc: time.UTC})...)
+			o := navOptions{imperial: imperial, clock24: !imperial, loc: time.UTC}
+			lines = append(lines, b.step(navOf(js), now.Add(time.Duration(i)*time.Hour), o)...)
+			lines = append(lines, bc.step(navOf(js), now.Add(time.Duration(i)*time.Hour), o)...)
 		}
 	}
 	for _, l := range lines {

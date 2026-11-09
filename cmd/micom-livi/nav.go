@@ -180,10 +180,32 @@ const endGuidance = `{"msg":"tbt-turn","end":true}`
 // end of route when guidance stops, LIVI is gone, or at the start.
 type bridge struct {
 	refresh time.Duration
+	// heading, when set, is the compass in degrees (nil for none): it goes
+	// in every cluster-sub-info, which then also runs without guidance.
+	heading func(time.Time) *float64
 	guiding bool
 	cleared bool
 	sent    map[string]string
 	at      map[string]time.Time
+}
+
+// idleSubInfo is cluster-sub-info with no route: the route fields invalid
+// and time_type and time_format the captured 3, which is the captured ack
+// frame byte for byte, the compass aside.
+func idleSubInfo(compass *float64) map[string]any {
+	return map[string]any{"msg": "cluster-sub-info", "compass": compass, "time_type": 3, "time_format": 3,
+		"remaining": nil, "remaining_unit": nil, "remaining_tenths": nil, "eta_hour": nil, "eta_minute": nil, "est_point_type": nil}
+}
+
+// emit adds in's line to out when it changed or is due again.
+func (b *bridge) emit(out []string, in map[string]any, now time.Time) []string {
+	msg := in["msg"].(string)
+	line, _ := json.Marshal(in)
+	if string(line) == b.sent[msg] && now.Sub(b.at[msg]) < b.refresh {
+		return out
+	}
+	b.sent[msg], b.at[msg] = string(line), now
+	return append(out, string(line))
 }
 
 func newBridge(refresh time.Duration) *bridge {
@@ -197,41 +219,40 @@ func (b *bridge) reset() {
 	clear(b.at)
 }
 
-// step is the lines to send for n, nil when LIVI has no guidance or cannot
-// be read.
+// step is the lines to send for n, which is nil when LIVI cannot be read.
 func (b *bridge) step(n *navigation, now time.Time, o navOptions) []string {
-	if n == nil || n.Active == nil || !*n.Active {
-		if b.cleared {
-			return nil
-		}
-		b.reset()
-		b.cleared = true
-		return []string{endGuidance}
-	}
 	var out []string
+	if n == nil || n.Active == nil || !*n.Active {
+		if !b.cleared {
+			b.reset()
+			b.cleared = true
+			out = append(out, endGuidance)
+		}
+		if b.heading != nil {
+			out = b.emit(out, idleSubInfo(b.heading(now)), now)
+		}
+		return out
+	}
 	b.cleared = false
 	if !b.guiding {
 		b.guiding = true
 		out = append(out, `{"msg":"tbt-guiding","guiding":true}`)
 	}
 	turn, sub := clusterInputs(n, now, o)
-	for _, in := range []map[string]any{turn, sub} {
-		msg := in["msg"].(string)
-		line, _ := json.Marshal(in)
-		if string(line) == b.sent[msg] && now.Sub(b.at[msg]) < b.refresh {
-			continue
-		}
-		b.sent[msg], b.at[msg] = string(line), now
-		out = append(out, string(line))
+	if b.heading != nil {
+		sub["compass"] = b.heading(now)
 	}
-	return out
+	return b.emit(b.emit(out, turn, now), sub, now)
 }
 
 // runNav polls LIVI's guidance every poll and feeds micomd's -input socket,
 // reconnecting to either; logf hears each new problem once.
-func runNav(navURL, input string, poll time.Duration, o navOptions, logf func(string, ...any)) {
+func runNav(navURL, input string, poll time.Duration, o navOptions, h *heading, logf func(string, ...any)) {
 	client := &http.Client{Timeout: 2 * time.Second}
 	b := newBridge(time.Second)
+	if h != nil {
+		b.heading = h.compass
+	}
 	var (
 		conn net.Conn
 		rd   *bufio.Reader

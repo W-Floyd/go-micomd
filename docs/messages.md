@@ -408,6 +408,15 @@ maneuver types to the display types above; the roundabout's angle codes and
 the destination kinds other than `arrived` are not used. `tbt-points`
 (the next three steps) is not sent: Android Auto does not give them.
 
+With `-gpsd HOST:PORT` it also fills the compass from gpsd's track, in the
+cluster's 7.5° steps: only at `-heading-min-speed` (2 m/s) or above, the
+last heading held for `-heading-hold` (10 min) when slower, `null` (0x3f)
+without a fix, a track or gpsd. It then sends `cluster-sub-info` without
+guidance too, on a step change and every second: the route fields invalid
+and time_type and time_format 3, the captured `ack` frame but for the
+compass, so the message owns `ack` and the cluster's compass is the car's
+heading rather than the capture's 105°.
+
 These messages are in the EV6 file, not the family base, though they come
 from the shared ClusterService: `cluster-sub-info` owns the EV6's own profile
 entry, and `tbt-turn`'s end names it. The enums are in the base.
