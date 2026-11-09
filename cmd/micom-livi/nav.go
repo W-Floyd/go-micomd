@@ -230,9 +230,18 @@ type bridge struct {
 }
 
 // idleTurn is tbt-turn with no route: stock's "no route guidance (compass)"
-// symbol, in the bytes of stock's end of route.
-var idleTurn = map[string]any{"msg": "tbt-turn", "maneuver": "no_route_guide", "side_street": 0, "direction": 0,
-	"distance": nil, "unit": "m", "side_street_combi": 0, "bar": nil, "distance_tenths": 0}
+// symbol, in the bytes of stock's end of route. The EV6 cluster draws this
+// pane's compass from the turn's direction, counter-clockwise (direction 90
+// showed west, 270 east), not from cluster-sub-info's compass byte: so the
+// heading goes in as 360 - heading. North while there is no heading.
+func idleTurn(compass *float64) map[string]any {
+	direction := 0.0
+	if compass != nil {
+		direction = math.Mod(360-*compass, 360)
+	}
+	return map[string]any{"msg": "tbt-turn", "maneuver": "no_route_guide", "side_street": 0, "direction": direction,
+		"distance": nil, "unit": "m", "side_street_combi": 0, "bar": nil, "distance_tenths": 0}
+}
 
 // idleSubInfo is cluster-sub-info with no route: the route fields invalid
 // and time_type and time_format the captured 3, which is the captured ack
@@ -314,7 +323,7 @@ func (b *bridge) step(n *navigation, now time.Time, o navOptions) []string {
 			delete(b.sent, "cluster-sub-info")
 			out = append(out, endGuidance)
 		}
-		return b.emit(b.emit(out, idleTurn, now, true), idleSubInfo(compass), now, true)
+		return b.emit(b.emit(out, idleTurn(compass), now, true), idleSubInfo(compass), now, true)
 	}
 	b.routing = true
 	turn, sub := clusterInputs(n, now, o)
