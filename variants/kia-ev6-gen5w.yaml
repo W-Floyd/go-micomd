@@ -28,6 +28,7 @@ headers:
   body:          { hdr: "44 c1 00 c4", dir: from_micom, status: captured, ref: "doors; repeats seat heat and windows" }
   camera:        { hdr: "01 c4 01 81", dir: from_micom, status: captured }
   cluster_rx:    { hdr: "0d 8f 01 8d", dir: from_micom, status: captured, ref: "battery and cruise; cluster_tx's reverse" }
+  bms_rx:        { hdr: "40 c7 80 c0", dir: from_micom, status: captured, ref: "the BMS's state of charge (cmd ad); ac, ae, a9 and aa barely change while charging" }
   poll_tx:       { hdr: "88 0c 01 0c", dir: to_micom, status: captured }
   # ClusterService.sendPacket: sndId 0x8f, rcvId 0x0d, type 1, funcH 0x0d.
   cluster_tx:    { hdr: "8f 0d 01 0d", dir: to_micom, status: captured, ref: "the ack profile frame; stock ClusterService" }
@@ -607,14 +608,16 @@ messages:
     dir: from_micom
     hdr: cluster_rx
     cmd: 0x47
-    min_length: 4
+    min_length: 7   # always 11 in the captures
     fields:
       - { name: "State of charge",          off: 0, scale: 0.5,   unit: " %" }
       # Signed is a guess: only 20-24 °C seen.
       - { name: "Battery minimum temperature", off: 1, type: i8, unit: " °C" }
       - { name: "Battery remaining energy", off: 2, type: u16, scale: 0.002, unit: " kWh" }
+      # Likely, not certain: r 0.97/0.88 driving, 0.84/0.67 charging.
+      - { name: "Battery inlet temperature", off: 6, scale: 0.5, offset: -40, unit: " °C" }
     status: captured
-    ref: "drive 2026-11, micomd snapshots against Car Scanner OBD2 displayed SoC, minimum battery temperature (r 0.998) and remaining energy (r >= 0.99)"
+    ref: "drive 2026-11, micomd snapshots against Car Scanner OBD2 displayed SoC, minimum battery temperature (r 0.998), remaining energy (r >= 0.99) and battery inlet temperature (fit 0.53*raw-44)"
   # Battery conditioning running: 1 from 68 s after micom-precondition's
   # start until its stop, with the EV power block's battery heater byte
   # 0 -> 53-54 -> 0 and 0c88018c 54 byte 0 bit 4 over the same window.
@@ -671,6 +674,30 @@ messages:
       - { name: "Outdoor temperature (F)",  off: 0, offset: -40, unit: " F" }
     status: captured
     ref: "5e against the cluster's 54 F"
+  # The car's true speed: it follows Car Scanner's real vehicle speed
+  # (r 0.98, level and change) about 2.7 % below 44c100c4 20, which is
+  # then the speedometer's, overreading as speedometers do. Byte 0 was
+  # always 0.
+  - name: "Vehicle speed (true)"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x31
+    length: 2
+    fields:
+      - { name: "Vehicle speed (true)", off: 0, type: u16, unit: " km/h" }
+    status: captured
+    ref: "drive 2026-11-08 18:21-18:36 against Car Scanner OBD2 [HVAC] Real Vehicle Speed; 119 km/h against 44c100c4 20's 152 (76 mph)"
+  # The BMS's own state of charge, not the displayed one (0d8f018d 47);
+  # about 0.4 % a step. 3, 4 and 39 bytes long; the rest not known.
+  - name: "BMS state of charge"
+    dir: from_micom
+    hdr: bms_rx
+    cmd: 0xad
+    min_length: 3
+    fields:
+      - { name: "BMS state of charge", off: 2, scale: 0.4, unit: " %" }
+    status: captured
+    ref: "drive 2026-11-08 against Car Scanner OBD2 [BMS] State of Charge BMS (r 0.997, change 0.83): fit 0.383*raw+2.1, 200 at 80 %"
 
   # The backlight. Off from power-up until the first on; on is refused while
   # the supply is low. The micom writes a config byte to EEPROM on every
