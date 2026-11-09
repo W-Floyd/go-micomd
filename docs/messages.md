@@ -59,7 +59,7 @@ messages:                    # a named list: merged by name, remove: true delete
     timeout: 30s             # no input for this long: run end
     end:                     # sent in order when the message ends
       - { msg: tbt-turn, set: { maneuver: none, distance: null } }
-      - { msg: tbt-guiding, set: { guiding: false } }
+      - { msg: tbt-points, set: { p1_distance: null } }
     status: code             # required to_micom
     ref: "stock ClusterService$NaviCluster TBTInfo packer"
 ```
@@ -324,7 +324,7 @@ each micom start (link up, or `acc_on` after a reset).
 Each line is one JSON object; each gets one line back.
 
 ```
-> {"msg":"tbt-guiding","guiding":true}
+> {"msg":"nav-operation","status":"operating"}
 < {"ok":true}
 > {"msg":"tbt-turn","maneuver":"turn_right","direction":90,"distance":0,"distance_tenths":3,"unit":"km","bar":30}
 < {"ok":true}
@@ -375,10 +375,27 @@ All on `8f 0d 01 0d` (`cluster_tx`, which was `ack_tx`), `status: code`:
 | `tbt-turn` | 0x0D04 TBTInfo | maneuver, side_street, direction, distance, unit, side_street_combi, bar, distance_tenths | change + 1 s, timeout 30 s, end below |
 | `tbt-points` | 0x0D02 TBTSubInfo2C | p1..p3 `_unit`, `_tenths`, `_distance` | change + 1 s, timeout 30 s, end: all invalid |
 | `cluster-sub-info` | 0x0D03 TBTSubInfo | remaining_unit, remaining_tenths, eta_hour, eta_minute, compass, time_type, remaining, time_format, est_point_type | change + 600 ms, owns `ack`, timeout 5 s |
-| `tbt-guiding` | 0x0D11 OperationStatus | guiding | change; end: false |
+| `nav-operation` | 0x0D11 OperationStatus | status: `operating` 1, `released` 0 | change; end: released |
+| `tbt-alive` | 0x0D0E ALIVE | alive | change; end: false |
+| `cluster-day-night` | 0x0D0F DAY_NIGHT_STATUS | mode: `day` 0, `night` 1 | change |
 
-`tbt-turn`'s end is the stock end of route: 0x0D04 type 0 with the distance
-invalid, 0x0D02 and the route fields of 0x0D03 invalid, then 0x0D11 = 0.
+A navigation owns the cluster's pane with `tbt-alive` true then
+`nav-operation` operating (stock's claim, DiPO's and GPM's), and gives it
+back with `tbt-alive` false then `nav-operation` released. Without a route
+the pane shows the compass when `tbt-turn` carries display type
+`no_route_guide` (0x08, stock's "NO ROUTE GUIDANCE(COMPASS)"); 0x0D11 = 0
+outside a release likely left it on a spinner.
+
+`tbt-turn`'s end is GPM's releaseGuidance in stock's bytes: 0x0D04
+`00 00 00 00 ff ff 00 f0`, 0x0D02 all invalid, 0x0D03
+`00 00 00 3f 00 ff ff 00 00` (here with the compass kept). It no longer
+releases the pane.
+
+The display type byte is passed through by stock's packer, so two code sets
+share it: stock's `Navigation$DisplayType` 0x00-0x2e (the native
+navigation's symbols, turned by the direction byte), and GPM's 64-176 for
+Android Auto, which also uses 0, 2, 32 and 33 from the first set. The enum
+names both.
 
 **The compass and the profile.** 0x0D03 carries both the route summary and
 the compass, so it is one message whose fields two clients may fill: a gpsd
@@ -400,10 +417,15 @@ own source.
 
 **From the phone.** `micom-livi -input SOCKET` reads LIVI's route guidance
 (Android Auto's or CarPlay's, `GET /navigation` on LIVI's port 4000) twice a
-second and writes these lines: `tbt-guiding` when a route starts, `tbt-turn`
-and `cluster-sub-info` (route fields only) on change and every second, and
-`{"msg":"tbt-turn","end":true}` when guidance stops, LIVI cannot be read,
-and at its start. Its maneuver table (`cmd/micom-livi/nav.go`) maps LIVI's
+second and writes these lines. At its start (and on each new connection
+to micomd) it claims the pane, then sends `cluster-day-night` from the
+micom's illumination (0x810d) once known and on change. With no route, or
+LIVI unreadable, the pane shows the compass: `tbt-turn` `no_route_guide`
+and the idle `cluster-sub-info` (the captured ack frame, route fields
+invalid), every second. With a route, `tbt-turn` and `cluster-sub-info` on
+change and every second; at its end, `{"msg":"tbt-turn","end":true}` and
+the compass pane again. It releases the pane on SIGTERM, and with
+`-release-after` once LIVI has been unreadable that long. Its maneuver table (`cmd/micom-livi/nav.go`) maps LIVI's
 maneuver types to the display types above; the roundabout's angle codes and
 the destination kinds other than `arrived` are not used. `tbt-points`
 (the next three steps) is not sent: Android Auto does not give them.
@@ -484,16 +506,19 @@ describes.
 - **Repeat rates**: stock sends TBT on change; whether the cluster drops
   guidance without repeats is unknown. 1 s is a guess, 600 ms is the captured
   `ack` rate.
-- **time_type / time_format** default to the captured 3 and 3; the stock
-  packer's values are 1 (ETA) and 1/2 (12/24 h). What 3 means is unknown.
-- **The end sequence's** unit and tenths nibbles (stock "distanceErr -1"):
-  the unit is sent invalid, the tenths 0. Guessed.
-- **bar's second marker** 0xE ("err -2") is not modelled; only 0xF.
+- **time_type / time_format** default to the captured 3 and 3, as the
+  stock system's idle 0x0D03 on the wire had them; stock code knows 0 (no
+  time), 1 (ETA) and 0/1/2 (none, 12 h, 24 h). What 3 means is unknown. The
+  end of route sends stock's 0/0.
+- **bar's second marker** 0xE (stock: not displayed) is not modelled; only
+  0xF (invalid).
+- **OperationStatus 2 and 3** exist in stock code; their meaning is unknown.
 - **Roundabout codes** 96-106 are exit-angle buckets whose angles are not
   known: the enum names them `roundabout_96` and so on. The destination codes
   113-117 are not named, except 115 `arrived` (112 + 3), a guess.
-- **Navi-alive**: the cluster may need `responseNaviAliveStatus` answered
-  before it shows guidance. Not modelled.
+- **Navi-alive**: the SoC's side is `tbt-alive` (0x0D0E). Whether the
+  cluster also asks (`responseNaviAliveStatus`) and wants an answer is not
+  modelled.
 - **Per-field freshness**: the two clients of `cluster-sub-info` share one
   timeout, so a dead compass client's last heading stays while the navigation
   keeps the message alive. A client that stops should send its fields as

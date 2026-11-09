@@ -17,6 +17,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -27,8 +28,10 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	micom "github.com/W-Floyd/go-micomd"
@@ -48,36 +51,57 @@ func main() {
 	gpsd := flag.String("gpsd", "", "gpsd's host:port: the cluster's compass from its track, with -input; empty for none")
 	minSpeed := flag.Float64("heading-min-speed", 0, "m/s: take the track as the heading only at this speed or above, for a plain GNSS track; 0 takes every track (hippod's is the gyro-held DR bearing)")
 	hold := flag.Duration("heading-hold", 10*time.Minute, "with -heading-min-speed, how long the last heading stays on the compass below it")
+	releaseAfter := flag.Duration("release-after", 0, "give the cluster's navigation pane back once LIVI has been unreadable this long; 0 keeps it until micom-livi stops")
 	flag.Parse()
 
 	lg := log.New(os.Stderr, "", log.LstdFlags)
 	if *units != "imperial" && *units != "metric" {
 		lg.Fatalf("-units %q: imperial or metric", *units)
 	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	night := &nightState{}
+	navDone := make(chan struct{})
 	if *input != "" {
-		var h *heading
+		b := newBridge(time.Second)
+		b.releaseAfter, b.night = *releaseAfter, night.get
 		if *gpsd != "" {
-			h = &heading{minSpeed: *minSpeed, hold: *hold}
+			h := &heading{minSpeed: *minSpeed, hold: *hold}
+			b.heading = h.compass
 			go followGpsd(*gpsd, h, lg.Printf)
 		}
-		go runNav(*navURL, *input, *navEvery, navOptions{imperial: *units == "imperial", clock24: *clock24, loc: time.Local}, h, lg.Printf)
+		go func() {
+			runNav(ctx, *navURL, *input, *navEvery, navOptions{imperial: *units == "imperial", clock24: *clock24, loc: time.Local}, b, lg.Printf)
+			close(navDone)
+		}()
+	} else {
+		close(navDone)
 	}
 	p := newPoster(*url, *every, lg.Printf)
 	if *capacity > 0 {
 		p.set("batteryCapacityKwh", *capacity)
 	}
 	go p.run()
-	for {
-		if err := follow(*tap, *settle, p); err != nil {
-			lg.Printf("tap %s: %v", *tap, err)
+	go func() {
+		for {
+			if err := follow(*tap, *settle, p, night); err != nil {
+				lg.Printf("tap %s: %v", *tap, err)
+			}
+			time.Sleep(2 * time.Second)
 		}
-		time.Sleep(2 * time.Second)
+	}()
+	<-ctx.Done()
+	// The pane is given back on the way out.
+	select {
+	case <-navDone:
+	case <-time.After(3 * time.Second):
 	}
 }
 
 // follow reads the tap until it ends, posting the climate when a burst of
-// panel frames ends, or when a lone change has settled.
-func follow(path string, settle time.Duration, p *poster) error {
+// panel frames ends, or when a lone change has settled, and keeping night
+// up to date for the cluster.
+func follow(path string, settle time.Duration, p *poster, night *nightState) error {
 	conn, err := net.Dial("unix", path)
 	if err != nil {
 		return err
@@ -110,6 +134,9 @@ func follow(path string, settle time.Duration, p *poster) error {
 			}
 			for k, v := range liviCar(micom.Decode(f)) {
 				p.set(k, v)
+				if k == "nightMode" {
+					night.set(v.(bool))
+				}
 			}
 			switch state.Apply(f) {
 			case micom.ClimateBegin:

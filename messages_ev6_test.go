@@ -37,14 +37,22 @@ func TestEV6Messages(t *testing.T) {
 			[]string{"ff 8f 0d 01 0d 03 00 0a 10 05 08 0e 01 00 32 02 ff a5"}},
 		{"next point", []string{`{"msg":"tbt-points","p1_unit":"km","p1_tenths":0,"p1_distance":200}`},
 			[]string{"ff 8f 0d 01 0d 02 00 0a 10 00 c8 ff ff ff ff ff ff a1"}},
-		{"guiding", []string{`{"msg":"tbt-guiding","guiding":true}`}, []string{"ff 8f 0d 01 0d 11 00 02 01 63"}},
+		// Stock's claim of the pane (DiPO u.java): alive, then operating.
+		{"claim", []string{`{"msg":"tbt-alive","alive":true}`, `{"msg":"nav-operation","status":"operating"}`},
+			[]string{"ff 8f 0d 01 0d 0e 00 02 01 7c", "ff 8f 0d 01 0d 11 00 02 01 63"}},
+		{"release", []string{`{"msg":"tbt-alive","alive":true}`, `{"msg":"nav-operation","status":"operating"}`, `{"msg":"tbt-alive","end":true}`, `{"msg":"nav-operation","end":true}`},
+			[]string{"ff 8f 0d 01 0d 0e 00 02 01 7c", "ff 8f 0d 01 0d 11 00 02 01 63", "ff 8f 0d 01 0d 0e 00 02 00 7d", "ff 8f 0d 01 0d 11 00 02 00 62"}},
+		{"night, then day", []string{`{"msg":"cluster-day-night","mode":"night"}`, `{"msg":"cluster-day-night","mode":"day"}`},
+			[]string{"ff 8f 0d 01 0d 0f 00 02 01 7d", "ff 8f 0d 01 0d 0f 00 02 00 7c"}},
+		{"no route: the compass pane", []string{`{"msg":"tbt-turn","maneuver":"no_route_guide","side_street":0,"distance":null,"unit":"m","bar":null,"distance_tenths":0}`},
+			[]string{"ff 8f 0d 01 0d 04 00 09 08 00 00 00 ff ff 00 f0 84"}},
+		// GPM's releaseGuidance, bytes as stock; the pane stays claimed.
 		{"end of route", []string{turnRight, `{"msg":"cluster-sub-info","compass":105}`, `{"msg":"tbt-turn","end":true}`}, []string{
 			"ff 8f 0d 01 0d 04 00 09 43 ff ff 0c 00 00 10 33 10",
 			ack,
-			"ff 8f 0d 01 0d 04 00 09 00 ff ff 00 ff ff f0 f0 7c",
+			"ff 8f 0d 01 0d 04 00 09 00 00 00 00 ff ff 00 f0 8c",
 			"ff 8f 0d 01 0d 02 00 0a ff ff ff ff ff ff ff ff ff 86",
-			ack, // the compass kept
-			"ff 8f 0d 01 0d 11 00 02 00 62",
+			"ff 8f 0d 01 0d 03 00 0a 00 00 00 0e 00 ff ff 00 00 76", // the compass kept
 		}},
 		// The micom firmware's frames, as micom-run took them.
 		{"backlight on", []string{`{"msg":"backlight","on":true}`}, []string{"ff 8c 08 01 08 02 00 02 01 73"}},
@@ -144,8 +152,8 @@ func TestEV6Messages(t *testing.T) {
 	}{
 		{InputGates{}, nil},
 		{InputGates{Persistent: true}, nil},
-		{InputGates{Inferred: true}, []string{"backlight", "cluster-sub-info", "shutdown-ack", "tbt-guiding", "tbt-points", "tbt-turn"}},
-		{InputGates{Inferred: true, Persistent: true}, []string{"backlight", "backlight-dim-mode", "backlight-manual-level", "backlight-period-level", "cluster-sub-info", "shutdown-ack", "tbt-guiding", "tbt-points", "tbt-turn"}},
+		{InputGates{Inferred: true}, []string{"backlight", "cluster-day-night", "cluster-sub-info", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
+		{InputGates{Inferred: true, Persistent: true}, []string{"backlight", "backlight-dim-mode", "backlight-manual-level", "backlight-period-level", "cluster-day-night", "cluster-sub-info", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
 	} {
 		e := newInputEngine(v, tc.g, func(Frame) error { return nil }, func([]string, bool) {}, time.Now, t.Logf)
 		if ok, _ := e.enabled(); !slices.Equal(ok, tc.want) {

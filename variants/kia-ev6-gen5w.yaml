@@ -278,17 +278,17 @@ messages:
       - { name: distance_tenths,   off: 7, bits: "3:0", max: 9, invalid: 15 }
     every: 1s          # a guess: stock sends on change
     timeout: 30s
-    # Stock's end of route: display type 0 with the distance invalid
-    # ("distanceErr -1": bar invalid, tenths kept, here 0; the unit sent
-    # invalid is a guess), no next points, the route fields of 0x0D03 invalid
-    # (the compass has its own source), guidance off.
+    # Stock's end of route (GPM releaseGuidance: updateTBTInfo(0, 0, 0, 0,
+    # -1, 0, 0, 0, -1) and updateTBTSubInfo(0, -1, 0, ...)): 0x0D04
+    # 00 00 00 00 ff ff 00 f0, no next points, 0x0D03 00 00 00 3f 00 ff ff
+    # 00 00, but the compass kept, as it has its own source. It does not
+    # release the pane (nav-operation and tbt-alive): stock does that apart.
     end:
-      - { msg: tbt-turn, set: { maneuver: none, side_street: null, direction: 0, distance: null, unit: null, side_street_combi: 0, bar: null, distance_tenths: 0 } }
+      - { msg: tbt-turn, set: { maneuver: none, side_street: 0, direction: 0, distance: null, unit: m, side_street_combi: 0, bar: null, distance_tenths: 0 } }
       - { msg: tbt-points, set: { p1_unit: null, p1_tenths: null, p1_distance: null, p2_unit: null, p2_tenths: null, p2_distance: null, p3_unit: null, p3_tenths: null, p3_distance: null } }
-      - { msg: cluster-sub-info, set: { remaining_unit: null, remaining_tenths: null, eta_hour: null, eta_minute: null, time_type: 3, remaining: null, time_format: 3, est_point_type: null } }
-      - { msg: tbt-guiding, set: { guiding: false } }
+      - { msg: cluster-sub-info, set: { remaining_unit: m, remaining_tenths: 0, eta_hour: 0, eta_minute: 0, time_type: 0, remaining: null, time_format: 0, est_point_type: 0 } }
     status: code
-    ref: "stock ClusterService$NaviCluster TBTInfo packer; nemesis-report worked example \"turn right, 0.3 km\""
+    ref: "stock ClusterService$NaviCluster TBTInfo packer (byte 0 straight from the caller); GPM GpmNaviTBTManager.releaseGuidance; nemesis-report worked example \"turn right, 0.3 km\""
 
   # TBTSubInfo2C, func 0x0D02: the distances to the next three points.
   - name: tbt-points
@@ -328,10 +328,11 @@ messages:
       - { name: eta_hour,         off: 1, max: 23, invalid: 0xff }
       - { name: eta_minute,       off: 2, max: 59, invalid: 0xff }
       - { name: compass,          off: 3, scale: 7.5, min: 0, max: 360, invalid: 0x3f }   # heading, degrees
-      # Stock: 1 ETA. The captured 3 is not known.
+      # Stock code: 0 no time, 1 ETA. The default is the captured 3 (the
+      # stock system's idle frame on the wire), meaning unknown.
       - { name: time_type,        off: 4, default: 3 }
       - { name: remaining,        off: 5, type: u16, invalid: 0xffff }
-      # Stock: 1 12 h, 2 24 h. The captured 3 is not known.
+      # Stock code: 0 none, 1 12 h, 2 24 h; the captured 3 likewise.
       - { name: time_format,      off: 7, default: 3 }
       - { name: est_point_type,   off: 8, invalid: 0xff }
     every: 600ms       # the captured ack rate
@@ -340,18 +341,44 @@ messages:
     status: code
     ref: "stock ClusterService$NaviCluster TBTSubInfo packer; the captured ack frame"
 
-  # OperationStatus, func 0x0D11: whether the navigation is guiding.
-  - name: tbt-guiding
+  # OperationStatus, func 0x0D11: whether a navigation owns the cluster's
+  # pane (1), with or without a route; 0 releases it. Stock claims with
+  # tbt-alive 1 then this 1, and releases with tbt-alive 0 then this 0.
+  - name: nav-operation
     dir: to_micom
     hdr: cluster_tx
     cmd: 0x11
     length: 1
     fields:
-      - { name: guiding, off: 0, type: bool }
+      - { name: status, off: 0, enum: operation }
     end:
-      - { msg: tbt-guiding, set: { guiding: false } }
+      - { msg: nav-operation, set: { status: released } }
     status: code
-    ref: "stock ClusterService$NaviCluster OperationStatus; GPM claimCluster/onStatus"
+    ref: "stock ClusterService$NaviCluster.sendOperationStatus (1 byte), Navigation$Func OPERATION_STATUS 0x11; GPM claimCluster/onStatus; DiPO u.java claim and release"
+
+  # ALIVE, func 0x0D0E: the navigation is alive, 1 byte.
+  - name: tbt-alive
+    dir: to_micom
+    hdr: cluster_tx
+    cmd: 0x0e
+    length: 1
+    fields:
+      - { name: alive, off: 0, type: bool }
+    end:
+      - { msg: tbt-alive, set: { alive: false } }
+    status: code
+    ref: "stock ClusterService$NaviCluster.sendAlive (mIsAlive 1/0), Navigation$Func ALIVE 0x0e"
+
+  # DAY_NIGHT_STATUS, func 0x0D0F: the navigation's look, 1 byte.
+  - name: cluster-day-night
+    dir: to_micom
+    hdr: cluster_tx
+    cmd: 0x0f
+    length: 1
+    fields:
+      - { name: mode, off: 0, enum: day_night }
+    status: code
+    ref: "stock ClusterService$NaviCluster.sendDayNight (mIsNight 1/0), Navigation$Func DAY_NIGHT_STATUS 0x0f"
 
   # Power and ACC, from the micom firmware (CV_E.USA.S5W_M.V002.208) in
   # emulation and disassembly; not yet seen from a car. The ACC-off timeline
@@ -659,3 +686,5 @@ enums:
   period: { day: 1, night: 2 }
   cruise: { inactive: 0, active: 2 }
   illumination: { night: 0, day: 1 }   # stock: any non-zero is day
+  operation: { released: 0, operating: 1 }   # 2 and 3 exist; their meaning is unknown
+  day_night: { day: 0, night: 1 }

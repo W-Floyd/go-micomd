@@ -110,45 +110,70 @@ func navOf(js string) *navigation {
 }
 
 // The guidance of LIVI's log, "maneuver=4 ... dest=78940m eta=16:47
-// step=70799m", start to stop: tbt-guiding when it starts, the maneuver and
-// summary on change and every second, the stock end when it stops; LIVI
-// gone is the same as stopped, and a new micomd connection starts afresh.
+// step=70799m", start to stop. The pane is claimed at the start (alive,
+// then operating) and kept: no route is the compass pane (no_route_guide),
+// a route its maneuver and summary on change and every second, a route's
+// end stock's end frames and the compass pane again; LIVI gone is no
+// route. The day/night look goes on change. Release only with release()
+// (exit) or after releaseAfter without LIVI; a new micomd connection
+// claims afresh.
 func TestBridgeSequence(t *testing.T) {
 	o := navOptions{imperial: true, loc: time.UTC}
 	t0 := time.Date(2026, 11, 8, 16, 1, 0, 0, time.UTC)
 	exit := navOf(`{"active":true,"maneuverType":23,"turnSide":0,"remainDistance":70799,"distanceToDestination":78940,"timeToDestination":2733,"etaText":"16:47"}`)
 	near := navOf(`{"active":true,"maneuverType":23,"turnSide":0,"remainDistance":150,"distanceToDestination":8290,"timeToDestination":420,"etaText":"16:47"}`)
+	off := navOf(`{"active":false}`)
 	turn := `{"bar":null,"direction":0,"distance":44,"distance_tenths":0,"maneuver":"off_ramp_right","msg":"tbt-turn","side_street":null,"unit":"mi"}`
 	sub := `{"eta_hour":16,"eta_minute":47,"msg":"cluster-sub-info","remaining":49,"remaining_tenths":1,"remaining_unit":"mi","time_format":1,"time_type":1}`
+	idle := `{"bar":null,"direction":0,"distance":null,"distance_tenths":0,"maneuver":"no_route_guide","msg":"tbt-turn","side_street":0,"side_street_combi":0,"unit":"m"}`
+	idleSub := `{"compass":null,"est_point_type":null,"eta_hour":null,"eta_minute":null,"msg":"cluster-sub-info","remaining":null,"remaining_tenths":null,"remaining_unit":null,"time_format":3,"time_type":3}`
+	day := `{"mode":"day","msg":"cluster-day-night"}`
+	night := `{"mode":"night","msg":"cluster-day-night"}`
+	var isNight *bool
 	b := newBridge(time.Second)
+	b.releaseAfter = time.Minute
+	b.night = func() *bool { return isNight }
 	for _, tc := range []struct {
-		name string
-		n    *navigation
-		at   time.Duration
-		want []string
+		name  string
+		n     *navigation
+		at    time.Duration
+		night *bool
+		want  []string
 	}{
-		{"at the start, the cluster is cleared", nil, 0, []string{endGuidance}},
-		{"once", navOf(`{"active":false}`), 500 * time.Millisecond, nil},
-		{"guidance starts", exit, time.Second, []string{`{"msg":"tbt-guiding","guiding":true}`, turn, sub}},
-		{"nothing new", exit, 1500 * time.Millisecond, nil},
-		{"a second on, refreshed", exit, 2 * time.Second, []string{turn, sub}},
-		{"closer", near, 2500 * time.Millisecond, []string{
+		{"start, day/night unknown: claim, the compass pane", nil, 0, nil, []string{claimAlive, claimOwn, idle, idleSub}},
+		{"nothing new", off, 500 * time.Millisecond, nil, nil},
+		{"illumination: day", off, 700 * time.Millisecond, ptr(false), []string{day}},
+		{"a second on, refreshed", off, 1200 * time.Millisecond, ptr(false), []string{idle, idleSub}},
+		{"guidance starts", exit, 1500 * time.Millisecond, ptr(false), []string{turn, sub}},
+		{"nothing new", exit, 2 * time.Second, ptr(false), nil},
+		{"a second on, refreshed", exit, 2500 * time.Millisecond, ptr(false), []string{turn, sub}},
+		{"closer, at night", near, 3 * time.Second, ptr(true), []string{night,
 			`{"bar":null,"direction":0,"distance":490,"distance_tenths":0,"maneuver":"off_ramp_right","msg":"tbt-turn","side_street":null,"unit":"ft"}`,
 			`{"eta_hour":16,"eta_minute":47,"msg":"cluster-sub-info","remaining":5,"remaining_tenths":2,"remaining_unit":"mi","time_format":1,"time_type":1}`,
 		}},
-		{"guidance stops", navOf(`{"active":false}`), 3 * time.Second, []string{endGuidance}},
-		{"LIVI gone", nil, 4 * time.Second, nil},
-		{"guidance again", exit, 5 * time.Second, []string{`{"msg":"tbt-guiding","guiding":true}`, turn, sub}},
-		{"LIVI gone while guiding", nil, 5500 * time.Millisecond, []string{endGuidance}},
+		{"guidance stops: stock's end, the pane kept", off, 4 * time.Second, ptr(true), []string{endGuidance, idle, idleSub}},
+		{"LIVI gone: still the compass pane", nil, 4500 * time.Millisecond, ptr(true), nil},
+		{"guidance again", exit, 5 * time.Second, ptr(true), []string{turn, sub}},
+		{"LIVI gone while guiding", nil, 5500 * time.Millisecond, ptr(true), []string{endGuidance, idle, idleSub}},
+		{"LIVI gone a minute: released", nil, 65500 * time.Millisecond, ptr(true), []string{freeAlive, freeOwn}},
+		{"still gone", nil, 70 * time.Second, ptr(true), nil},
+		{"LIVI back: claimed again", off, 71 * time.Second, ptr(true), []string{claimAlive, claimOwn, night, idle, idleSub}},
 	} {
+		isNight = tc.night
 		got := b.step(tc.n, t0.Add(tc.at), o)
 		if strings.Join(got, "\n") != strings.Join(tc.want, "\n") {
 			t.Errorf("%s:\n got %q\nwant %q", tc.name, got, tc.want)
 		}
 	}
-	b.step(exit, t0, o)
+	if got := b.release(); strings.Join(got, "\n") != freeAlive+"\n"+freeOwn {
+		t.Errorf("release at exit: %q", got)
+	}
+	if got := b.release(); got != nil {
+		t.Errorf("released twice: %q", got)
+	}
+	b.step(exit, t0.Add(80*time.Second), o)
 	b.reset()
-	if got := b.step(exit, t0, o); len(got) != 3 {
+	if got := b.step(exit, t0.Add(81*time.Second), o); len(got) != 5 || got[0] != claimAlive {
 		t.Errorf("after a reconnection: %q", got)
 	}
 }
@@ -213,6 +238,7 @@ func TestBridgeLinesAreTakenByMicomd(t *testing.T) {
 		}
 		return ptr(352.5)
 	}
+	bc.night = func() *bool { return ptr(true) }
 	var lines []string
 	for i, js := range []string{
 		`{"active":false}`,
@@ -229,6 +255,7 @@ func TestBridgeLinesAreTakenByMicomd(t *testing.T) {
 			lines = append(lines, bc.step(navOf(js), now.Add(time.Duration(i)*time.Hour), o)...)
 		}
 	}
+	lines = append(lines, b.release()...)
 	for _, l := range lines {
 		if err := sendInput(c, rd, l); err != nil {
 			t.Errorf("%s: %v", l, err)

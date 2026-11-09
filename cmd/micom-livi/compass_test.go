@@ -70,9 +70,9 @@ func TestHeading(t *testing.T) {
 	}
 }
 
-// With a compass the bridge also runs without guidance: cluster-sub-info
-// with the route invalid, on a step change and every second; guidance adds
-// the compass to its own cluster-sub-info, and its end goes out as before.
+// The compass is in the idle cluster-sub-info (the route invalid), on a
+// step change and every second, and in guidance's own; a route's end goes
+// out as stock's, then the compass pane again.
 func TestBridgeCompass(t *testing.T) {
 	o := navOptions{imperial: true, loc: time.UTC}
 	t0 := time.Date(2026, 11, 8, 16, 1, 0, 0, time.UTC)
@@ -90,14 +90,14 @@ func TestBridgeCompass(t *testing.T) {
 		compass *float64
 		want    []string // substrings, one per line
 	}{
-		{"start: cleared, then the compass", nil, 0, ptr(90.0), []string{endGuidance, idle("90")}},
+		{"start: claimed, then the compass pane", nil, 0, ptr(90.0), []string{claimAlive, claimOwn, `"no_route_guide"`, idle("90")}},
 		{"same step", nil, 500 * time.Millisecond, ptr(90.0), nil},
-		{"a second on", nil, time.Second, ptr(90.0), []string{idle("90")}},
+		{"a second on", nil, time.Second, ptr(90.0), []string{`"no_route_guide"`, idle("90")}},
 		{"new step", nil, 1200 * time.Millisecond, ptr(97.5), []string{idle("97.5")}},
 		{"no heading", nil, 1400 * time.Millisecond, nil, []string{idle("null")}},
-		{"guidance", route, 2 * time.Second, ptr(180.0), []string{`"guiding":true`, `"maneuver":"turn_right"`, `"compass":180,"eta_hour":16`}},
+		{"guidance", route, 2 * time.Second, ptr(180.0), []string{`"maneuver":"turn_right"`, `"compass":180,"eta_hour":16`}},
 		{"guidance, the compass moves", route, 2500 * time.Millisecond, ptr(187.5), []string{`"compass":187.5,"eta_hour":16`}},
-		{"guidance ends", navOf(`{"active":false}`), 3 * time.Second, ptr(187.5), []string{endGuidance, idle("187.5")}},
+		{"guidance ends", navOf(`{"active":false}`), 3 * time.Second, ptr(187.5), []string{endGuidance, `"no_route_guide"`, idle("187.5")}},
 	} {
 		compass = tc.compass
 		got := b.step(tc.n, t0.Add(tc.at), o)

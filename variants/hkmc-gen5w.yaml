@@ -39,12 +39,26 @@ identify:
 # The cluster's turn-by-turn tables, from the stock ClusterService$NaviCluster
 # packers and the GPM/DiPO maneuver setters (status code: never captured).
 enums:
-  # TBTInfo (0x0D04) display type.
+  # TBTInfo (0x0D04) display type. Byte 0 goes to the micom as the caller
+  # gives it (ClusterService$NaviCluster.updateTBTInfo). 0x00-0x2e are
+  # stock's own (Navigation$DisplayType: the native navigation's, a symbol
+  # turned by the direction byte); GPM, the Android Auto sink, sends some of
+  # those (0, 2, 32, 33) and its own 64-176 beside them, which this car's
+  # stock firmware shipped with, so the cluster takes both.
   maneuver:
-    none: 0                # the end of route
-    depart: 2              # sent with no distance
-    roundabout_exit_right: 32
-    roundabout_exit_left: 33
+    none: 0                # NO_SYMBOL; the end of route
+    no_info: 1             # NO_INFO
+    depart: 2              # DIRECT_TO_DEST; GPM's depart, sent with no distance
+    dest_reached: 3        # ARRIVED
+    near_dest: 4           # NEAR_DEST
+    arrived_off_map: 5     # ARRIVED_DEST_OFF_MAP
+    off_road: 6            # OFF_ROAD
+    off_map: 7             # OFF_MAP
+    no_route_guide: 8      # NO_ROUTE_GUIDE, "NO ROUTE GUIDANCE(COMPASS)"
+    calc_route: 9          # CALC_ROUTE
+    recalc_route: 10       # RECALC_ROUTE
+    roundabout_exit_right: 32   # EXIT_ROUNDABOUT_TRS_RIGHT
+    roundabout_exit_left: 33    # EXIT_ROUNDABOUT_TRS_LEFT
     unknown: 64
     straight: 65           # also a merge
     slight_right: 66

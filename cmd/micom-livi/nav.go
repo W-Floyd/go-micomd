@@ -2,14 +2,36 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
+
+// nightState is the car's day or night (the micom's illumination), as the
+// tap last told it, for the cluster's look.
+type nightState struct {
+	mu sync.Mutex
+	v  *bool
+}
+
+func (s *nightState) set(night bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.v = &night
+}
+
+// get is nil while unknown.
+func (s *nightState) get() *bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.v
+}
 
 // navigation is the part of LIVI's GET /navigation the cluster takes: the
 // phone's route guidance, Android Auto's or CarPlay's, in one model.
@@ -172,36 +194,60 @@ func clusterInputs(n *navigation, now time.Time, o navOptions) (turn, sub map[st
 	return turn, sub
 }
 
-const endGuidance = `{"msg":"tbt-turn","end":true}`
+// The stock lines: GPM's end of route (micomd's tbt-turn end), the claim of
+// the cluster's navigation pane (alive, then operating) and its release.
+const (
+	endGuidance = `{"msg":"tbt-turn","end":true}`
+	claimAlive  = `{"msg":"tbt-alive","alive":true}`
+	claimOwn    = `{"msg":"nav-operation","status":"operating"}`
+	freeAlive   = `{"msg":"tbt-alive","alive":false}`
+	freeOwn     = `{"msg":"nav-operation","status":"released"}`
+)
 
-// bridge turns LIVI's guidance into micomd's input lines: tbt-guiding on
-// when a route starts, the maneuver and summary on change and again every
-// refresh (cluster-sub-info ends 5 s after its last input), and the stock
-// end of route when guidance stops, LIVI is gone, or at the start.
+// bridge turns LIVI's guidance into micomd's input lines. It claims the
+// cluster's navigation pane and keeps it: with no route the pane shows the
+// compass (display type no_route_guide), with one the maneuver and summary;
+// these go on change and again every refresh (cluster-sub-info ends 5 s
+// after its last input). A route's end is stock's end frames, then the
+// compass pane again. The pane is released only on release: at exit, or
+// when LIVI has been gone for releaseAfter.
 type bridge struct {
 	refresh time.Duration
-	// heading, when set, is the compass in degrees (nil for none): it goes
-	// in every cluster-sub-info, which then also runs without guidance.
+	// releaseAfter, when positive, releases the pane once LIVI has been
+	// unreadable this long.
+	releaseAfter time.Duration
+	// heading, when set, is the compass in degrees (nil for none).
 	heading func(time.Time) *float64
-	guiding bool
-	cleared bool
-	sent    map[string]string
-	at      map[string]time.Time
+	// night, when set, is the cluster's day or night look, nil while unknown.
+	night func() *bool
+
+	owned    bool
+	routing  bool
+	released bool // by releaseAfter: claimed again when LIVI is back
+	seen     time.Time
+	sent     map[string]string
+	at       map[string]time.Time
 }
+
+// idleTurn is tbt-turn with no route: stock's "no route guidance (compass)"
+// symbol, in the bytes of stock's end of route.
+var idleTurn = map[string]any{"msg": "tbt-turn", "maneuver": "no_route_guide", "side_street": 0, "direction": 0,
+	"distance": nil, "unit": "m", "side_street_combi": 0, "bar": nil, "distance_tenths": 0}
 
 // idleSubInfo is cluster-sub-info with no route: the route fields invalid
 // and time_type and time_format the captured 3, which is the captured ack
-// frame byte for byte, the compass aside.
+// frame (the stock system's idle 0x0D03 on the wire), the compass aside.
 func idleSubInfo(compass *float64) map[string]any {
 	return map[string]any{"msg": "cluster-sub-info", "compass": compass, "time_type": 3, "time_format": 3,
 		"remaining": nil, "remaining_unit": nil, "remaining_tenths": nil, "eta_hour": nil, "eta_minute": nil, "est_point_type": nil}
 }
 
-// emit adds in's line to out when it changed or is due again.
-func (b *bridge) emit(out []string, in map[string]any, now time.Time) []string {
+// emit adds in's line to out when it changed, or with refresh when it is
+// due again.
+func (b *bridge) emit(out []string, in map[string]any, now time.Time, refresh bool) []string {
 	msg := in["msg"].(string)
 	line, _ := json.Marshal(in)
-	if string(line) == b.sent[msg] && now.Sub(b.at[msg]) < b.refresh {
+	if string(line) == b.sent[msg] && (!refresh || now.Sub(b.at[msg]) < b.refresh) {
 		return out
 	}
 	b.sent[msg], b.at[msg] = string(line), now
@@ -214,45 +260,75 @@ func newBridge(refresh time.Duration) *bridge {
 
 // reset forgets what micomd was told, for a new connection to it.
 func (b *bridge) reset() {
-	b.guiding, b.cleared = false, false
+	b.owned, b.routing = false, false
 	clear(b.sent)
 	clear(b.at)
 }
 
-// step is the lines to send for n, which is nil when LIVI cannot be read.
-func (b *bridge) step(n *navigation, now time.Time, o navOptions) []string {
-	var out []string
-	if n == nil || n.Active == nil || !*n.Active {
-		if !b.cleared {
-			b.reset()
-			b.cleared = true
-			out = append(out, endGuidance)
-		}
-		if b.heading != nil {
-			out = b.emit(out, idleSubInfo(b.heading(now)), now)
-		}
-		return out
+// release is the lines that give the pane back, nil when it is not held.
+func (b *bridge) release() []string {
+	if !b.owned {
+		return nil
 	}
-	b.cleared = false
-	if !b.guiding {
-		b.guiding = true
-		out = append(out, `{"msg":"tbt-guiding","guiding":true}`)
-	}
-	turn, sub := clusterInputs(n, now, o)
-	if b.heading != nil {
-		sub["compass"] = b.heading(now)
-	}
-	return b.emit(b.emit(out, turn, now), sub, now)
+	b.reset()
+	return []string{freeAlive, freeOwn}
 }
 
-// runNav polls LIVI's guidance every poll and feeds micomd's -input socket,
-// reconnecting to either; logf hears each new problem once.
-func runNav(navURL, input string, poll time.Duration, o navOptions, h *heading, logf func(string, ...any)) {
-	client := &http.Client{Timeout: 2 * time.Second}
-	b := newBridge(time.Second)
-	if h != nil {
-		b.heading = h.compass
+// step is the lines to send for n, which is nil when LIVI cannot be read.
+func (b *bridge) step(n *navigation, now time.Time, o navOptions) []string {
+	if n != nil || b.seen.IsZero() {
+		b.seen = now
 	}
+	if n == nil && b.releaseAfter > 0 && now.Sub(b.seen) >= b.releaseAfter {
+		if b.owned {
+			b.released = true
+		}
+		return b.release()
+	}
+	if b.released && n == nil {
+		return nil
+	}
+	b.released = false
+	var out []string
+	if !b.owned {
+		b.owned = true
+		out = append(out, claimAlive, claimOwn)
+	}
+	if b.night != nil {
+		if night := b.night(); night != nil {
+			mode := "day"
+			if *night {
+				mode = "night"
+			}
+			out = b.emit(out, map[string]any{"msg": "cluster-day-night", "mode": mode}, now, false)
+		}
+	}
+	var compass *float64
+	if b.heading != nil {
+		compass = b.heading(now)
+	}
+	if n == nil || n.Active == nil || !*n.Active {
+		if b.routing {
+			b.routing = false
+			delete(b.sent, "tbt-turn")
+			delete(b.sent, "cluster-sub-info")
+			out = append(out, endGuidance)
+		}
+		return b.emit(b.emit(out, idleTurn, now, true), idleSubInfo(compass), now, true)
+	}
+	b.routing = true
+	turn, sub := clusterInputs(n, now, o)
+	if b.heading != nil {
+		sub["compass"] = compass
+	}
+	return b.emit(b.emit(out, turn, now, true), sub, now, true)
+}
+
+// runNav polls LIVI's guidance every poll and feeds micomd's -input socket
+// through b, reconnecting to either, until ctx ends; then it releases the
+// pane. logf hears each new problem once.
+func runNav(ctx context.Context, navURL, input string, poll time.Duration, o navOptions, b *bridge, logf func(string, ...any)) {
+	client := &http.Client{Timeout: 2 * time.Second}
 	var (
 		conn net.Conn
 		rd   *bufio.Reader
@@ -266,7 +342,32 @@ func runNav(navURL, input string, poll time.Duration, o navOptions, h *heading, 
 			said = ""
 		}
 	}
-	for range time.Tick(poll) {
+	send := func(lines []string) {
+		for _, line := range lines {
+			if err := sendInput(conn, rd, line); err != nil {
+				note(err)
+				if _, refused := err.(refusal); !refused {
+					conn.Close()
+					conn = nil
+					return
+				}
+			}
+		}
+	}
+	tick := time.NewTicker(poll)
+	defer tick.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			if conn != nil {
+				send(b.release())
+				if conn != nil {
+					conn.Close()
+				}
+			}
+			return
+		case <-tick.C:
+		}
 		n, err := fetchNav(client, navURL)
 		note(err)
 		if conn == nil {
@@ -278,16 +379,7 @@ func runNav(navURL, input string, poll time.Duration, o navOptions, h *heading, 
 			rd = bufio.NewReader(conn)
 			b.reset()
 		}
-		for _, line := range b.step(n, time.Now(), o) {
-			if err := sendInput(conn, rd, line); err != nil {
-				note(err)
-				if _, refused := err.(refusal); !refused {
-					conn.Close()
-					conn = nil
-					break
-				}
-			}
-		}
+		send(b.step(n, time.Now(), o))
 	}
 }
 
