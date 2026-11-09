@@ -2,9 +2,11 @@ package micom
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -72,6 +74,53 @@ func TestTapStreamsToClients(t *testing.T) {
 		if got, err := r.ReadString('\n'); err != nil || got != "one\n" {
 			t.Errorf("client %d: %q, %v", i, got, err)
 		}
+	}
+}
+
+// A new client gets the state so far before anything live; a client that
+// joined earlier does not get it again.
+func TestTapReplaysTheLatestToNewClients(t *testing.T) {
+	p := tapPath(t)
+	tap, err := ListenTap(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tap.Close()
+	telem := newTelemetry(&Variant{})
+	t0 := time.Unix(100, 0)
+	telem.add(Frame{Hdr: [4]byte{1, 2, 3, 4}, Cmd: 5, Payload: []byte{1}}, t0)
+	telem.add(Frame{Hdr: [4]byte{1, 2, 3, 4}, Cmd: 6, Payload: []byte{2}}, t0.Add(time.Second))
+	telem.add(Frame{Hdr: [4]byte{1, 2, 3, 4}, Cmd: 5, Payload: []byte{3}}, t0.Add(2*time.Second))
+	tap.SetReplay(func() []string {
+		var out []string
+		for _, f := range telem.latest() {
+			out = append(out, fmt.Sprintf("%d %v\n", f.At.Unix(), f.Frame))
+		}
+		return out
+	})
+	c, err := net.Dial("unix", p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	c.SetReadDeadline(time.Now().Add(5 * time.Second))
+	r := bufio.NewReader(c)
+	// The replay is queued with the client, so the first replay line read
+	// means it has joined.
+	var got []string
+	for range 2 {
+		l, err := r.ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, l)
+	}
+	tap.Send("live\n")
+	l, _ := r.ReadString('\n')
+	got = append(got, l)
+	want := []string{"101 hdr=01020304 cmd=06 payload=02\n", "102 hdr=01020304 cmd=05 payload=03\n", "live\n"}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 

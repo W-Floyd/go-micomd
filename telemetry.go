@@ -120,6 +120,8 @@ type seenField struct {
 
 type seenFrame struct {
 	name  string
+	hdr   [4]byte
+	cmd   byte
 	n     uint64
 	at    time.Time
 	first int
@@ -164,13 +166,31 @@ func newTelemetry(v *Variant) *telemetry {
 	return &telemetry{fields: map[string]*seenField{}, frames: map[string]*seenFrame{}, variant: v}
 }
 
+// Timed is a frame and when it arrived.
+type Timed struct {
+	Frame
+	At time.Time
+}
+
+// latest is the last frame of each kind received, the oldest first.
+func (t *telemetry) latest() []Timed {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	out := make([]Timed, 0, len(t.frames))
+	for _, sf := range t.frames {
+		out = append(out, Timed{Frame{Hdr: sf.hdr, Cmd: sf.cmd, Payload: slices.Clone(sf.last)}, sf.at})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].At.Before(out[j].At) })
+	return out
+}
+
 func (t *telemetry) add(f Frame, now time.Time) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	key := fmt.Sprintf("%02x%02x%02x%02x %02x", f.Hdr[0], f.Hdr[1], f.Hdr[2], f.Hdr[3], f.Cmd)
 	sf := t.frames[key]
 	if sf == nil {
-		sf = &seenFrame{name: t.variant.FrameName(f), first: len(t.frames)}
+		sf = &seenFrame{name: t.variant.FrameName(f), hdr: f.Hdr, cmd: f.Cmd, first: len(t.frames)}
 		t.frames[key] = sf
 	}
 	sf.n++
@@ -247,6 +267,9 @@ func (t *telemetry) mark(now time.Time) {
 func (d *Daemon) Mark() { d.telem.mark(d.cfg.Now()) }
 
 // Snapshot is the link's state and everything decoded from it, now.
+// Latest is the last frame of each kind received, the oldest first.
+func (d *Daemon) Latest() []Timed { return d.telem.latest() }
+
 func (d *Daemon) Snapshot() Snapshot {
 	now := d.cfg.Now()
 	st := d.Stats()

@@ -18,6 +18,16 @@ type Tap struct {
 	ln      net.Listener
 	mu      sync.Mutex
 	clients map[chan string]struct{}
+	replay  func() []string
+}
+
+// SetReplay has each new client get replay's lines first, before any line
+// sent after it connected: the state so far, so a client need not wait for
+// what is sent only on change.
+func (t *Tap) SetReplay(replay func() []string) {
+	t.mu.Lock()
+	t.replay = replay
+	t.mu.Unlock()
 }
 
 // ListenTap serves path, which is mode 0660. A leftover socket nobody listens
@@ -38,8 +48,17 @@ func (t *Tap) accept() {
 		if err != nil {
 			return
 		}
-		ch := make(chan string, 256)
+		// Under the lock Send takes: nothing live comes between the replay
+		// and the client joining.
 		t.mu.Lock()
+		var lines []string
+		if t.replay != nil {
+			lines = t.replay()
+		}
+		ch := make(chan string, 256+len(lines))
+		for _, l := range lines {
+			ch <- l
+		}
 		t.clients[ch] = struct{}{}
 		t.mu.Unlock()
 		go t.serve(c, ch)

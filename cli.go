@@ -292,8 +292,10 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 			}
 		}
 	}
+	var tap *Tap
 	if *tapPath != "" {
-		tap, err := ListenTap(*tapPath)
+		var err error
+		tap, err = ListenTap(*tapPath)
 		if err != nil {
 			lg.Print(err)
 			return 1
@@ -326,6 +328,16 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 		}
 	}
 	d := New(cfg)
+	if tap != nil {
+		// A new client gets the last frame of each kind, at the time it came.
+		tap.SetReplay(func() []string {
+			var lines []string
+			for _, f := range d.Latest() {
+				lines = append(lines, f.At.Format("15:04:05.000 ")+frameLine(v, f.Frame))
+			}
+			return lines
+		})
+	}
 
 	ctx := env.ctx
 	if ctx == nil {
