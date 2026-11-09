@@ -13,25 +13,28 @@ import (
 	"time"
 )
 
-// nightState is the car's day or night (the micom's illumination), as the
-// tap last told it, for the cluster's look.
-type nightState struct {
+// latest is a value the tap last told, shared between goroutines.
+type latest[T any] struct {
 	mu sync.Mutex
-	v  *bool
+	v  *T
 }
 
-func (s *nightState) set(night bool) {
+func (s *latest[T]) set(v T) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.v = &night
+	s.v = &v
 }
 
 // get is nil while unknown.
-func (s *nightState) get() *bool {
+func (s *latest[T]) get() *T {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.v
 }
+
+// nightState is the car's day or night (the micom's illumination), for the
+// cluster's look.
+type nightState = latest[bool]
 
 // navigation is the part of LIVI's GET /navigation the cluster takes: the
 // phone's route guidance, Android Auto's or CarPlay's, in one model.
@@ -47,6 +50,8 @@ type navigation struct {
 	TimeToDestination     *float64 `json:"timeToDestination"`
 	Eta                   *float64 `json:"eta"`     // Unix seconds (CarPlay)
 	EtaText               *string  `json:"etaText"` // "16:47" (Android Auto)
+	// ChargingStop is the next stop when it is a charger (Android Auto).
+	ChargingStop *chargingStop `json:"chargingStop"`
 }
 
 // navOptions are how the cluster shows distances and the time.
@@ -223,6 +228,9 @@ type bridge struct {
 	heading func(time.Time) *float64
 	// night, when set, is the cluster's day or night look, nil while unknown.
 	night func() *bool
+	// observe, when set, hears each read of LIVI's guidance, nil when it
+	// could not be read.
+	observe func(*navigation)
 
 	owned    bool
 	routing  bool
@@ -397,6 +405,9 @@ func runNav(ctx context.Context, navURL, input string, poll time.Duration, o nav
 		}
 		n, err := fetchNav(client, navURL)
 		note(err)
+		if b.observe != nil {
+			b.observe(n)
+		}
 		if conn == nil {
 			if conn, err = net.Dial("unix", input); err != nil {
 				conn = nil

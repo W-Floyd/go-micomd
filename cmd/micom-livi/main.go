@@ -52,6 +52,11 @@ func main() {
 	minSpeed := flag.Float64("heading-min-speed", 0, "m/s: take the track as the heading only at this speed or above, for a plain GNSS track; 0 takes every track (hippod's is the gyro-held DR bearing)")
 	hold := flag.Duration("heading-hold", 10*time.Minute, "with -heading-min-speed, how long the last heading stays on the compass below it")
 	releaseAfter := flag.Duration("release-after", 0, "give the cluster's navigation pane back once LIVI has been unreadable this long; 0 keeps it until micom-livi stops")
+	precondition := flag.Bool("precondition", false, "with -input, ask the car to warm its battery while Android Auto's route leads to a fast charger (the variant's batt-cond-* messages, as stock's navigation does); the BMS decides")
+	pcMinKw := flag.Float64("precondition-min-kw", 50, "kW: only for chargers above this, Android Auto giving no DC or AC")
+	pcMaxTime := flag.Duration("precondition-max-time", time.Hour, "start this close to the charger")
+	pcMinSoC := flag.Float64("precondition-min-soc", 20, "%: the car's charge it needs, now")
+	pcMinArrival := flag.Float64("precondition-min-arrival", 5, "% of -capacity-kwh the forecast must leave on arrival")
 	flag.Parse()
 
 	lg := log.New(os.Stderr, "", log.LstdFlags)
@@ -60,11 +65,28 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	night := &nightState{}
-	navDone := make(chan struct{})
+	car := &carState{}
+	navDone, pcDone := make(chan struct{}), make(chan struct{})
+	var observe func(*navigation)
+	if *input != "" && *precondition {
+		r := &precondRunner{
+			p: precond{rules: precondRules{
+				minPowerW: *pcMinKw * 1000, maxTime: *pcMaxTime, minDistM: 200, minSoC: *pcMinSoC,
+				minArrival: *pcMinArrival, capacityWh: *capacity * 1000, maxStarts: 3,
+			}},
+			input: *input, soc: car.soc.get, cond: car.cond.get, logf: lg.Printf,
+		}
+		go func() {
+			r.run(ctx)
+			close(pcDone)
+		}()
+		observe = r.observe
+	} else {
+		close(pcDone)
+	}
 	if *input != "" {
 		b := newBridge(time.Second)
-		b.releaseAfter, b.night = *releaseAfter, night.get
+		b.releaseAfter, b.night, b.observe = *releaseAfter, car.night.get, observe
 		if *gpsd != "" {
 			h := &heading{minSpeed: *minSpeed, hold: *hold}
 			b.heading = h.compass
@@ -84,24 +106,34 @@ func main() {
 	go p.run()
 	go func() {
 		for {
-			if err := follow(*tap, *settle, p, night); err != nil {
+			if err := follow(*tap, *settle, p, car); err != nil {
 				lg.Printf("tap %s: %v", *tap, err)
 			}
 			time.Sleep(2 * time.Second)
 		}
 	}()
 	<-ctx.Done()
-	// The pane is given back on the way out.
-	select {
-	case <-navDone:
-	case <-time.After(3 * time.Second):
+	// The pane is given back, and conditioning cancelled, on the way out.
+	deadline := time.After(3 * time.Second)
+	for _, done := range []chan struct{}{navDone, pcDone} {
+		select {
+		case <-done:
+		case <-deadline:
+		}
 	}
 }
 
+// carState is what the tap last told of the car, for the other goroutines.
+type carState struct {
+	night latest[bool]
+	soc   latest[float64] // %
+	cond  latest[bool]    // battery conditioning running
+}
+
 // follow reads the tap until it ends, posting the climate when a burst of
-// panel frames ends, or when a lone change has settled, and keeping night
-// up to date for the cluster.
-func follow(path string, settle time.Duration, p *poster, night *nightState) error {
+// panel frames ends, or when a lone change has settled, and keeping car up
+// to date.
+func follow(path string, settle time.Duration, p *poster, car *carState) error {
 	conn, err := net.Dial("unix", path)
 	if err != nil {
 		return err
@@ -132,10 +164,19 @@ func follow(path string, settle time.Duration, p *poster, night *nightState) err
 			if !ok {
 				continue
 			}
-			for k, v := range liviCar(micom.Decode(f)) {
+			fields := micom.Decode(f)
+			for k, v := range liviCar(fields) {
 				p.set(k, v)
-				if k == "nightMode" {
-					night.set(v.(bool))
+				switch k {
+				case "nightMode":
+					car.night.set(v.(bool))
+				case "fuelPct":
+					car.soc.set(v.(float64))
+				}
+			}
+			for _, fl := range fields {
+				if fl.Name == "Battery conditioning" && fl.Valid {
+					car.cond.set(fl.Value != 0)
 				}
 			}
 			switch state.Apply(f) {
