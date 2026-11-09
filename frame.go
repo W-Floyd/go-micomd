@@ -75,6 +75,8 @@ type Decoder struct {
 	// Dropped counts bytes discarded while looking for a frame, and BadSum
 	// the frames refused for their checksum.
 	Dropped, BadSum int
+	// OnBad, when set, sees each frame refused for its checksum, whole.
+	OnBad func(raw []byte)
 }
 
 // Write adds bytes and returns the frames now complete.
@@ -104,6 +106,9 @@ func (d *Decoder) Write(p []byte) []Frame {
 		if Checksum(d.buf[1:total-1]) != d.buf[total-1] {
 			d.BadSum++
 			d.Dropped++
+			if d.OnBad != nil {
+				d.OnBad(append([]byte(nil), d.buf[:total]...))
+			}
 			d.buf = d.buf[1:]
 			continue
 		}

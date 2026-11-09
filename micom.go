@@ -21,6 +21,9 @@ type Config struct {
 	Variant *Variant
 	// Choice is how Variant was chosen, reported by Snapshot.
 	Choice VariantChoice
+	// Recorder, when set, gets every frame received (bad ones too) and
+	// every frame written, as they cross the port.
+	Recorder *Recorder
 	// Profile is every frame this daemon may send, and when. Nil means the
 	// variant's (DefaultProfile for the default). It is the allowlist: Send
 	// refuses what is not in it.
@@ -62,6 +65,8 @@ type Stats struct {
 	LastRx time.Time
 	// AliveRx and AliveTx count the micom's CPU-alive requests and our replies.
 	AliveRx, AliveTx uint64
+	// RecordDropped counts the records the Recorder lost to a full queue.
+	RecordDropped uint64
 }
 
 // String is the counters on one line, for a log.
@@ -145,7 +150,11 @@ func New(cfg Config) *Daemon {
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
-	return &Daemon{cfg: cfg, profile: cfg.Profile, rxCmds: map[byte]uint64{}, count: -1, telem: newTelemetry(cfg.Variant)}
+	d := &Daemon{cfg: cfg, profile: cfg.Profile, rxCmds: map[byte]uint64{}, count: -1, telem: newTelemetry(cfg.Variant)}
+	if r := cfg.Recorder; r != nil {
+		d.dec.OnBad = func(raw []byte) { r.Record("rx", raw, true) }
+	}
+	return d
 }
 
 func (d *Daemon) logf(format string, args ...any) {
@@ -216,9 +225,11 @@ func (d *Daemon) write(f Frame) error {
 }
 
 func (d *Daemon) writeLocked(f Frame) error {
-	if _, err := d.cfg.Port.Write(f.Encode()); err != nil {
+	b := f.Encode()
+	if _, err := d.cfg.Port.Write(b); err != nil {
 		return err
 	}
+	d.cfg.Recorder.Record("tx", b, false)
 	d.txTotal.Add(1)
 	return nil
 }
@@ -289,6 +300,9 @@ func (d *Daemon) read() error {
 			d.mu.Unlock()
 			d.rxTotal.Add(uint64(len(frames)))
 			for _, f := range frames {
+				if r := d.cfg.Recorder; r != nil {
+					r.Record("rx", f.Encode(), false)
+				}
 				d.telem.add(f, now)
 				if fn := d.observer.Load(); fn != nil {
 					(*fn)(f)
@@ -320,16 +334,21 @@ func (d *Daemon) Stats() Stats {
 	for k, v := range d.rxCmds {
 		by[k] = v
 	}
+	var recDropped uint64
+	if r := d.cfg.Recorder; r != nil {
+		recDropped = r.dropped.Load()
+	}
 	return Stats{
-		RxFrames:  d.rxTotal.Load(),
-		TxFrames:  d.txTotal.Load(),
-		RxByCmd:   by,
-		Dropped:   d.dec.Dropped,
-		BadSum:    d.dec.BadSum,
-		Countdown: d.count,
-		LastRx:    d.lastRx,
-		AliveRx:   d.aliveRx.Load(),
-		AliveTx:   d.aliveTx.Load(),
+		RecordDropped: recDropped,
+		RxFrames:      d.rxTotal.Load(),
+		TxFrames:      d.txTotal.Load(),
+		RxByCmd:       by,
+		Dropped:       d.dec.Dropped,
+		BadSum:        d.dec.BadSum,
+		Countdown:     d.count,
+		LastRx:        d.lastRx,
+		AliveRx:       d.aliveRx.Load(),
+		AliveTx:       d.aliveTx.Load(),
 	}
 }
 

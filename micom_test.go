@@ -305,6 +305,10 @@ func TestSnapshotTable(t *testing.T) {
 		{"micom record", Snapshot{MarkedAgeMs: -1, Variant: VariantChoice{Name: DefaultVariantName, Source: "default",
 			Reply: &VariantReply{Payload: "cc01", AgeMs: 2000, Fields: []Field{{Name: "Vehicle", Value: 0xcc, Valid: true}}, Identity: ev6ID, Matched: DefaultVariantName, Verdict: "the micom reports it"}}},
 			[]string{"micom the micom reports it", "record 2.0s ago: cc01 Vehicle=204"}},
+		{"recording", Snapshot{MarkedAgeMs: -1, Recorder: &RecorderState{Path: "/var/log/micom.jsonl", Bytes: 4096, Rotations: 2, Dropped: 1}},
+			[]string{"recording /var/log/micom.jsonl 4096 bytes rotations 2 dropped 1"}},
+		{"recording stopped", Snapshot{MarkedAgeMs: -1, Recorder: &RecorderState{Path: "/r", Error: "disk full"}},
+			[]string{"recording /r 0 bytes rotations 0 dropped 0 stopped: disk full"}},
 	} {
 		var b bytes.Buffer
 		if err := tc.s.WriteTable(&b); err != nil {

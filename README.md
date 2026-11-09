@@ -64,6 +64,24 @@ another shell, `micomd -attach /run/micomd.sock` prints them live until stopped,
 and any number can attach. A reader that cannot keep up loses lines and never
 slows the daemon.
 
+`-record /var/log/micomd/frames.jsonl` writes every frame received and sent,
+for lining up with other logs (an OBD2 export, a GPS track), one JSON object
+per line:
+
+    {"t":1794139200.123456,"start":true,"variant":"kia-ev6-gen5w","version":"3cb52ec…"}
+    {"t":1794139200.200001,"dir":"rx","frame":"ff018a01810f000200f9"}
+    {"t":1794139200.200150,"dir":"tx","frame":"ff8a0101010f00020079"}
+    {"t":1794139201.004000,"dir":"rx","frame":"ff018a01810f00020006","bad":true,"dropped":3}
+
+`t` is the wall clock in seconds; `bad` marks a frame with a bad checksum;
+`dropped` counts records lost before the line because the writer fell
+behind (the link is never held for it); `mono`, seconds since start, is
+added while the clock reads before 2020. The file moves to `PATH.1` before
+it would pass `-record-max` (default `32M`; K, M and G suffixes), so the
+two take at most twice that. A header opens each file. Writes are buffered
+and flushed every second and on exit; a write error stops the recording,
+not the daemon. `-query … snapshot` shows its progress.
+
 The control socket (`-ctl /run/micomd.ctl`) also answers read-only queries,
 which never send a frame:
 

@@ -45,6 +45,9 @@ import (
 // received, per frame kind, and which variant it runs and why; -query
 // SOCKET mark restarts the count of changed bytes. Neither sends a frame.
 //
+// -record PATH writes every frame received and sent to a file of JSON lines
+// with the wall-clock time (Recorder), rotated at -record-max.
+//
 // What it sends is the variant's profile and nothing else. -clock adds the
 // two frames that carry the time, from this machine's clock: only use it when
 // that clock is right, as the car may store it.
@@ -81,6 +84,8 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	keyFunc := fs.Uint("keyfunc", 0, "Func (hdr[3]<<8|cmd) of the micom's key frames, from a -dump capture; 0 leaves key injection off unless -keys")
 	keyMap := fs.String("keymap", "", "type.code=KEYNUM for push keys and type.code.up|down=KEYNUM for knobs, comma separated (decimal Linux key numbers: 2.6=115,2.7=114,9.1.up=115,9.1.down=114), for -keyfunc; with -keys, entries over the variant's")
 	every := fs.Duration("stats", 10*time.Second, "how often to print the link's counters; 0 for never")
+	recordPath := fs.String("record", "", "record every frame received and sent to this file, one JSON object per line with the wall-clock time, rotated to PATH.1 at -record-max")
+	recordMax := fs.String("record-max", "32M", "the size at which -record's file is rotated (bytes, or with K, M or G); the two files take at most twice this")
 	tapPath := fs.String("tap", "", "serve every frame received, with a timestamp, on this unix socket, for -attach")
 	attach := fs.String("attach", "", "print the frames of the micomd serving this -tap socket, instead of running one")
 	var allow allowList
@@ -200,10 +205,25 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 		choice.Note = strings.TrimPrefix(choice.Note+"; ", "; ") + err.Error()
 	}
 
+	recMax, err := ParseSize(*recordMax)
+	if err != nil {
+		lg.Printf("-record-max: %v", err)
+		return 2
+	}
 	port, err := env.open(*dev, *baud)
 	if err != nil {
 		lg.Print(err)
 		return 1
+	}
+	var rec *Recorder
+	if *recordPath != "" {
+		// Never fatal: the link matters more than its record.
+		if rec, err = NewRecorder(*recordPath, recMax, v.Name, lg.Printf); err != nil {
+			lg.Printf("-record: %v; not recording", err)
+			rec = nil
+		} else {
+			defer rec.Close()
+		}
 	}
 	profile := v.Profile()
 	if *codeProfile {
@@ -213,7 +233,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 		profile = append(profile, v.ClockProfile()...)
 		lg.Printf("sending the clock frames from this machine's clock: %s", time.Now().Format(time.RFC3339))
 	}
-	cfg := Config{Port: port, Variant: v, Choice: choice, Profile: profile, Logf: lg.Printf, NoAlive: *noAlive, Allow: allow.frames, AllowPatterns: allow.patterns}
+	cfg := Config{Port: port, Variant: v, Choice: choice, Recorder: rec, Profile: profile, Logf: lg.Printf, NoAlive: *noAlive, Allow: allow.frames, AllowPatterns: allow.patterns}
 	if *allowVariant {
 		frames, patterns := v.Sends(*allowInferred)
 		cfg.Allow = append(cfg.Allow, frames...)

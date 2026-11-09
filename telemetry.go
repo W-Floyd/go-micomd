@@ -73,6 +73,8 @@ type Snapshot struct {
 	MarkedAgeMs int64 `json:"marked_age_ms"`
 	// Variant is the variant running and why it was chosen.
 	Variant VariantChoice `json:"variant"`
+	// Recorder is -record's progress, nil when not recording.
+	Recorder *RecorderState `json:"recorder,omitempty"`
 }
 
 // VariantChoice is which variant a daemon runs, and why.
@@ -269,7 +271,13 @@ func (d *Daemon) Snapshot() Snapshot {
 		r.Identity, _ = d.cfg.Variant.ReplyIdentity(*reply)
 		r.Matched, r.Verdict = recordVerdict(choice.Name, r.Identity)
 	}
+	var rec *RecorderState
+	if r := d.cfg.Recorder; r != nil {
+		st := r.State()
+		rec = &st
+	}
 	return Snapshot{
+		Recorder:       rec,
 		Variant:        choice,
 		MarkedAgeMs:    marked,
 		Up:             !st.LastRx.IsZero() && now.Sub(st.LastRx) < 5*time.Second,
@@ -332,7 +340,15 @@ func (s Snapshot) WriteTable(w io.Writer) error {
 	if s.MarkedAgeMs >= 0 {
 		mark = age(s.MarkedAgeMs) + " ago"
 	}
-	fmt.Fprintf(w, "mark     %s\n\n", mark)
+	fmt.Fprintf(w, "mark     %s\n", mark)
+	if r := s.Recorder; r != nil {
+		fmt.Fprintf(w, "recording %s  %d bytes  rotations %d  dropped %d", r.Path, r.Bytes, r.Rotations, r.Dropped)
+		if r.Error != "" {
+			fmt.Fprintf(w, "  stopped: %s", r.Error)
+		}
+		fmt.Fprintln(w)
+	}
+	fmt.Fprintln(w)
 
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(tw, "KEY\tNAME\tCOUNT\tAGE\tPAYLOAD\tCHANGED")
