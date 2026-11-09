@@ -449,9 +449,8 @@ messages:
     ref: "micom firmware FUN_00073e46"
   # Stock's SYS_ILLUMINATION_STATUS_M: any non-zero is day ("illuminate
   # on"), 0 night. The micom sends NOT(CAN 0x11f == 1), on change only;
-  # stock seeds the state from the 0x8101 boot record, which no message
-  # here decodes. Stock's dim mode overrides it: day and night force it,
-  # auto and manual follow it.
+  # stock seeds the state from the 0x8101 boot record (below). Stock's dim
+  # mode overrides it: day and night force it, auto and manual follow it.
   - name: "Illumination"
     dir: from_micom
     hdr: system_rx
@@ -461,6 +460,21 @@ messages:
       - { name: "Illumination", off: 0, enum: illumination }
     status: code
     ref: "stock SystemService/VideoSetupService SYS_ILLUMINATION_STATUS_M; micom firmware 0x810d sender; micom-run"
+  # Stock's InitialCarInfo: the micom's answer to boot-mode-request (it
+  # never sends it unasked), 150 bytes. Byte 4 is the illumination from
+  # the same CAN bit as 0x810d, byte 0x12 the dim mode; the rest is not
+  # decoded. Seen live: night gave 00 at byte 4.
+  - name: "Boot record"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x01
+    min_length: 0x13
+    fields:
+      - { name: "Boot reason", off: 0 }
+      - { name: "Illumination", off: 4, enum: illumination }
+      - { name: "Dim mode", off: 0x12, enum: dim_mode }
+    status: captured
+    ref: "stock SystemService requestBootMode / InitialCarInfo; micom firmware 0x0101 handler (0x7767a: byte 4 at 0x77884, dim mode config 0xb7 at 0x77986); captured 2026-11-08 in reply to boot-mode-request"
   # Stock's SYS_RHEOSTAT_M. Bits 1 and 2 also toggled with the washer:
   # not explained.
   - name: "Rheostat level"

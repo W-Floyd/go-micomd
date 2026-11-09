@@ -66,10 +66,23 @@ const (
 	identifyWait  = 3 * time.Second
 )
 
-// askVariant sends req, the identify request, once a frame has arrived (the
-// micom is up), and again every wait until its variant record arrives,
-// tries times at most.
+// Stock Android retries its boot mode request every 2 s, 4 times
+// (SystemService requestBootMode).
+const (
+	bootModeTries = 4
+	bootModeWait  = 2 * time.Second
+)
+
+// askVariant sends req, the identify request, until the variant record
+// arrives (ask).
 func (d *Daemon) askVariant(ctx context.Context, req Frame, tries int, wait time.Duration) {
+	d.ask(ctx, req, "-identify-request", "its variant coding", "variant record", d.hasVariantRecord, tries, wait)
+}
+
+// ask sends req once a frame has arrived (the micom is up), and again every
+// wait until answered says it was, tries times at most. flag, what and reply
+// name them in the log.
+func (d *Daemon) ask(ctx context.Context, req Frame, flag, what, reply string, answered func() bool, tries int, wait time.Duration) {
 	for !d.linkUp() {
 		select {
 		case <-ctx.Done():
@@ -77,20 +90,20 @@ func (d *Daemon) askVariant(ctx context.Context, req Frame, tries int, wait time
 		case <-time.After(50 * time.Millisecond):
 		}
 	}
-	for i := 1; i <= tries && !d.hasVariantRecord(); i++ {
+	for i := 1; i <= tries && !answered(); i++ {
 		if err := d.Send(req); err != nil {
-			d.logf("-identify-request: %v", err)
+			d.logf("%s: %v", flag, err)
 			return
 		}
-		d.logf("asked the micom for its variant coding (%d/%d): %v", i, tries, req)
+		d.logf("asked the micom for %s (%d/%d): %v", what, i, tries, req)
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(wait):
 		}
 	}
-	if !d.hasVariantRecord() {
-		d.logf("-identify-request: no variant record after %d requests", tries)
+	if !answered() {
+		d.logf("%s: no %s after %d requests", flag, reply, tries)
 	}
 }
 

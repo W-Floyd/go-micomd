@@ -152,6 +152,8 @@ func TestDescribeLive(t *testing.T) {
 		{"018a0181", "0d", "00", "Illumination: Illumination=night"},
 		{"018a0181", "0d", "01", "Illumination=day"},
 		{"018a0181", "0d", "05", "Illumination=5"},
+		// The EV6's, captured at night, its first 0x13 bytes.
+		{"018a0181", "01", "0100000000010eca020519222e06544b4b1500", "Boot record: Boot reason=1 Illumination=night Dim mode=auto"},
 		{"018a0181", "45", "0a", "Rheostat level=10"},
 		{"018a0181", "9b", "0000000000000058", "12 V battery charge=88 %"},
 		{"44c100c4", "14", "57", "12 V battery charge (body)=87 %"},

@@ -254,6 +254,23 @@ func (v *Variant) decodesField(hc hdrCmd, name string) bool {
 	return false
 }
 
+// The send entry -boot-mode-request sends, and the from_micom panel that is
+// the micom's answer.
+const (
+	bootModeRequest = "boot-mode-request"
+	bootRecordName  = "Boot record"
+)
+
+// SendNamed is the whole-frame send entry called name, whatever its status.
+func (v *Variant) SendNamed(name string) (Frame, bool) {
+	for _, s := range v.sends {
+		if s.name == name && s.frame != nil {
+			return *s.frame, true
+		}
+	}
+	return Frame{}, false
+}
+
 // IdentifyRequest is the frame that asks the micom for its variant coding.
 // One that was not captured is refused unless inferred is set.
 func (v *Variant) IdentifyRequest(inferred bool) (Frame, error) {

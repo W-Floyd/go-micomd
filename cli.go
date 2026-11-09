@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -107,6 +108,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	inputPath := fs.String("input", "", "serve the structured input here: one JSON object per line, {\"msg\": NAME, field: value, ...}, encoded by the variant's to_micom messages (docs/messages.md)")
 	allowPersistent := fs.Bool("allow-persistent", false, "with -input also the messages whose every frame the micom writes to its EEPROM (rate-limited; each write wears it)")
 	identify := fs.Bool("identify-request", false, "ask the micom for its variant coding once the link is up, retried up to 5 times 3 s apart until it answers; the answer is logged against the variant running and reported by -query snapshot. The only frame it adds is the variant's identify request (inferred on HKMC: this flag alone allows it)")
+	bootMode := fs.Bool("boot-mode-request", false, "ask the micom for its boot record once the link is up, retried up to 4 times 2 s apart until it answers, as stock does at every boot: the record carries the state the micom otherwise sends only on change (the EV6's illumination). The only frame it adds is the variant's boot-mode-request send entry; the micom clears its boot-reason flags on it")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
@@ -250,8 +252,29 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 			cfg.Allow = append(cfg.Allow, f)
 		}
 	}
+	var bootModeFrame *Frame
+	var bootRecord atomic.Bool
+	if *bootMode {
+		if f, ok := v.SendNamed(bootModeRequest); !ok {
+			lg.Printf("-boot-mode-request: variant %s has no %s send entry", v.Name, bootModeRequest)
+		} else {
+			bootModeFrame = &f
+			cfg.Allow = append(cfg.Allow, f)
+		}
+	}
 	if *dump {
 		cfg.OnFrame = func(f Frame) { io.WriteString(stdout, frameLine(v, f)) }
+	}
+	if bootModeFrame != nil {
+		prev := cfg.OnFrame
+		cfg.OnFrame = func(f Frame) {
+			if prev != nil {
+				prev(f)
+			}
+			if v.FrameName(f) == bootRecordName {
+				bootRecord.Store(true)
+			}
+		}
 	}
 	// The micom's variant record, whoever asked for it, is logged against the
 	// variant running, once per distinct verdict.
@@ -338,6 +361,9 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	}
 	if identifyFrame != nil {
 		go d.askVariant(ctx, *identifyFrame, identifyTries, identifyWait)
+	}
+	if bootModeFrame != nil {
+		go d.ask(ctx, *bootModeFrame, "-boot-mode-request", "its boot record", "boot record", bootRecord.Load, bootModeTries, bootModeWait)
 	}
 	if err := d.Run(ctx); err != nil && ctx.Err() == nil {
 		lg.Print(err)

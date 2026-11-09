@@ -48,6 +48,8 @@ func TestLiviCar(t *testing.T) {
 		{"15:04:05.000 rx hdr=018a0181 cmd=0d payload=00", map[string]any{"nightMode": true}},
 		{"15:04:05.000 rx hdr=018a0181 cmd=0d payload=01", map[string]any{"nightMode": false}},
 		{"15:04:05.000 rx hdr=018a0181 cmd=0d payload=05", map[string]any{"nightMode": false}},
+		// The boot record seeds it.
+		{"15:04:05.000 rx hdr=018a0181 cmd=01 payload=0100000000010eca020519222e06544b4b1500", map[string]any{"nightMode": true}},
 		{"15:04:05.000 rx hdr=0d8f018d cmd=46 payload=02", nil},     // cruise: not a LIVI field
 		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=5700f5", nil}, // climate power draw
 		{"15:04:05.000 rx hdr=0d8f018d cmd=47 payload=9b", nil},     // too short to decode
