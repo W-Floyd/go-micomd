@@ -15,6 +15,10 @@ func TestPrecondition(t *testing.T) {
 	stop := func(kw, m, s int64, arrivalWh *int64) *navigation {
 		return &navigation{Active: ptr(true), ChargingStop: &chargingStop{PowerW: kw * 1000, DistanceM: i(m), TimeS: i(s), ArrivalWh: arrivalWh}}
 	}
+	prefs := func(n *navigation, mode string, manual bool) *navigation {
+		n.Precondition = &preconditionPrefs{Mode: mode, Manual: manual}
+		return n
+	}
 	soc := ptr(60.0)
 	p := precond{rules: precondRules{minPowerW: 50e3, maxTime: time.Hour, minDistM: 200, minSoC: 20, minArrival: 5, capacityWh: 77400, maxStarts: 2}}
 	for _, tc := range []struct {
@@ -42,6 +46,14 @@ func TestPrecondition(t *testing.T) {
 		{"the route ends", 17 * time.Second, &navigation{Active: ptr(false)}, soc, opNone, "no route"},
 		{"a new route: starts again", 18 * time.Second, stop(150, 30000, 1200, nil), soc, opStart, ""},
 		{"arrived: stop", 19 * time.Second, stop(150, 150, 10, nil), soc, opStop, "at the charger"},
+		// LIVI's settings.
+		{"asked for, no route: start", 20 * time.Second, prefs(&navigation{Active: ptr(false)}, "auto", true), soc, opStart, ""},
+		{"asked for, refresh", 25 * time.Second, prefs(&navigation{Active: ptr(false)}, "auto", true), soc, opRefresh, ""},
+		{"asked for, charge low: stop", 26 * time.Second, prefs(&navigation{Active: ptr(false)}, "auto", true), ptr(15.0), opStop, "15 %"},
+		{"the request ends", 27 * time.Second, prefs(&navigation{Active: ptr(false)}, "auto", false), soc, opNone, "no route"},
+		{"auto, a charger: start", 28 * time.Second, prefs(stop(350, 90000, 3500, nil), "auto", false), soc, opStart, ""},
+		{"turned off: stop", 29 * time.Second, prefs(stop(350, 89000, 3450, nil), "off", false), soc, opStop, "off in LIVI"},
+		{"off wins over asked for", 30 * time.Second, prefs(stop(350, 88000, 3400, nil), "off", true), soc, opNone, "off in LIVI"},
 	} {
 		if got := p.step(tc.n, tc.soc, t0.Add(tc.at)); got != tc.want || !strings.Contains(p.why, tc.why) {
 			t.Errorf("%s: %v (%q), want %v (%q)", tc.name, got, p.why, tc.want, tc.why)

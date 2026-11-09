@@ -177,6 +177,7 @@ func follow(path string, settle time.Duration, p *poster, car *carState) error {
 			for _, fl := range fields {
 				if fl.Name == "Battery conditioning" && fl.Valid {
 					car.cond.set(fl.Value != 0)
+					p.set("batteryConditioning", fl.Value != 0)
 				}
 			}
 			switch state.Apply(f) {

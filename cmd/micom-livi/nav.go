@@ -52,6 +52,9 @@ type navigation struct {
 	EtaText               *string  `json:"etaText"` // "16:47" (Android Auto)
 	// ChargingStop is the next stop when it is a charger (Android Auto).
 	ChargingStop *chargingStop `json:"chargingStop"`
+	// Precondition is LIVI's preconditioning settings, nil from a LIVI
+	// without them (auto).
+	Precondition *preconditionPrefs `json:"precondition"`
 }
 
 // navOptions are how the cluster shows distances and the time.
