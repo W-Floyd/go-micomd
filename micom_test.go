@@ -171,7 +171,7 @@ func TestDescribeLive(t *testing.T) {
 		{"0d8f018d", "47", "c8fbffff000050", "State of charge=100 % Battery minimum temperature=-5 °C Battery remaining energy=131.07 kWh Battery inlet temperature=0 °C"},
 		// As captured, all 11 bytes.
 		{"0d8f018d", "47", "ac12780f00005f00015907", "State of charge=86 % Battery minimum temperature=18 °C Battery remaining energy=61.47 kWh Battery inlet temperature=7.5 °C"},
-		{"018a0181", "31", "0077", "Vehicle speed (HVAC)=119 km/h"},
+		{"018a0181", "31", "0077", "Vehicle speed (whole km/h)=119 km/h"},
 		{"40c780c0", "ad", "0001c8", "BMS state of charge=80 %"},
 		{"0d8f018d", "46", "02", "Cruise control: Cruise control=active"},
 		{"0d8f018d", "46", "00", "Cruise control=inactive"},
