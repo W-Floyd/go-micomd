@@ -164,6 +164,8 @@ func (r *precondRunner) run(ctx context.Context) {
 		rd      *bufio.Reader
 		said    string
 		carSaid *bool
+		askedAt time.Time // the last start
+		warned  bool      // that the car has not followed it
 	)
 	send := func(lines ...string) error {
 		for _, l := range lines {
@@ -235,9 +237,29 @@ func (r *precondRunner) run(ctx context.Context) {
 			r.logf("battery conditioning: not asked: %s", r.p.why)
 			said = r.p.why
 		}
-		if c := r.cond(); c != nil && (carSaid == nil || *carSaid != *c) {
-			r.logf("battery conditioning: the car reports it %s", map[bool]string{true: "on", false: "off"}[*c])
+		now := time.Now()
+		if op == opStart {
+			askedAt, warned = now, false
+		}
+		c := r.cond()
+		if c != nil && (carSaid == nil || *carSaid != *c) {
+			msg := "battery conditioning: the car reports it " + map[bool]string{true: "on", false: "off"}[*c]
+			switch {
+			case *c && r.p.running:
+				msg += fmt.Sprintf(", %d s after the request", int(now.Sub(askedAt).Seconds()))
+			case *c:
+				msg += ", not asked by micom-livi"
+			}
+			r.logf("%s", msg)
 			carSaid = c
+		}
+		if r.p.running && !warned && (c == nil || !*c) && now.Sub(askedAt) >= confirmWithin {
+			r.logf("battery conditioning: asked %d s ago and the car has not started: the pack warm enough, conditioning off in its EV settings, or not READY", int(now.Sub(askedAt).Seconds()))
+			warned = true
 		}
 	}
 }
+
+// confirmWithin is how long the car may take to start conditioning before
+// the log says it has not: it took 68 s parked, READY, at 18 °C.
+const confirmWithin = 2 * time.Minute
