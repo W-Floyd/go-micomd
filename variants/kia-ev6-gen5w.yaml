@@ -674,19 +674,19 @@ messages:
       - { name: "Outdoor temperature (F)",  off: 0, offset: -40, unit: " F" }
     status: captured
     ref: "5e against the cluster's 54 F"
-  # The car's true speed: it follows Car Scanner's real vehicle speed
-  # (r 0.98, level and change) about 2.7 % below 44c100c4 20, which is
-  # then the speedometer's, overreading as speedometers do. Byte 0 was
-  # always 0.
-  - name: "Vehicle speed (true)"
+  # A second speed, whole km/h, as Car Scanner's "[HVAC] Real Vehicle
+  # Speed" (r 0.98). Neither is the true speed: against the phone's GNSS
+  # ground speed this one reads 1.4 % low and 44c100c4 20 1.1 % high, so
+  # 44c100c4 20 stays the speed to use. Byte 0 was always 0.
+  - name: "Vehicle speed (HVAC)"
     dir: from_micom
     hdr: system_rx
     cmd: 0x31
     length: 2
     fields:
-      - { name: "Vehicle speed (true)", off: 0, type: u16, unit: " km/h" }
+      - { name: "Vehicle speed (HVAC)", off: 0, type: u16, unit: " km/h" }
     status: captured
-    ref: "drive 2026-11-08 18:21-18:36 against Car Scanner OBD2 [HVAC] Real Vehicle Speed; 119 km/h against 44c100c4 20's 152 (76 mph)"
+    ref: "drive 2026-11-08 18:21-18:36 against Car Scanner OBD2 [HVAC] Real Vehicle Speed, and against ground speed from the phone's positions (579 10 s windows above 40 km/h) and the unit's gpsd"
   # The BMS's own state of charge, not the displayed one (0d8f018d 47);
   # about 0.4 % a step. 3, 4 and 39 bytes long; the rest not known.
   - name: "BMS state of charge"
