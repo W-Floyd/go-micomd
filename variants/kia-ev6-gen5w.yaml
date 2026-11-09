@@ -615,6 +615,18 @@ messages:
       - { name: "Battery remaining energy", off: 2, type: u16, scale: 0.002, unit: " kWh" }
     status: captured
     ref: "drive 2026-11, micomd snapshots against Car Scanner OBD2 displayed SoC, minimum battery temperature (r 0.998) and remaining energy (r >= 0.99)"
+  # Battery conditioning running: 1 from 68 s after micom-precondition's
+  # start until its stop, with the EV power block's battery heater byte
+  # 0 -> 53-54 -> 0 and 0c88018c 54 byte 0 bit 4 over the same window.
+  - name: "Battery conditioning"
+    dir: from_micom
+    hdr: body
+    cmd: 0x53
+    length: 1
+    fields:
+      - { name: "Battery conditioning", off: 0, type: bool }
+    status: captured
+    ref: "micom-precondition test 2026-11-09 00:16-00:18, parked READY, pack 18 °C"
   # Active while cruise control holds the speed: it followed off, resume,
   # off and set exactly; arming cruise does not change it. The set speed,
   # LKAS and the following distance are not on this link.
