@@ -411,8 +411,12 @@ decoder is the safer reader of untrusted lines.
   expand them, so they were left out. A to_micom message's `end` is the one
   sequence the daemon runs.
 - **micom-livi.** It reads frames with the default variant's
-  `CarClimate.Apply` and `Decode` (speed, state of charge and remaining
-  energy, by field name). It has no `-variant` yet.
+  `CarClimate.Apply` and `Decode` (speed, state of charge, remaining
+  energy, range, outdoor temperature, odometer and illumination, by field
+  name). It has no `-variant` yet.
+- **The 0x8101 boot record.** Stock seeds day/night from its byte 4 and
+  takes the dim mode from byte 0x12; it is not decoded, so the illumination
+  is known only after the micom's first 0x810d, sent on change.
 - **Unknown cars.** On an unknown command line micomd runs the EV6, as before.
   Running the keepalive-only base instead is a behaviour change for its own
   PR.

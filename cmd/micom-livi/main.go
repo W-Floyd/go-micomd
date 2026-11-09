@@ -1,8 +1,8 @@
 // Command micom-livi feeds the car's state, as micomd decodes it, into LIVI's
 // telemetry: it reads micomd's tap socket and posts the climate (panel and seat
-// heat) to LIVI's telemetry endpoint as the car's ("source": "car"), and the
-// speed, state of charge and remaining energy as speedKph, fuelPct and
-// batteryLevelKwh, each when it changes.
+// heat) to LIVI's telemetry endpoint as the car's ("source": "car"), and
+// speedKph, fuelPct, batteryLevelKwh, rangeKm, ambientC, odometerKm and
+// nightMode (the micom's illumination), each when it changes (carFields).
 //
 //	micom-livi [-tap /run/micomd.sock] [-url http://127.0.0.1:4000/telemetry] [-every 250ms] [-capacity-kwh N]
 //
@@ -114,6 +114,10 @@ var carFields = map[string]string{
 	"Vehicle speed":            "speedKph",
 	"State of charge":          "fuelPct",
 	"Battery remaining energy": "batteryLevelKwh",
+	"Range":                    "rangeKm",
+	"Outdoor temperature":      "ambientC",
+	"Odometer":                 "odometerKm",
+	"Illumination":             "nightMode", // 0 is night, any other value day
 }
 
 // liviCar is what of a frame's decoded fields LIVI takes, as its telemetry
@@ -125,8 +129,11 @@ func liviCar(fs []micom.Field) map[string]any {
 		if !ok || !f.Valid {
 			continue
 		}
-		v := float64(f.Value)
-		if f.Float != nil {
+		var v any = float64(f.Value)
+		switch {
+		case key == "nightMode":
+			v = f.Value == 0
+		case f.Float != nil:
 			v = *f.Float
 		}
 		if out == nil {

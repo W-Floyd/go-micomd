@@ -42,6 +42,12 @@ func TestLiviCar(t *testing.T) {
 		{"15:04:05.000 rx hdr=44c100c4 cmd=20 payload=0086", map[string]any{"speedKph": 107.826048}},
 		{"15:04:05.000 rx hdr=44c100c4 cmd=20 payload=0000", map[string]any{"speedKph": 0.0}},
 		{"15:04:05.000 rx hdr=0d8f018d cmd=47 payload=9b006f54", map[string]any{"fuelPct": 77.5, "batteryLevelKwh": 57.0}},
+		{"15:04:05.000 rx hdr=0d8f018d cmd=43 payload=02007500bc", map[string]any{"rangeKm": 188.0}},
+		{"15:04:05.000 rx hdr=44c100c4 cmd=22 payload=06c40c", map[string]any{"odometerKm": 44340.4}},
+		{"15:04:05.000 rx hdr=43c200c3 cmd=02 payload=5e", map[string]any{"ambientC": 12.222222}},
+		{"15:04:05.000 rx hdr=018a0181 cmd=0d payload=00", map[string]any{"nightMode": true}},
+		{"15:04:05.000 rx hdr=018a0181 cmd=0d payload=01", map[string]any{"nightMode": false}},
+		{"15:04:05.000 rx hdr=018a0181 cmd=0d payload=05", map[string]any{"nightMode": false}},
 		{"15:04:05.000 rx hdr=0d8f018d cmd=46 payload=02", nil},     // cruise: not a LIVI field
 		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=5700f5", nil}, // climate power draw
 		{"15:04:05.000 rx hdr=0d8f018d cmd=47 payload=9b", nil},     // too short to decode

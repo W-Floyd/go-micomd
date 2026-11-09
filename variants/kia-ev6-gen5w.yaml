@@ -420,17 +420,50 @@ messages:
       - { name: "Flag 0x810c", off: 0 }   # always 0 on this build (FUN_00073e46)
     status: code
     ref: "micom firmware FUN_00073e46"
-  - name: "Low brightness flag"
+  # Stock's SYS_ILLUMINATION_STATUS_M: any non-zero is day ("illuminate
+  # on"), 0 night. The micom sends NOT(CAN 0x11f == 1), on change only;
+  # stock seeds the state from the 0x8101 boot record, which no message
+  # here decodes. Stock's dim mode overrides it: day and night force it,
+  # auto and manual follow it.
+  - name: "Illumination"
     dir: from_micom
     hdr: system_rx
     cmd: 0x0d
     length: 1
     fields:
-      # NOT(CAN 0x11f == 1); lets brightness go below 100 per mille. Seen 00
-      # right after backlight on. Illumination or night: a guess.
-      - { name: "Low brightness allowed", off: 0 }
+      - { name: "Illumination", off: 0, enum: illumination }
     status: code
-    ref: "micom firmware 0x810d sender; micom-run"
+    ref: "stock SystemService/VideoSetupService SYS_ILLUMINATION_STATUS_M; micom firmware 0x810d sender; micom-run"
+  # Stock's SYS_RHEOSTAT_M. Bits 1 and 2 also toggled with the washer:
+  # not explained.
+  - name: "Rheostat level"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x45
+    min_length: 1
+    fields:
+      - { name: "Rheostat level", off: 0 }
+    status: code
+    ref: "stock SYS_RHEOSTAT_M (func 0x8145)"
+  # The 12 V battery, stock's battSoc; also on the body node below.
+  - name: "System 0x819B"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x9b
+    min_length: 8
+    fields:
+      - { name: "12 V battery charge", off: 7, unit: " %" }
+    status: code
+    ref: "stock battSoc, func 0x819b byte 7"
+  - name: "12 V battery"
+    dir: from_micom
+    hdr: body
+    cmd: 0x14
+    min_length: 1
+    fields:
+      - { name: "12 V battery charge (body)", off: 0, unit: " %" }
+    status: code
+    ref: "stock BODY Batt_SoC"
   # Replies of the display node to SoC queries.
   - name: "Display 0x880C"
     dir: from_micom
@@ -459,17 +492,19 @@ messages:
       - { name: "Display 0x8813", off: 0 }   # RAM 0x400172a0; 0x32 in emulation
     status: code
     ref: "micom-run: 0x0813 [00] answered 32"
-  # Sent only with the "new display option" (0x40011990 & 0x60000); its
-  # layout is unknown, so only the first byte.
-  - name: "Display 0x881B"
+  # The answer to stock's current-brightness request (0x081B): the
+  # brightness, u16, then, by stock, the light sensor's u16, not decoded
+  # here as it may be absent. Sent only with the "new display option"
+  # (0x40011990 & 0x60000).
+  - name: "Current brightness"
     dir: from_micom
     hdr: display_rx
     cmd: 0x1b
-    min_length: 1
+    min_length: 2
     fields:
-      - { name: "Display 0x881B byte 0", off: 0 }
+      - { name: "Current brightness", off: 0, type: u16 }
     status: code
-    ref: "micom firmware 0x081B handler"
+    ref: "stock current brightness request 0x081B and its reply; micom firmware 0x081B handler"
 
   # Driving state the micom relays, found by lining snapshots up with an
   # OBD2 logger on a drive (r >= 0.99) and by labelled toggles.
@@ -509,6 +544,38 @@ messages:
       - { name: "Cruise control", off: 0, enum: cruise }
     status: captured
     ref: "drive 2026-11, labelled cruise off/resume/off/set toggles"
+  # The rest checked against the car's own cluster, while charging.
+  # Distance to empty, in both units; byte 0 unknown (02 seen).
+  - name: "Range"
+    dir: from_micom
+    hdr: cluster_rx
+    cmd: 0x43
+    min_length: 5
+    fields:
+      - { name: "Range",        off: 3, type: u16, unit: " km" }
+      - { name: "Range (mi)",   off: 1, type: u16, unit: " mi" }
+    status: captured
+    ref: "02 00 75 00 bc against the cluster's 117 mi"
+  - name: "Odometer"
+    dir: from_micom
+    hdr: body
+    cmd: 0x22
+    min_length: 3
+    fields:
+      - { name: "Odometer", start_bit: 7, bit_length: 24, scale: 0.1, unit: " km" }
+    status: captured
+    ref: "06 c4 0c (44340.4 km) against the cluster's 27551 mi"
+  # °F + 40 in one byte.
+  - name: "Outdoor temperature"
+    dir: from_micom
+    hdr: climate_panel
+    cmd: 0x02
+    min_length: 1
+    fields:
+      - { name: "Outdoor temperature",      off: 0, scale: 0.5555555555555556, offset: -40, unit: " C" }
+      - { name: "Outdoor temperature (F)",  off: 0, offset: -40, unit: " F" }
+    status: captured
+    ref: "5e against the cluster's 54 F"
 
   # The backlight. Off from power-up until the first on; on is refused while
   # the supply is low. The micom writes a config byte to EEPROM on every
@@ -554,9 +621,9 @@ messages:
     persistent: true     # EEPROM 0x1b7, 0x230, 0x286
     min_interval: 1s
     status: code
-    ref: "micom firmware 0x0801 handler; micom-run EEPROM trace"
-  # Stores the level of one period; auto applies at once, day and night at
-  # the next dim mode.
+    ref: "stock MON_SET_DIMMING_MODE_C (0 auto, 1 daylight, 2 night, 3 manual); micom firmware 0x0801 handler; micom-run EEPROM trace"
+  # Stock's dimming brightness: the level of one period; auto applies at
+  # once, day and night at the next dim mode.
   - name: backlight-period-level
     dir: to_micom
     hdr: display_tx
@@ -568,8 +635,8 @@ messages:
     persistent: true     # EEPROM 0x1b8 day, 0x1b9 night
     min_interval: 1s
     status: code
-    ref: "micom firmware 0x0807 handler; micom-run EEPROM trace"
-  # The manual level, per mille, applied at once in dim mode manual. Stock
+    ref: "stock dimming brightness [period, level]; micom firmware 0x0807 handler; micom-run EEPROM trace"
+  # Stock's user brightness: the manual level, per mille, applied at once in dim mode manual. Stock
   # sends it from a slider: min_interval keeps that from wearing the EEPROM.
   - name: backlight-manual-level
     dir: to_micom
@@ -581,7 +648,7 @@ messages:
     persistent: true     # EEPROM 0x286
     min_interval: 1s
     status: code
-    ref: "micom firmware 0x081A handler; micom-run EEPROM trace"
+    ref: "stock user brightness; micom firmware 0x081A handler; micom-run EEPROM trace"
 
 # The power and backlight tables of the micom firmware.
 enums:
@@ -591,3 +658,4 @@ enums:
   dim_mode: { auto: 0, day: 1, night: 2, manual: 3 }
   period: { day: 1, night: 2 }
   cruise: { inactive: 0, active: 2 }
+  illumination: { night: 0, day: 1 }   # stock: any non-zero is day
