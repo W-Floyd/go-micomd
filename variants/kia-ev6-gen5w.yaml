@@ -380,6 +380,46 @@ messages:
     status: code
     ref: "stock ClusterService$NaviCluster.sendDayNight (mIsNight 1/0), Navigation$Func DAY_NIGHT_STATUS 0x0f"
 
+  # Battery conditioning: what stock's navigation tells the car when it
+  # routes to a fast charger, so the BMS warms the pack. Stock sends the
+  # distance and time to the charger, then the station event; it follows
+  # each station event with 07 07 (invalid) 120 ms later, a pulse. The BMS
+  # decides: READY, conditioning enabled in the car's EV settings, the pack
+  # cold. Gen5W community tooling (Launchpad) starts with 9 km, 18 min and
+  # station 2/3, refreshes the two every 5 s, and stops with 2047 km,
+  # 1023 min and station 0/0.
+  - name: batt-cond-route-distance
+    dir: to_micom
+    hdr: poll_tx
+    cmd: 0x66
+    length: 2
+    fields:
+      - { name: km, off: 0, type: u16, max: 2047 }   # 2047: none
+    on_change: false
+    status: code
+    ref: "stock HEVService.setBattCondRouteDis: sendPacket(0x88, 0x0c, 0x0c66, [hi, lo])"
+  - name: batt-cond-remain-time
+    dir: to_micom
+    hdr: poll_tx
+    cmd: 0x65
+    length: 2
+    fields:
+      - { name: minutes, off: 0, type: u16, max: 1023 }   # 1023: none
+    on_change: false
+    status: code
+    ref: "stock HEVService.setBattCondRemainTime: sendPacket(0x88, 0x0c, 0x0c65, [hi, lo])"
+  - name: batt-cond-ev-station
+    dir: to_micom
+    hdr: poll_tx
+    cmd: 0x68
+    length: 2
+    fields:
+      - { name: flag, off: 0, max: 15 }   # 2 start, 0 stop, 7 invalid
+      - { name: type, off: 1, max: 15 }   # 3 start, 0 stop, 7 invalid
+    on_change: false
+    status: code
+    ref: "stock HEVService.setBattCondEvStation: sendPacket(0x88, 0x0c, 0x0c68, [flag & 0xf, type & 0xf]), then HEVService$6 [7, 7] after 120 ms; github.com/paytondevs/gen5w-preconditioning PreconditioningProfile"
+
   # Power and ACC, from the micom firmware (CV_E.USA.S5W_M.V002.208) in
   # emulation and disassembly; not yet seen from a car. The ACC-off timeline
   # and a clean shutdown are in docs/messages.md ("Power").
@@ -570,9 +610,11 @@ messages:
     min_length: 4
     fields:
       - { name: "State of charge",          off: 0, scale: 0.5,   unit: " %" }
+      # Signed is a guess: only 20-24 °C seen.
+      - { name: "Battery minimum temperature", off: 1, type: i8, unit: " °C" }
       - { name: "Battery remaining energy", off: 2, type: u16, scale: 0.002, unit: " kWh" }
     status: captured
-    ref: "drive 2026-11, micomd snapshots against Car Scanner OBD2 displayed SoC and remaining energy (r >= 0.99)"
+    ref: "drive 2026-11, micomd snapshots against Car Scanner OBD2 displayed SoC, minimum battery temperature (r 0.998) and remaining energy (r >= 0.99)"
   # Active while cruise control holds the speed: it followed off, resume,
   # off and set exactly; arming cruise does not change it. The set speed,
   # LKAS and the following distance are not on this link.

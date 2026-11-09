@@ -166,8 +166,8 @@ func TestDescribeLive(t *testing.T) {
 		{"44c100c4", "20", "0086", "Vehicle speed: Vehicle speed=107.826048 km/h Vehicle speed (mph)=67 mph"},
 		{"44c100c4", "20", "0085", "Vehicle speed (mph)=66.5 mph"},
 		{"44c100c4", "20", "0000", "Vehicle speed=0 km/h"},
-		{"0d8f018d", "47", "9b006f54", "Battery: State of charge=77.5 % Battery remaining energy=57 kWh"},
-		{"0d8f018d", "47", "c800ffff", "State of charge=100 % Battery remaining energy=131.07 kWh"},
+		{"0d8f018d", "47", "9b166f54", "Battery: State of charge=77.5 % Battery minimum temperature=22 °C Battery remaining energy=57 kWh"},
+		{"0d8f018d", "47", "c8fbffff", "State of charge=100 % Battery minimum temperature=-5 °C Battery remaining energy=131.07 kWh"},
 		{"0d8f018d", "46", "02", "Cruise control: Cruise control=active"},
 		{"0d8f018d", "46", "00", "Cruise control=inactive"},
 		// Against the car's cluster.

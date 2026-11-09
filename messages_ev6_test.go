@@ -85,6 +85,22 @@ func TestEV6Messages(t *testing.T) {
 		{"dim mode manual", []string{`{"msg":"backlight-dim-mode","mode":"manual"}`}, []string{"ff 8c 08 01 08 01 00 02 03 72"}},
 		{"night level 5", []string{`{"msg":"backlight-period-level","period":"night","level":5}`}, []string{"ff 8c 08 01 08 07 00 03 02 05 71"}},
 		{"manual level 500", []string{`{"msg":"backlight-manual-level","level":500}`}, []string{"ff 8c 08 01 08 1a 00 03 01 f4 9e"}},
+		// Launchpad's start and stop, through stock's HEVService packers; every
+		// repeat goes out.
+		{"battery conditioning start", []string{
+			`{"msg":"batt-cond-route-distance","km":9}`, `{"msg":"batt-cond-remain-time","minutes":18}`,
+			`{"msg":"batt-cond-ev-station","flag":2,"type":3}`, `{"msg":"batt-cond-ev-station","flag":7,"type":7}`,
+			`{"msg":"batt-cond-route-distance","km":9}`,
+		}, []string{
+			"ff 88 0c 01 0c 66 00 03 00 09 1a", "ff 88 0c 01 0c 65 00 03 00 12 02",
+			"ff 88 0c 01 0c 68 00 03 02 03 1c", "ff 88 0c 01 0c 68 00 03 07 07 1d",
+			"ff 88 0c 01 0c 66 00 03 00 09 1a",
+		}},
+		{"battery conditioning stop", []string{
+			`{"msg":"batt-cond-route-distance","km":2047}`, `{"msg":"batt-cond-remain-time","minutes":1023}`,
+			`{"msg":"batt-cond-ev-station","flag":0,"type":0}`,
+			`{"msg":"batt-cond-route-distance","km":2048} => above the maximum 2047`,
+		}, []string{"ff 88 0c 01 0c 66 00 03 07 ff eb", "ff 88 0c 01 0c 65 00 03 03 ff ec", "ff 88 0c 01 0c 68 00 03 00 00 1d"}},
 	} {
 		var sent []Frame
 		send := func(f Frame) error { sent = append(sent, f); return nil }
@@ -152,8 +168,8 @@ func TestEV6Messages(t *testing.T) {
 	}{
 		{InputGates{}, nil},
 		{InputGates{Persistent: true}, nil},
-		{InputGates{Inferred: true}, []string{"backlight", "cluster-day-night", "cluster-sub-info", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
-		{InputGates{Inferred: true, Persistent: true}, []string{"backlight", "backlight-dim-mode", "backlight-manual-level", "backlight-period-level", "cluster-day-night", "cluster-sub-info", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
+		{InputGates{Inferred: true}, []string{"backlight", "batt-cond-ev-station", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-sub-info", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
+		{InputGates{Inferred: true, Persistent: true}, []string{"backlight", "backlight-dim-mode", "backlight-manual-level", "backlight-period-level", "batt-cond-ev-station", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-sub-info", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
 	} {
 		e := newInputEngine(v, tc.g, func(Frame) error { return nil }, func([]string, bool) {}, time.Now, t.Logf)
 		if ok, _ := e.enabled(); !slices.Equal(ok, tc.want) {
