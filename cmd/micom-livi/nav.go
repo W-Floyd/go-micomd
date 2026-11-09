@@ -104,7 +104,8 @@ func clusterManeuver(t, side *int) string {
 
 // clusterDistance is a distance in metres as the cluster shows it: whole
 // units, tenths, and the unit. Feet below 0.1 mi and metres below 1 km, in
-// tens; tenths of a mile or km below 10.
+// tens; miles or km with their tenths otherwise (the cluster draws the tenth
+// at any distance).
 func clusterDistance(m float64, imperial bool) (whole, tenths int, unit string) {
 	small, big, step := "m", "km", 1000.0
 	if imperial {
@@ -115,11 +116,12 @@ func clusterDistance(m float64, imperial bool) (whole, tenths int, unit string) 
 		return min(int(math.Round(m*3.28084/10))*10, 65534), 0, small
 	case !imperial && m < step:
 		return min(int(math.Round(m/10))*10, 65534), 0, small
-	case m < 10*step:
-		t := int(math.Round(m / step * 10))
-		return t / 10, t % 10, big
 	}
-	return min(int(math.Round(m/step)), 65534), 0, big
+	t := int(math.Round(m / step * 10))
+	if t/10 > 65534 {
+		return 65534, 0, big
+	}
+	return t / 10, t % 10, big
 }
 
 // clusterEta is the arrival time on the unit's clock.

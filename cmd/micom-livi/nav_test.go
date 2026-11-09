@@ -85,12 +85,13 @@ func TestClusterDistance(t *testing.T) {
 		{161, true, 0, 1, "mi"},
 		{482.8, true, 0, 3, "mi"},
 		{70799, true, 44, 0, "mi"},
+		{130907, true, 81, 3, "mi"},
 		{15000, true, 9, 3, "mi"},
 		{40, false, 40, 0, "m"},
 		{999, false, 1000, 0, "m"},
 		{1000, false, 1, 0, "km"},
 		{300 + 1000, false, 1, 3, "km"},
-		{78940, false, 79, 0, "km"},
+		{78940, false, 78, 9, "km"},
 		{1e9, false, 65534, 0, "km"},
 	} {
 		w, tn, u := clusterDistance(tc.m, tc.imperial)
@@ -118,7 +119,7 @@ func TestBridgeSequence(t *testing.T) {
 	exit := navOf(`{"active":true,"maneuverType":23,"turnSide":0,"remainDistance":70799,"distanceToDestination":78940,"timeToDestination":2733,"etaText":"16:47"}`)
 	near := navOf(`{"active":true,"maneuverType":23,"turnSide":0,"remainDistance":150,"distanceToDestination":8290,"timeToDestination":420,"etaText":"16:47"}`)
 	turn := `{"bar":null,"direction":0,"distance":44,"distance_tenths":0,"maneuver":"off_ramp_right","msg":"tbt-turn","side_street":null,"unit":"mi"}`
-	sub := `{"eta_hour":16,"eta_minute":47,"msg":"cluster-sub-info","remaining":49,"remaining_tenths":0,"remaining_unit":"mi","time_format":1,"time_type":1}`
+	sub := `{"eta_hour":16,"eta_minute":47,"msg":"cluster-sub-info","remaining":49,"remaining_tenths":1,"remaining_unit":"mi","time_format":1,"time_type":1}`
 	b := newBridge(time.Second)
 	for _, tc := range []struct {
 		name string
