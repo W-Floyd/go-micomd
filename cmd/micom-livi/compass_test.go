@@ -24,35 +24,43 @@ func show(p *float64) string {
 	return fmt.Sprint(*p)
 }
 
-// The track is the heading while moving; slow, the last one holds for a
-// while; no fix, no track or no gpsd blanks the compass.
+// By default (min speed 0) every track is the heading, stopped too, as
+// hippod's is the gyro-held DR bearing. With a min speed the track counts
+// only that fast, the last one holding for a while. No fix, no track or no
+// gpsd blanks the compass either way.
 func TestHeading(t *testing.T) {
 	t0 := time.Date(2026, 11, 8, 12, 0, 0, 0, time.UTC)
-	h := &heading{minSpeed: 2, hold: 10 * time.Minute}
+	h := &heading{hold: 10 * time.Minute}
 	f := ptr[float64]
 	for _, tc := range []struct {
 		name  string
+		min   float64 // -heading-min-speed
 		at    time.Duration
 		mode  int // 0: no report at this step
 		track *float64
 		speed *float64
 		want  string
 	}{
-		{"nothing yet", 0, 0, nil, nil, "none"},
-		{"slow, never moved", time.Second, 3, f(90), f(0.5), "none"},
-		{"moving", 2 * time.Second, 3, f(91), f(10), "90"},
-		{"a step on", 3 * time.Second, 3, f(95), f(10), "97.5"},
-		{"stopped: held", 4 * time.Second, 3, f(200), f(0.1), "97.5"},
-		{"stopped, still held", 9 * time.Minute, 3, f(250), f(0), "97.5"},
-		{"stopped too long", 11 * time.Minute, 3, f(250), f(0), "none"},
-		{"moving again", 12 * time.Minute, 3, f(359.9), f(3), "0"},
-		{"no track", 12*time.Minute + time.Second, 3, nil, f(3), "none"},
-		{"track back", 12*time.Minute + 2*time.Second, 2, f(45), f(3), "45"},
-		{"gpsd quiet", 12*time.Minute + 8*time.Second, 0, nil, nil, "none"},
-		{"no fix", 12*time.Minute + 9*time.Second, 1, f(45), f(3), "none"},
-		{"fix, slow: nothing held after a lost fix", 12*time.Minute + 10*time.Second, 3, f(45), f(0), "none"},
+		{"nothing yet", 0, 0, 0, nil, nil, "none"},
+		{"stopped: the DR bearing", 0, time.Second, 3, f(90), f(0), "90"},
+		{"no speed reported", 0, 2 * time.Second, 3, f(95), nil, "97.5"},
+		{"no track", 0, 3 * time.Second, 3, nil, f(0), "none"},
+		{"no fix", 0, 4 * time.Second, 1, f(95), f(0), "none"},
+		{"min speed: slow, never moved", 2, 5 * time.Second, 3, f(90), f(0.5), "none"},
+		{"moving", 2, 6 * time.Second, 3, f(91), f(10), "90"},
+		{"a step on", 2, 7 * time.Second, 3, f(95), f(10), "97.5"},
+		{"stopped: held", 2, 8 * time.Second, 3, f(200), f(0.1), "97.5"},
+		{"stopped, still held", 2, 9 * time.Minute, 3, f(250), f(0), "97.5"},
+		{"stopped too long", 2, 11 * time.Minute, 3, f(250), f(0), "none"},
+		{"moving again", 2, 12 * time.Minute, 3, f(359.9), f(3), "0"},
+		{"no track", 2, 12*time.Minute + time.Second, 3, nil, f(3), "none"},
+		{"track back", 2, 12*time.Minute + 2*time.Second, 2, f(45), f(3), "45"},
+		{"gpsd quiet", 2, 12*time.Minute + 8*time.Second, 0, nil, nil, "none"},
+		{"no fix", 2, 12*time.Minute + 9*time.Second, 1, f(45), f(3), "none"},
+		{"fix, slow: nothing held after a lost fix", 2, 12*time.Minute + 10*time.Second, 3, f(45), f(0), "none"},
 	} {
 		now := t0.Add(tc.at)
+		h.minSpeed = tc.min
 		if tc.mode != 0 {
 			h.tpv(tc.mode, tc.track, tc.speed, now)
 		}

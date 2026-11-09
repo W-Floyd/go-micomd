@@ -46,8 +46,8 @@ func main() {
 	units := flag.String("units", "imperial", "the cluster's distances: imperial (mi, ft) or metric (km, m)")
 	clock24 := flag.Bool("clock24", false, "show the arrival time on the cluster as 24 h, not 12 h")
 	gpsd := flag.String("gpsd", "", "gpsd's host:port: the cluster's compass from its track, with -input; empty for none")
-	minSpeed := flag.Float64("heading-min-speed", 2, "m/s: the track is taken as the heading only at this speed or above")
-	hold := flag.Duration("heading-hold", 10*time.Minute, "how long the last heading stays on the compass below -heading-min-speed")
+	minSpeed := flag.Float64("heading-min-speed", 0, "m/s: take the track as the heading only at this speed or above, for a plain GNSS track; 0 takes every track (hippod's is the gyro-held DR bearing)")
+	hold := flag.Duration("heading-hold", 10*time.Minute, "with -heading-min-speed, how long the last heading stays on the compass below it")
 	flag.Parse()
 
 	lg := log.New(os.Stderr, "", log.LstdFlags)

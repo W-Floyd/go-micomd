@@ -14,8 +14,10 @@ import (
 const tpvStale = 5 * time.Second
 
 // heading is the car's heading for the cluster's compass, from gpsd's track.
-// A track is a heading only while moving: below minSpeed the last one is
-// held for hold, then the compass goes blank; without a fix or a track, or
+// On the head unit the track is hippod's dead-reckoning bearing, gyro-held,
+// so it is good when slow or stopped and minSpeed is 0. With a minSpeed (a
+// plain GNSS track wanders when slow) the last track at that speed is held
+// for hold, then the compass goes blank. Without a fix or a track, or
 // without gpsd, it is blank at once.
 type heading struct {
 	minSpeed float64 // m/s
@@ -38,7 +40,7 @@ func (h *heading) tpv(mode int, track, speed *float64, now time.Time) {
 	switch {
 	case mode < 2:
 		h.goodAt = time.Time{}
-	case h.tracked && speed != nil && *speed >= h.minSpeed:
+	case h.tracked && (h.minSpeed <= 0 || speed != nil && *speed >= h.minSpeed):
 		h.deg, h.goodAt = *track, now
 	}
 }
