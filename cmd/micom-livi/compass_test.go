@@ -91,15 +91,15 @@ func TestBridgeCompass(t *testing.T) {
 		want    []string // substrings, one per line
 	}{
 		// The pane's compass is the turn's direction, counter-clockwise.
-		{"start: claimed, then the compass pane", nil, 0, ptr(90.0), []string{claimAlive, claimOwn, `"direction":270,`, idle("90")}},
+		{"start: claimed, not alive, then the compass pane", nil, 0, ptr(90.0), []string{freeAlive, claimOwn, `"direction":270,`, idle("90")}},
 		{"same step", nil, 500 * time.Millisecond, ptr(90.0), nil},
 		{"a second on", nil, time.Second, ptr(90.0), []string{`"direction":270,`, idle("90")}},
 		{"new step", nil, 1200 * time.Millisecond, ptr(97.5), []string{`"direction":262.5,`, idle("97.5")}},
 		{"north", nil, 1300 * time.Millisecond, ptr(0.0), []string{`"direction":0,`, idle("0")}},
 		{"no heading: north, as just sent", nil, 1400 * time.Millisecond, nil, []string{idle("null")}},
-		{"guidance", route, 2 * time.Second, ptr(180.0), []string{`"maneuver":"turn_right"`, `"compass":180,"eta_hour":16`}},
+		{"guidance", route, 2 * time.Second, ptr(180.0), []string{claimAlive, `"maneuver":"turn_right"`, `"compass":180,"eta_hour":16`}},
 		{"guidance, the compass moves", route, 2500 * time.Millisecond, ptr(187.5), []string{`"compass":187.5,"eta_hour":16`}},
-		{"guidance ends", navOf(`{"active":false}`), 3 * time.Second, ptr(187.5), []string{endGuidance, `"no_route_guide"`, idle("187.5")}},
+		{"guidance ends", navOf(`{"active":false}`), 3 * time.Second, ptr(187.5), []string{endGuidance, freeAlive, `"no_route_guide"`, idle("187.5")}},
 	} {
 		compass = tc.compass
 		got := b.step(tc.n, t0.Add(tc.at), o)

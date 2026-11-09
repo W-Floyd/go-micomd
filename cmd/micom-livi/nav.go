@@ -205,7 +205,10 @@ const (
 )
 
 // bridge turns LIVI's guidance into micomd's input lines. It claims the
-// cluster's navigation pane and keeps it: with no route the pane shows the
+// cluster's navigation pane (operating) and keeps it. tbt-alive is on only
+// while a route is: stock's own navigation never sends it, and with it on
+// the EV6 cluster drops the no-route compass after a while, while with it
+// off and operating the compass stays. With no route the pane shows the
 // compass (display type no_route_guide), with one the maneuver and summary;
 // these go on change and again every refresh (cluster-sub-info ends 5 s
 // after its last input). A route's end is stock's end frames, then the
@@ -223,6 +226,7 @@ type bridge struct {
 
 	owned    bool
 	routing  bool
+	alive    bool // tbt-alive as last sent while owned
 	released bool // by releaseAfter: claimed again when LIVI is back
 	seen     time.Time
 	sent     map[string]string
@@ -299,9 +303,15 @@ func (b *bridge) step(n *navigation, now time.Time, o navOptions) []string {
 	}
 	b.released = false
 	var out []string
+	route := n != nil && n.Active != nil && *n.Active
 	if !b.owned {
 		b.owned = true
-		out = append(out, claimAlive, claimOwn)
+		if route {
+			out = append(out, claimAlive, claimOwn)
+		} else {
+			out = append(out, freeAlive, claimOwn)
+		}
+		b.alive = route
 	}
 	if b.night != nil {
 		if night := b.night(); night != nil {
@@ -316,16 +326,24 @@ func (b *bridge) step(n *navigation, now time.Time, o navOptions) []string {
 	if b.heading != nil {
 		compass = b.heading(now)
 	}
-	if n == nil || n.Active == nil || !*n.Active {
+	if !route {
 		if b.routing {
 			b.routing = false
 			delete(b.sent, "tbt-turn")
 			delete(b.sent, "cluster-sub-info")
 			out = append(out, endGuidance)
 		}
+		if b.alive {
+			b.alive = false
+			out = append(out, freeAlive)
+		}
 		return b.emit(b.emit(out, idleTurn(compass), now, true), idleSubInfo(compass), now, true)
 	}
 	b.routing = true
+	if !b.alive {
+		b.alive = true
+		out = append(out, claimAlive)
+	}
 	turn, sub := clusterInputs(n, now, o)
 	if b.heading != nil {
 		sub["compass"] = compass

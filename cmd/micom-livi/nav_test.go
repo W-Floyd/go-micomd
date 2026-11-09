@@ -140,24 +140,24 @@ func TestBridgeSequence(t *testing.T) {
 		night *bool
 		want  []string
 	}{
-		{"start, day/night unknown: claim, the compass pane", nil, 0, nil, []string{claimAlive, claimOwn, idle, idleSub}},
+		{"start, day/night unknown: claim, not alive, the compass pane", nil, 0, nil, []string{freeAlive, claimOwn, idle, idleSub}},
 		{"nothing new", off, 500 * time.Millisecond, nil, nil},
 		{"illumination: day", off, 700 * time.Millisecond, ptr(false), []string{day}},
 		{"a second on, refreshed", off, 1200 * time.Millisecond, ptr(false), []string{idle, idleSub}},
-		{"guidance starts", exit, 1500 * time.Millisecond, ptr(false), []string{turn, sub}},
+		{"guidance starts: alive", exit, 1500 * time.Millisecond, ptr(false), []string{claimAlive, turn, sub}},
 		{"nothing new", exit, 2 * time.Second, ptr(false), nil},
 		{"a second on, refreshed", exit, 2500 * time.Millisecond, ptr(false), []string{turn, sub}},
 		{"closer, at night", near, 3 * time.Second, ptr(true), []string{night,
 			`{"bar":null,"direction":0,"distance":490,"distance_tenths":0,"maneuver":"off_ramp_right","msg":"tbt-turn","side_street":null,"unit":"ft"}`,
 			`{"eta_hour":16,"eta_minute":47,"msg":"cluster-sub-info","remaining":5,"remaining_tenths":2,"remaining_unit":"mi","time_format":1,"time_type":1}`,
 		}},
-		{"guidance stops: stock's end, the pane kept", off, 4 * time.Second, ptr(true), []string{endGuidance, idle, idleSub}},
+		{"guidance stops: stock's end, not alive, the pane kept", off, 4 * time.Second, ptr(true), []string{endGuidance, freeAlive, idle, idleSub}},
 		{"LIVI gone: still the compass pane", nil, 4500 * time.Millisecond, ptr(true), nil},
-		{"guidance again", exit, 5 * time.Second, ptr(true), []string{turn, sub}},
-		{"LIVI gone while guiding", nil, 5500 * time.Millisecond, ptr(true), []string{endGuidance, idle, idleSub}},
+		{"guidance again", exit, 5 * time.Second, ptr(true), []string{claimAlive, turn, sub}},
+		{"LIVI gone while guiding", nil, 5500 * time.Millisecond, ptr(true), []string{endGuidance, freeAlive, idle, idleSub}},
 		{"LIVI gone a minute: released", nil, 65500 * time.Millisecond, ptr(true), []string{freeAlive, freeOwn}},
 		{"still gone", nil, 70 * time.Second, ptr(true), nil},
-		{"LIVI back: claimed again", off, 71 * time.Second, ptr(true), []string{claimAlive, claimOwn, night, idle, idleSub}},
+		{"LIVI back: claimed again", off, 71 * time.Second, ptr(true), []string{freeAlive, claimOwn, night, idle, idleSub}},
 	} {
 		isNight = tc.night
 		got := b.step(tc.n, t0.Add(tc.at), o)
