@@ -3,6 +3,8 @@
 // heat) to LIVI's telemetry endpoint as the car's ("source": "car"), and
 // speedKph, fuelPct, batteryLevelKwh, rangeKm, ambientC, odometerKm and
 // nightMode (the micom's illumination), each when it changes (carFields).
+// With -input it also reads LIVI's route guidance (GET /navigation) and shows
+// it on the instrument cluster through micomd's -input socket (nav.go).
 //
 //	micom-livi [-tap /run/micomd.sock] [-url http://127.0.0.1:4000/telemetry] [-every 250ms] [-capacity-kwh N]
 //
@@ -38,9 +40,20 @@ func main() {
 	settle := flag.Duration("settle", 300*time.Millisecond, "wait this long after a change outside a burst before posting")
 	every := flag.Duration("every", 250*time.Millisecond, "post at most this often; changes in between are posted together, the newest of each")
 	capacity := flag.Float64("capacity-kwh", 0, "post this as batteryCapacityKwh, LIVI's gross capacity (77.4 for the EV6 long-range pack); 0 for none, as the micom does not report it")
+	input := flag.String("input", "", "micomd's -input socket: show LIVI's route guidance on the cluster through it (needs micomd -allow-inferred); empty for none")
+	navURL := flag.String("nav-url", "http://127.0.0.1:4000/navigation", "LIVI's route guidance, read with -input")
+	navEvery := flag.Duration("nav-every", 500*time.Millisecond, "how often to read LIVI's route guidance")
+	units := flag.String("units", "imperial", "the cluster's distances: imperial (mi, ft) or metric (km, m)")
+	clock24 := flag.Bool("clock24", false, "show the arrival time on the cluster as 24 h, not 12 h")
 	flag.Parse()
 
 	lg := log.New(os.Stderr, "", log.LstdFlags)
+	if *units != "imperial" && *units != "metric" {
+		lg.Fatalf("-units %q: imperial or metric", *units)
+	}
+	if *input != "" {
+		go runNav(*navURL, *input, *navEvery, navOptions{imperial: *units == "imperial", clock24: *clock24, loc: time.Local}, lg.Printf)
+	}
 	p := newPoster(*url, *every, lg.Printf)
 	if *capacity > 0 {
 		p.set("batteryCapacityKwh", *capacity)

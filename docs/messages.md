@@ -398,6 +398,16 @@ The TBT end invalidates only the route fields of 0x0D03, not the compass: the
 stock end of route also sends the compass as 3f, but here the compass has its
 own source.
 
+**From the phone.** `micom-livi -input SOCKET` reads LIVI's route guidance
+(Android Auto's or CarPlay's, `GET /navigation` on LIVI's port 4000) twice a
+second and writes these lines: `tbt-guiding` when a route starts, `tbt-turn`
+and `cluster-sub-info` (route fields only) on change and every second, and
+`{"msg":"tbt-turn","end":true}` when guidance stops, LIVI cannot be read,
+and at its start. Its maneuver table (`cmd/micom-livi/nav.go`) maps LIVI's
+maneuver types to the display types above; the roundabout's angle codes and
+the destination kinds other than `arrived` are not used. `tbt-points`
+(the next three steps) is not sent: Android Auto does not give them.
+
 These messages are in the EV6 file, not the family base, though they come
 from the shared ClusterService: `cluster-sub-info` owns the EV6's own profile
 entry, and `tbt-turn`'s end names it. The enums are in the base.
