@@ -168,14 +168,16 @@ func main() {
 			lg.Printf("tap %s: %v", *tap, err)
 		}
 	}()
+	// The battery frame comes only on a change: 3-14 s apart parked.
+	lg.Print("waiting for the state of charge")
 	select {
 	case soc := <-b.soc:
 		if soc < *minSoC {
 			lg.Fatalf("state of charge %g %% is below -min-soc %g %%: not starting", soc, *minSoC)
 		}
 		lg.Printf("state of charge %g %%", soc)
-	case <-time.After(10 * time.Second):
-		lg.Fatal("no state of charge on the tap in 10 s: not starting")
+	case <-time.After(60 * time.Second):
+		lg.Fatal("no state of charge on the tap in 60 s: not starting")
 	case <-ctx.Done():
 		return
 	}
