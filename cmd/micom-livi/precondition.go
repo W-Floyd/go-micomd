@@ -53,6 +53,7 @@ type precond struct {
 	starts  int
 	sentAt  time.Time
 	why     string // the last reason it is not running, for the log
+	manual  bool   // LIVI's request, at the last step
 }
 
 type precondOp int
@@ -119,6 +120,10 @@ func (p *precond) step(n *navigation, soc *float64, now time.Time) precondOp {
 	ok, why := p.want(n, soc)
 	p.why = why
 	manual := n != nil && n.Precondition != nil && n.Precondition.Manual
+	if p.manual && !manual && n != nil && !ok {
+		p.why = "the request in LIVI ended"
+	}
+	p.manual = manual
 	switch {
 	case p.running && !ok:
 		p.running = false
