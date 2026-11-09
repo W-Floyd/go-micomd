@@ -1,8 +1,10 @@
 // Command micom-livi feeds the car's state, as micomd decodes it, into LIVI's
 // telemetry: it reads micomd's tap socket and posts the climate (panel and seat
-// heat) to LIVI's telemetry endpoint as the car's ("source": "car").
+// heat) to LIVI's telemetry endpoint as the car's ("source": "car"), and the
+// speed, state of charge and remaining energy as speedKph, fuelPct and
+// batteryLevelKwh, each when it changes.
 //
-//	micom-livi [-tap /run/micomd.sock] [-url http://127.0.0.1:4000/telemetry]
+//	micom-livi [-tap /run/micomd.sock] [-url http://127.0.0.1:4000/telemetry] [-every 250ms] [-capacity-kwh N]
 //
 // It only reads: micomd owns the link, and nothing goes back to the car. It is
 // a client of both sides, so either can restart: it reconnects to the tap, and
@@ -18,11 +20,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"maps"
 	"math"
 	"net"
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	micom "github.com/W-Floyd/go-micomd"
@@ -32,10 +36,15 @@ func main() {
 	tap := flag.String("tap", "/run/micomd.sock", "micomd's -tap socket")
 	url := flag.String("url", "http://127.0.0.1:4000/telemetry", "LIVI's telemetry endpoint")
 	settle := flag.Duration("settle", 300*time.Millisecond, "wait this long after a change outside a burst before posting")
+	every := flag.Duration("every", 250*time.Millisecond, "post at most this often; changes in between are posted together, the newest of each")
+	capacity := flag.Float64("capacity-kwh", 0, "post this as batteryCapacityKwh, LIVI's gross capacity (77.4 for the EV6 long-range pack); 0 for none, as the micom does not report it")
 	flag.Parse()
 
 	lg := log.New(os.Stderr, "", log.LstdFlags)
-	p := newPoster(*url, lg.Printf)
+	p := newPoster(*url, *every, lg.Printf)
+	if *capacity > 0 {
+		p.set("batteryCapacityKwh", *capacity)
+	}
 	go p.run()
 	for {
 		if err := follow(*tap, *settle, p); err != nil {
@@ -78,12 +87,15 @@ func follow(path string, settle time.Duration, p *poster) error {
 			if !ok {
 				continue
 			}
+			for k, v := range liviCar(micom.Decode(f)) {
+				p.set(k, v)
+			}
 			switch state.Apply(f) {
 			case micom.ClimateBegin:
 				inBurst, timer = true, nil
 			case micom.ClimateEnd:
 				inBurst, timer = false, nil
-				p.post(liviClimate(state))
+				p.climate(liviClimate(state))
 			case micom.ClimateChanged:
 				if !inBurst {
 					timer = time.After(settle)
@@ -91,9 +103,38 @@ func follow(path string, settle time.Duration, p *poster) error {
 			}
 		case <-timer:
 			timer = nil
-			p.post(liviClimate(state))
+			p.climate(liviClimate(state))
 		}
 	}
+}
+
+// carFields are the decoded fields LIVI takes, by the variant's names, and
+// the telemetry field each becomes: the variant gives them in LIVI's units.
+var carFields = map[string]string{
+	"Vehicle speed":            "speedKph",
+	"State of charge":          "fuelPct",
+	"Battery remaining energy": "batteryLevelKwh",
+}
+
+// liviCar is what of a frame's decoded fields LIVI takes, as its telemetry
+// fields.
+func liviCar(fs []micom.Field) map[string]any {
+	var out map[string]any
+	for _, f := range fs {
+		key, ok := carFields[f.Name]
+		if !ok || !f.Valid {
+			continue
+		}
+		v := float64(f.Value)
+		if f.Float != nil {
+			v = *f.Float
+		}
+		if out == nil {
+			out = map[string]any{}
+		}
+		out[key] = v
+	}
+	return out
 }
 
 // parseTapLine reads a received frame off one line of micomd's tap:
@@ -174,58 +215,88 @@ func liviClimate(c micom.CarClimate) map[string]any {
 	return out
 }
 
-// poster sends the climate to LIVI from its own goroutine (run), skipping a
-// state LIVI already took, and retries the newest one while LIVI does not
-// answer.
+// poster sends the car's telemetry to LIVI from its own goroutine (run): the
+// newest value of each top-level field, only those LIVI has not already
+// taken, at most once every every. While LIVI does not answer it retries, and
+// once it does, sends every field again.
 type poster struct {
-	url     string
-	client  *http.Client
-	logf    func(string, ...any)
-	pending chan map[string]any
+	url    string
+	every  time.Duration
+	client *http.Client
+	logf   func(string, ...any)
+	mu     sync.Mutex
+	state  map[string]any
+	wake   chan struct{}
 }
 
-func newPoster(url string, logf func(string, ...any)) *poster {
+func newPoster(url string, every time.Duration, logf func(string, ...any)) *poster {
 	return &poster{
-		url:     url,
-		client:  &http.Client{Timeout: 3 * time.Second},
-		logf:    logf,
-		pending: make(chan map[string]any, 1),
+		url:    url,
+		every:  every,
+		client: &http.Client{Timeout: 3 * time.Second},
+		logf:   logf,
+		state:  map[string]any{},
+		wake:   make(chan struct{}, 1),
 	}
 }
 
-// post hands over the newest state; one still waiting is replaced, as only
-// the newest matters.
-func (p *poster) post(climate map[string]any) {
-	if len(climate) <= 1 {
-		return
-	}
+// set makes v the newest value of the telemetry field key.
+func (p *poster) set(key string, v any) {
+	p.mu.Lock()
+	p.state[key] = v
+	p.mu.Unlock()
 	select {
-	case <-p.pending:
+	case p.wake <- struct{}{}:
 	default:
 	}
-	p.pending <- climate
+}
+
+// climate sets the climate block, once the car has reported any of it.
+func (p *poster) climate(c map[string]any) {
+	if len(c) > 1 {
+		p.set("climate", c)
+	}
+}
+
+// changes is the body of the next post, the fields whose JSON is not what
+// LIVI last took (sent), and that JSON; nil when there is nothing new.
+func (p *poster) changes(sent map[string]string) (map[string]any, map[string]string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	var body map[string]any
+	js := map[string]string{}
+	for k, v := range p.state {
+		b, _ := json.Marshal(v)
+		if sent[k] == string(b) {
+			continue
+		}
+		if body == nil {
+			body = map[string]any{}
+		}
+		body[k], js[k] = v, string(b)
+	}
+	return body, js
 }
 
 func (p *poster) run() {
-	var (
-		body []byte // the newest state
-		sent []byte // what LIVI last took
-	)
+	sent := map[string]string{} // each field's JSON as LIVI last took it
 	for {
 		select {
-		case c := <-p.pending:
-			body, _ = json.Marshal(map[string]any{"climate": c})
+		case <-p.wake:
 		case <-time.After(5 * time.Second):
 		}
-		if body == nil || bytes.Equal(body, sent) {
+		body, js := p.changes(sent)
+		if body == nil {
 			continue
 		}
-		if err := p.send(body); err != nil {
+		b, _ := json.Marshal(body)
+		if err := p.send(b); err != nil {
 			p.logf("%v", err)
-			sent = nil
+			clear(sent)
 			continue
 		}
-		sent = body
+		maps.Copy(sent, js)
+		time.Sleep(p.every)
 	}
 }
 

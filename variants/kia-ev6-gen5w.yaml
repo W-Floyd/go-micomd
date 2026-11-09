@@ -27,6 +27,7 @@ headers:
   seat_node:     { hdr: "55 ca 00 d5", dir: from_micom, status: captured, ref: "seat heat; the driver's door switches" }
   body:          { hdr: "44 c1 00 c4", dir: from_micom, status: captured, ref: "doors; repeats seat heat and windows" }
   camera:        { hdr: "01 c4 01 81", dir: from_micom, status: captured }
+  cluster_rx:    { hdr: "0d 8f 01 8d", dir: from_micom, status: captured, ref: "battery and cruise; cluster_tx's reverse" }
   poll_tx:       { hdr: "88 0c 01 0c", dir: to_micom, status: captured }
   # ClusterService.sendPacket: sndId 0x8f, rcvId 0x0d, type 1, funcH 0x0d.
   cluster_tx:    { hdr: "8f 0d 01 0d", dir: to_micom, status: captured, ref: "the ack profile frame; stock ClusterService" }
@@ -470,6 +471,45 @@ messages:
     status: code
     ref: "micom firmware 0x081B handler"
 
+  # Driving state the micom relays, found by lining snapshots up with an
+  # OBD2 logger on a drive (r >= 0.99) and by labelled toggles.
+  # Byte 1 is the speed in 0.5 mph (raw 134 = 67 mph; motor rpm was
+  # 61.5 x raw + 114). Byte 0 is unknown.
+  - name: "Vehicle speed"
+    dir: from_micom
+    hdr: body
+    cmd: 0x20
+    min_length: 2
+    fields:
+      - { name: "Vehicle speed",       off: 1, scale: 0.804672, unit: " km/h" }   # 0.5 mph
+      - { name: "Vehicle speed (mph)", off: 1, scale: 0.5,      unit: " mph" }
+    status: captured
+    ref: "drive 2026-11, micomd snapshots against Car Scanner OBD2 speed (r >= 0.99)"
+  # The state of charge as the car displays it, and the remaining energy.
+  # 54-59 kWh seen.
+  - name: "Battery"
+    dir: from_micom
+    hdr: cluster_rx
+    cmd: 0x47
+    min_length: 4
+    fields:
+      - { name: "State of charge",          off: 0, scale: 0.5,   unit: " %" }
+      - { name: "Battery remaining energy", off: 2, type: u16, scale: 0.002, unit: " kWh" }
+    status: captured
+    ref: "drive 2026-11, micomd snapshots against Car Scanner OBD2 displayed SoC and remaining energy (r >= 0.99)"
+  # Active while cruise control holds the speed: it followed off, resume,
+  # off and set exactly; arming cruise does not change it. The set speed,
+  # LKAS and the following distance are not on this link.
+  - name: "Cruise control"
+    dir: from_micom
+    hdr: cluster_rx
+    cmd: 0x46
+    min_length: 1
+    fields:
+      - { name: "Cruise control", off: 0, enum: cruise }
+    status: captured
+    ref: "drive 2026-11, labelled cruise off/resume/off/set toggles"
+
   # The backlight. Off from power-up until the first on; on is refused while
   # the supply is low. The micom writes a config byte to EEPROM on every
   # frame (0x230), so it is spaced like a persistent one, but it is not
@@ -550,3 +590,4 @@ enums:
   shutdown_ack: { power_off_request: 1, rail_off: 2 }
   dim_mode: { auto: 0, day: 1, night: 2, manual: 3 }
   period: { day: 1, night: 2 }
+  cruise: { inactive: 0, active: 2 }

@@ -154,6 +154,14 @@ func TestDescribeLive(t *testing.T) {
 		{"088c0188", "10", "14", "Rheostat: Rheostat step=20"},
 		{"088c0188", "13", "32", "Display 0x8813=50"},
 		{"088c0188", "1b", "07", "Display 0x881B byte 0=7"},
+		// A drive against an OBD2 logger.
+		{"44c100c4", "20", "0086", "Vehicle speed: Vehicle speed=107.826048 km/h Vehicle speed (mph)=67 mph"},
+		{"44c100c4", "20", "0085", "Vehicle speed (mph)=66.5 mph"},
+		{"44c100c4", "20", "0000", "Vehicle speed=0 km/h"},
+		{"0d8f018d", "47", "9b006f54", "Battery: State of charge=77.5 % Battery remaining energy=57 kWh"},
+		{"0d8f018d", "47", "c800ffff", "State of charge=100 % Battery remaining energy=131.07 kWh"},
+		{"0d8f018d", "46", "02", "Cruise control: Cruise control=active"},
+		{"0d8f018d", "46", "00", "Cruise control=inactive"},
 	} {
 		var f Frame
 		copy(f.Hdr[:], unhex(t, c.hdr))

@@ -411,7 +411,8 @@ decoder is the safer reader of untrusted lines.
   expand them, so they were left out. A to_micom message's `end` is the one
   sequence the daemon runs.
 - **micom-livi.** It reads frames with the default variant's
-  `CarClimate.Apply`. It has no `-variant` yet.
+  `CarClimate.Apply` and `Decode` (speed, state of charge and remaining
+  energy, by field name). It has no `-variant` yet.
 - **Unknown cars.** On an unknown command line micomd runs the EV6, as before.
   Running the keepalive-only base instead is a behaviour change for its own
   PR.

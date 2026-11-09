@@ -133,6 +133,10 @@ Rules:
   codec computes in 64 bits; a from_micom field must decode into an `int32`
   (so no `u32` from the micom, and scaled fields are bounded at load).
   Inputs are JSON numbers (float64), exact to 2⁵³.
+- **Fractional scales**: decoded, a field whose `scale` or `offset` is not
+  whole (the EV6's state of charge, 0.5 %; remaining energy, 0.002 kWh)
+  also carries the exact value as `Field.Float` (JSON `float`), rounded to
+  6 decimals; `Value` is it rounded half up, as before.
 - **Layout checks at load**: every field lies within `length` (or the
   `min_length` a from_micom message promises); to_micom fields never share a
   bit; `bits` only on one-byte types; a `default` must encode.

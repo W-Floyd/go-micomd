@@ -1,6 +1,7 @@
 package main
 
 import (
+	"maps"
 	"reflect"
 	"testing"
 
@@ -30,6 +31,67 @@ func TestParseTapLine(t *testing.T) {
 }
 
 func ptr[T any](v T) *T { return &v }
+
+// The speed, state of charge and remaining energy reach LIVI in its units,
+// read through the default variant's messages; other fields do not.
+func TestLiviCar(t *testing.T) {
+	for _, tc := range []struct {
+		line string
+		want map[string]any
+	}{
+		{"15:04:05.000 rx hdr=44c100c4 cmd=20 payload=0086", map[string]any{"speedKph": 107.826048}},
+		{"15:04:05.000 rx hdr=44c100c4 cmd=20 payload=0000", map[string]any{"speedKph": 0.0}},
+		{"15:04:05.000 rx hdr=0d8f018d cmd=47 payload=9b006f54", map[string]any{"fuelPct": 77.5, "batteryLevelKwh": 57.0}},
+		{"15:04:05.000 rx hdr=0d8f018d cmd=46 payload=02", nil},     // cruise: not a LIVI field
+		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=5700f5", nil}, // climate power draw
+		{"15:04:05.000 rx hdr=0d8f018d cmd=47 payload=9b", nil},     // too short to decode
+	} {
+		f, ok := parseTapLine(tc.line)
+		if !ok {
+			t.Fatalf("%q does not parse", tc.line)
+		}
+		if got := liviCar(micom.Decode(f)); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("%q: %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
+
+// A post carries only the fields LIVI has not taken as they are now, and
+// after a failure (sent cleared) all of them.
+func TestPosterChanges(t *testing.T) {
+	p := newPoster("", 0, t.Logf)
+	sent := map[string]string{}
+	for _, tc := range []struct {
+		name string
+		set  map[string]any
+		fail bool
+		want map[string]any
+	}{
+		{"first values", map[string]any{"speedKph": 10.0, "fuelPct": 80.0}, false, map[string]any{"speedKph": 10.0, "fuelPct": 80.0}},
+		{"speed only changes", map[string]any{"speedKph": 12.0, "fuelPct": 80.0}, false, map[string]any{"speedKph": 12.0}},
+		{"nothing changes", map[string]any{"speedKph": 12.0}, false, nil},
+		{"the climate is one field", map[string]any{"climate": map[string]any{"source": "car", "ac": true}}, true, map[string]any{"climate": map[string]any{"source": "car", "ac": true}}},
+		{"after a failure, everything", nil, false, map[string]any{"speedKph": 12.0, "fuelPct": 80.0, "climate": map[string]any{"source": "car", "ac": true}}},
+	} {
+		for k, v := range tc.set {
+			p.set(k, v)
+		}
+		body, js := p.changes(sent)
+		if !reflect.DeepEqual(body, tc.want) {
+			t.Errorf("%s: %v, want %v", tc.name, body, tc.want)
+		}
+		if tc.fail {
+			clear(sent)
+			continue
+		}
+		maps.Copy(sent, js)
+	}
+	// The climate is set only once the car has reported some of it.
+	p.climate(map[string]any{"source": "car"})
+	if body, _ := p.changes(sent); body != nil {
+		t.Errorf("an empty climate posted: %v", body)
+	}
+}
 
 func TestLiviClimate(t *testing.T) {
 	for _, tc := range []struct {

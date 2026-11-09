@@ -702,6 +702,7 @@ func compileField(c *checker, where string, r rawMsgField, enums map[string]map[
 		if r.Default != nil || r.Min != nil || r.Max != nil {
 			c.errf(w, "default, min and max are for to_micom")
 		}
+		f.fractional = f.scale != math.Trunc(f.scale) || f.offset != math.Trunc(f.offset)
 	}
 	if len(c.errs) > n {
 		return nil, false

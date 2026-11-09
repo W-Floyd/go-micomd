@@ -1,6 +1,9 @@
 package micom
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 // Field is one value read out of a frame.
 type Field struct {
@@ -12,6 +15,9 @@ type Field struct {
 	Unit  string `json:"unit"`
 	// Text is set, and Value 0, for a field the frame carries as ASCII.
 	Text string `json:"text,omitempty"`
+	// Float is the exact value of a field whose scale or offset is not
+	// whole (0.5 %, 0.002 kWh); Value is it rounded half up.
+	Float *float64 `json:"float,omitempty"`
 }
 
 func (f Field) String() string {
@@ -20,6 +26,8 @@ func (f Field) String() string {
 		return f.Name + "=n/a"
 	case f.Text != "":
 		return f.Name + "=" + f.Text
+	case f.Float != nil:
+		return f.Name + "=" + strconv.FormatFloat(*f.Float, 'f', -1, 64) + f.Unit
 	}
 	return fmt.Sprintf("%s=%d%s", f.Name, f.Value, f.Unit)
 }

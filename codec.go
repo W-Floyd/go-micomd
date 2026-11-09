@@ -23,6 +23,7 @@ type field struct {
 	off, width int // str: its bytes
 	scale      float64
 	offset     float64
+	fractional bool // from_micom with a scale or offset not whole: Field.Float
 	enum       string
 	codes      map[string]int64
 	names      map[int64]string
@@ -92,7 +93,13 @@ func (f *field) read(p []byte) Field {
 	}
 	r := f.signedRaw(raw)
 	out.Valid = true
-	out.Value = int(math.Floor(float64(r)*f.scale + f.offset + 0.5))
+	x := float64(r)*f.scale + f.offset
+	out.Value = int(math.Floor(x + 0.5))
+	if f.fractional {
+		// Rounded off the binary noise of a decimal scale (0.002 × 28500).
+		x = math.Round(x*1e6) / 1e6
+		out.Float = &x
+	}
 	if f.enum != "" {
 		out.Text = f.names[r]
 	}
