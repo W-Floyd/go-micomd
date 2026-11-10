@@ -654,6 +654,19 @@ messages:
       - { name: "Range (mi)",   off: 1, type: u16, unit: " mi" }
     status: captured
     ref: "02 00 75 00 bc against the cluster's 117 mi"
+  # The sign the cluster shows, 5 Hz; 0 when none. Byte 4 repeats at 5 and is
+  # 2 * mph - 10 (an unknown unit). Byte 15 (0x10 mostly while a sign shows)
+  # and bytes 18-19 (brief 83 01, a3 03, 63 03) are unknown; bytes 0-2 are a
+  # rolling code and a counter.
+  - name: "Speed limit"
+    dir: from_micom
+    hdr: cluster_rx
+    cmd: 0x2d
+    min_length: 15
+    fields:
+      - { name: "Speed limit", off: 14, unit: " mph" }
+    status: captured
+    ref: "drive 2026-11, 41k frames: 50-75 mph in 5s, every one 2 * mph - 10 at byte 4"
   - name: "Odometer"
     dir: from_micom
     hdr: body

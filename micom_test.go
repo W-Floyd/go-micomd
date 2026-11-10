@@ -177,6 +177,8 @@ func TestDescribeLive(t *testing.T) {
 		{"0d8f018d", "46", "00", "Cruise control=inactive"},
 		// Against the car's cluster.
 		{"0d8f018d", "43", "02007500bc", "Range: Range=188 km Range (mi)=117 mi"},
+		{"0d8f018d", "2d", "f36382000000000000000000000000000000000203000020ffff", "Speed limit: Speed limit=0 mph"},
+		{"0d8f018d", "2d", "34ba6e006e6e00000000000000003c00000203000020ffff", "Speed limit: Speed limit=60 mph"},
 		{"44c100c4", "22", "06c40c", "Odometer: Odometer=44340.4 km"},
 		{"43c200c3", "02", "5e", "Outdoor temperature: Outdoor temperature=12.222222 C Outdoor temperature (F)=54 F"},
 		{"43c200c3", "02", "00", "Outdoor temperature=-40 C Outdoor temperature (F)=-40 F"},
