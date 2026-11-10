@@ -1,0 +1,10 @@
+#!/bin/sh
+# Regenerates docs/spec/*.md from variants/*.yaml. Enable: git config core.hooksPath .githooks
+set -e
+cd "$(git rev-parse --show-toplevel)"
+go build -o /dev/null ./cmd/micom-spec
+for f in variants/*.yaml; do
+	n=$(basename "$f" .yaml)
+	go run ./cmd/micom-spec "$n" >"docs/spec/$n.md"
+	git add "docs/spec/$n.md"
+done

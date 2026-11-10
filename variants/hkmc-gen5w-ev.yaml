@@ -64,7 +64,13 @@ messages:
       - { name: "Departure 2 hour",        off: 4, bits: "4:0" }
       - { name: "Departure 2 minute bits", off: 4, bits: "7:5" }
     status: code
-    ref: "HEVService"
+    # Bytes 0-2 vary frame to frame (noise, then a counter) and 5-7 were 0;
+    # none is decoded. Bytes 3 and 4 were 0c in all 43k frames of a 2026-11
+    # EV6 capture: hour 12, minute bits 0, i.e. no timer ever set, so the
+    # layout is unchecked against a real setting. The set side is
+    # sendPacket(0x88, 0x0c, 0x0c06) with 7 bytes packed from 28 slots,
+    # LSB- or MSB-first by a field the decompile lost.
+    ref: "HEVService; captured only at the default"
 
   - name: "Charger state"
     dir: from_micom
