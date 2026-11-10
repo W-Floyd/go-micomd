@@ -256,8 +256,9 @@ send:
 
 # The cluster's turn-by-turn guidance and compass, filled in from -input
 # (docs/messages.md). Layouts are the stock packers', never captured, so
-# status code: they also need -allow-inferred. The 16-bit integers are
-# guessed big endian (Utils.shortToBytes is in framework.jar, not on disk).
+# status code: they also need -allow-inferred. The 16-bit integers are big
+# endian: the micom firmware reads them so (in emulation) before repacking
+# them onto CAN.
 # Here rather than in the family base because cluster-sub-info owns this
 # car's ack profile entry, and tbt-turn's end names it.
 messages:
@@ -537,6 +538,45 @@ messages:
       - { name: "12 V battery charge", off: 7, unit: " %" }
     status: code
     ref: "stock battSoc, func 0x819b byte 7"
+
+  # SoC→micom system service commands confirmed from the micom firmware command
+  # dispatcher (0x774a2; jump table at 0x77526) and micom-run (watching the
+  # firmware console). Each is dangerous: it arms an update/download boot or
+  # changes power/sleep state, so it is refused unless -allow-dangerous.
+  - name: sys-update-reservation
+    dir: to_micom
+    hdr: system_tx
+    cmd: 0x57
+    length: 1
+    fields:
+      - { name: value, off: 0 }
+    on_change: false
+    status: inferred
+    dangerous: "func 0x0157 SYS_UPDATE_RESERVATION_C: arms a software-update boot on the next cycle"
+    ref: "micom dispatcher cmd 0x57 -> event 0x125; micom-run console 2026-11-10 ('SYS_UPDATE_RESERVATION_C : 0x1, 0x20')"
+  - name: sys-download-reservation
+    dir: to_micom
+    hdr: system_tx
+    cmd: 0x8d
+    length: 1
+    fields:
+      - { name: value, off: 0 }
+    on_change: false
+    status: inferred
+    dangerous: "func 0x018d SYS_DOWNLOAD_RESERVATION_C: arms a download boot on the next cycle"
+    ref: "micom dispatcher cmd 0x8d -> event 0x18a; micom-run console 2026-11-10 ('SYS_DOWNLOAD_RESERVATION_C : 0x1, 0xFA')"
+  - name: sys-sleep-boot-control
+    dir: to_micom
+    hdr: system_tx
+    cmd: 0x67
+    length: 2
+    fields:
+      - { name: mode, off: 0 }   # 0/1/2 -> events 0xc5 / 0x146 / 0x147
+      - { name: flag, off: 1 }
+    on_change: false
+    status: inferred
+    dangerous: "func 0x0167: sleep / next-boot control (Set Sleep Mode, NEXT BOOT force-update / DSP tuning)"
+    ref: "micom dispatcher cmd 0x67; name tentative (strings in the event consumers)"
   - name: "12 V battery"
     dir: from_micom
     hdr: body

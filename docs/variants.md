@@ -280,19 +280,19 @@ A file can make frames sendable. Nothing in it can send arbitrary frames:
      `to_micom` header the variant declares.
    - No variant may name the CPU-alive request or reply: that exchange is
      micomd's.
-4. **The denylist, in code.** `denylist.go` refuses these whatever a variant,
-   `-allow` or a profile says. They are SystemService requests on
-   `8a 01 01 01` that reset or rewrite the micom:
-   - func 0x0102, SYS_POWER_C: writes the micom's power configuration to
-     EEPROM; 0 makes ACC off skip to bus sleep (from the micom firmware)
-   - func 0x0105, rear camera reset
-   - func 0x0107, last-info initialization / micom factory reset
-   - func 0x0118, variant code save
-   - func 0x011e, SPI sending stop
-   - func 0x0128, VBus off/on
-
-   It is enforced twice: at load, and in `Daemon.Send` (and for the input,
-   at each send).
+4. **Dangerous frames.** A send or to_micom message may carry a `dangerous`
+   string (any non-empty value): it marks a frame that resets, rewrites or
+   reconfigures the micom, and the string says why (shown in refusals). Such a
+   frame is defined and documented like any other, but refused on every path
+   — `Daemon.Send`, the control socket, the input, and `-allow`/`-allow-variant`
+   — unless `-allow-dangerous` is passed, and it may never be a profile frame
+   (sent unasked). The SystemService requests on `8a 01 01 01` that were once a
+   hardcoded denylist are now `dangerous` entries in the base variant: func
+   0x0102 SYS_POWER_C (power config, EEPROM), 0x0105 rear camera reset, 0x0107
+   last-info init / factory reset, 0x0118 variant code save, 0x011e SPI sending
+   stop, 0x0128 VBus off/on; the EV6 adds 0x0157 / 0x018d update / download
+   reservations and 0x0167 sleep / next-boot control. Enforced at load (no
+   dangerous profile frame) and on every send.
 5. **Provenance.** `status` and `ref` are required on every send, profile,
    to_micom message and match entry.
 6. **Tests.**
@@ -315,7 +315,7 @@ A file can make frames sendable. Nothing in it can send arbitrary frames:
 - **Code:**
   - framing, checksum, `Decoder`
   - the CPU-alive exchange
-  - `Daemon.Send`'s allowlist and the denylist
+  - `Daemon.Send`'s allowlist and the dangerous-frame gate
   - the six signal kinds, the field codecs and template placeholders
   - the input socket and the messages' lifecycle
   - the key payload rule (type, code, press) and the `KEY_*` table
@@ -333,7 +333,6 @@ Files:
 - `input.go`: the input socket and the lifecycle engine.
 - `signal.go`: the six signal kinds.
 - `identity.go`: the command-line identity.
-- `denylist.go`.
 - `keynames.go`: the `KEY_*` table.
 
 The package-level `Describe`, `Decode`, `FrameName`, `DefaultProfile`,

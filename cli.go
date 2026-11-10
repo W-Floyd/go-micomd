@@ -107,6 +107,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	allowInferred := fs.Bool("allow-inferred", false, "with -allow-variant also the variant's inferred send entries, and with -input the messages known only from code or inference")
 	inputPath := fs.String("input", "", "serve the structured input here: one JSON object per line, {\"msg\": NAME, field: value, ...}, encoded by the variant's to_micom messages (docs/messages.md)")
 	allowPersistent := fs.Bool("allow-persistent", false, "with -input also the messages whose every frame the micom writes to its EEPROM (rate-limited; each write wears it)")
+	allowDangerous := fs.Bool("allow-dangerous", false, "allow the variant's dangerous frames (those that reset, rewrite or reconfigure the micom: power config, factory reset, variant-code save, update/download reservations). Off, they are refused on every path")
 	identify := fs.Bool("identify-request", false, "ask the micom for its variant coding once the link is up, retried up to 5 times 3 s apart until it answers; the answer is logged against the variant running and reported by -query snapshot. The only frame it adds is the variant's identify request (inferred on HKMC: this flag alone allows it)")
 	bootMode := fs.Bool("boot-mode-request", false, "ask the micom for its boot record once the link is up, retried up to 4 times 2 s apart until it answers, as stock does at every boot: the record carries the state the micom otherwise sends only on change (the EV6's illumination). The only frame it adds is the variant's boot-mode-request send entry; the micom clears its boot-reason flags on it")
 	if err := fs.Parse(args); err != nil {
@@ -235,9 +236,9 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 		profile = append(profile, v.ClockProfile()...)
 		lg.Printf("sending the clock frames from this machine's clock: %s", time.Now().Format(time.RFC3339))
 	}
-	cfg := Config{Port: port, Variant: v, Choice: choice, Recorder: rec, Profile: profile, Logf: lg.Printf, NoAlive: *noAlive, Allow: allow.frames, AllowPatterns: allow.patterns}
+	cfg := Config{Port: port, Variant: v, Choice: choice, Recorder: rec, Profile: profile, Logf: lg.Printf, NoAlive: *noAlive, Allow: allow.frames, AllowPatterns: allow.patterns, AllowDangerous: *allowDangerous}
 	if *allowVariant {
-		frames, patterns := v.Sends(*allowInferred)
+		frames, patterns := v.Sends(*allowInferred, *allowDangerous)
 		cfg.Allow = append(cfg.Allow, frames...)
 		cfg.AllowPatterns = append(cfg.AllowPatterns, patterns...)
 	}
@@ -354,7 +355,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	}
 	if *inputPath != "" {
 		go func() {
-			if err := ServeInput(ctx, d, *inputPath, InputGates{Inferred: *allowInferred, Persistent: *allowPersistent}); err != nil {
+			if err := ServeInput(ctx, d, *inputPath, InputGates{Inferred: *allowInferred, Persistent: *allowPersistent, Dangerous: *allowDangerous}); err != nil {
 				lg.Printf("input socket: %v", err)
 			}
 		}()

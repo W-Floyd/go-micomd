@@ -360,9 +360,11 @@ Refusals name the message and the field:
   such send entries. A message is enabled only if
   every message its `end` names is too.
 - `persistent: true` messages also need `-allow-persistent`.
+- `dangerous: <why>` messages (and send entries) also need `-allow-dangerous`;
+  the string says why the frame resets, rewrites or reconfigures the micom and
+  is shown in the refusal. It is checked again on every frame the input sends.
 - At load, a to_micom message's header must be a declared `to_micom` header;
-  the CPU-alive header and command, and the denylist, are refused, as for
-  send entries. The denylist is checked again on every frame the input sends.
+  the CPU-alive header and command are refused, as for send entries.
 - `owns` must name a routine profile entry of the same header and command.
 - No existing flag changes; without `-input` micomd behaves exactly as before.
 
@@ -470,7 +472,7 @@ entry, and `tbt-turn`'s end names it. The enums are in the base.
 
 ## What stays code
 
-Framing and checksum; the CPU-alive exchange; the denylist; the codec types,
+Framing and checksum; the CPU-alive exchange; the dangerous-frame gate; the codec types,
 rounding and the gates; the transports; the lifecycle engine (state, merge,
 repeat, own, timeout, end, requires); the input socket and its JSON. A variant only
 describes.
@@ -500,19 +502,20 @@ describes.
   and the CAN meaning of 0x810b/0x810d, auto day/night, and stock 0x0801,
   0x0807 and 0x081A traffic all need a capture.
 
-- **Endianness** of 0x0D02/03/04's int16s: big-endian is a guess
-  (`Utils.shortToBytes` is in framework.jar). The worked example has distance
-  0, so it does not tell. One flip of `endian:` in the file fixes it.
 - **Repeat rates**: stock sends TBT on change; whether the cluster drops
   guidance without repeats is unknown. 1 s is a guess, 600 ms is the captured
   `ack` rate.
 - **time_type / time_format** default to the captured 3 and 3, as the
   stock system's idle 0x0D03 on the wire had them; stock code knows 0 (no
-  time), 1 (ETA) and 0/1/2 (none, 12 h, 24 h). What 3 means is unknown. The
-  end of route sends stock's 0/0.
+  time), 1 (ETA) and 0/1/2 (none, 12 h, 24 h). The micom forwards each as a
+  2-bit CAN field, so 3 is the all-ones value (often "not available" on
+  Hyundai CAN); what the cluster does with it is unknown. The end of route
+  sends stock's 0/0.
 - **bar's second marker** 0xE (stock: not displayed) is not modelled; only
   0xF (invalid).
 - **OperationStatus 2 and 3** exist in stock code; their meaning is unknown.
+  The micom forwards 0-3 unchanged (a 2-bit CAN field), so the cluster sees
+  them.
 - **Roundabout codes** 96-106 are exit-angle buckets whose angles are not
   known: the enum names them `roundabout_96` and so on. The destination codes
   113-117 are not named, except 115 `arrived` (112 + 3), a guess.
@@ -523,6 +526,9 @@ describes.
   timeout, so a dead compass client's last heading stays while the navigation
   keeps the message alive. A client that stops should send its fields as
   `null`.
+- **Fields the micom drops**: it puts `tbt-turn`'s `bar` and `tbt-points`'
+  p3 into no CAN message, so on this car's firmware they reach nothing.
+  `tbt-alive` changes no CAN message either. Sending them is harmless.
 - **Chunked transport**: see Transports.
 - **Derived values**: Android's amp type is 0 internal if the variant code's
   W29, else 2 Lexicon if W21, else 1 Actune. A field reads one place, so the

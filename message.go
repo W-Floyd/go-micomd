@@ -34,6 +34,10 @@ type rawMessage struct {
 	MinInterval time.Duration `yaml:"min_interval,omitempty"`
 	// Persistent: the micom writes its EEPROM for every frame.
 	Persistent bool `yaml:"persistent,omitempty"`
+	// Dangerous, when non-empty, marks a frame that resets, rewrites or
+	// reconfigures the micom; the string says why (shown in refusals). Defined
+	// and documented like any message, but sent only with -allow-dangerous.
+	Dangerous string `yaml:"dangerous,omitempty"`
 	// Requires gates a frame on the last value received of a from_micom
 	// field.
 	Requires []rawRequire `yaml:"requires,omitempty"`
@@ -109,6 +113,7 @@ type msgSpec struct {
 	every, timeout time.Duration
 	minInterval    time.Duration
 	persistent     bool
+	dangerous      string // non-empty = dangerous; the reason
 	owns           string
 	end            []endStep
 	requires       []requirement
@@ -270,8 +275,8 @@ func compileMessages(c *checker, v *Variant, raws []rawMessage, enums map[string
 
 func compileFromMicom(c *checker, v *Variant, where string, r rawMessage, enums map[string]map[string]int64, hdrOf func(string, string) ([4]byte, bool)) {
 	checkStatus(c, where, r.Status, false)
-	if r.Fill != nil || r.Transport != nil || r.OnChange != nil || r.Every != 0 || r.Owns != "" || r.Timeout != 0 || len(r.End) > 0 || r.MinInterval != 0 || r.Persistent || r.Requires != nil {
-		c.errf(where, "fill, transport, on_change, every, owns, timeout, end, min_interval, persistent and requires are for to_micom")
+	if r.Fill != nil || r.Transport != nil || r.OnChange != nil || r.Every != 0 || r.Owns != "" || r.Timeout != 0 || len(r.End) > 0 || r.MinInterval != 0 || r.Persistent || r.Dangerous != "" || r.Requires != nil {
+		c.errf(where, "fill, transport, on_change, every, owns, timeout, end, min_interval, persistent, dangerous and requires are for to_micom")
 	}
 	d := &decoder{name: r.Name}
 	need := 0
@@ -337,7 +342,7 @@ func compileToMicom(c *checker, v *Variant, where string, r rawMessage, enums ma
 	}
 	m := &msgSpec{name: r.Name, status: r.Status, cmd: r.Cmd, byName: map[string]*field{},
 		onChange: r.OnChange == nil || *r.OnChange, every: r.Every, timeout: r.Timeout, owns: r.Owns,
-		minInterval: r.MinInterval, persistent: r.Persistent, rawRequires: r.Requires}
+		minInterval: r.MinInterval, persistent: r.Persistent, dangerous: r.Dangerous, rawRequires: r.Requires}
 	if r.Length == nil || *r.Length < 1 || *r.Length > MaxPayload {
 		c.errf(where, "length is required, 1 to %d", MaxPayload)
 		return
@@ -417,6 +422,9 @@ func compileToMicom(c *checker, v *Variant, where string, r rawMessage, enums ma
 	}
 	v.sent[hc] = m
 	v.messages[m.name] = m
+	if m.dangerous != "" {
+		v.dangerous[hc] = m.dangerous
+	}
 }
 
 // checkMessageRefs checks end steps and owns, once every message and the

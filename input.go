@@ -65,6 +65,9 @@ type InputGates struct {
 	// Persistent admits messages whose every frame the micom writes to its
 	// EEPROM (-allow-persistent).
 	Persistent bool
+	// Dangerous admits messages that reset, rewrite or reconfigure the micom
+	// (-allow-dangerous).
+	Dangerous bool
 }
 
 func newInputEngine(v *Variant, g InputGates, send func(Frame) error, own func([]string, bool), now func() time.Time, logf func(string, ...any)) *inputEngine {
@@ -76,6 +79,9 @@ func newInputEngine(v *Variant, g InputGates, send func(Frame) error, own func([
 		}
 		if m.persistent && !g.Persistent {
 			why = append(why, "persistent (writes the micom's EEPROM): needs -allow-persistent")
+		}
+		if m.dangerous != "" && !g.Dangerous {
+			why = append(why, "dangerous ("+m.dangerous+"): needs -allow-dangerous")
 		}
 		if why != nil {
 			e.refused[n] = strings.Join(why, "; ")
@@ -342,8 +348,8 @@ func (v *Variant) receives(name string) bool {
 // ServeInput serves the structured input on a unix socket (mode 0660): one
 // JSON object per line, {"msg": NAME, field: value, ...}, each answered
 // with {"ok":true} or {"error":"why"}. Only the daemon's variant's to_micom
-// messages are sent, those not captured or persistent only as g allows; the
-// denylist and the CPU-alive frame are refused whatever the variant says.
+// messages are sent, those not captured, persistent or dangerous only as g
+// allows; the CPU-alive frame is refused whatever the variant says.
 // It returns when ctx ends, and removes the socket.
 func ServeInput(ctx context.Context, d *Daemon, path string, g InputGates) error {
 	e := newInputEngine(d.cfg.Variant, g, d.sendMessage, d.own, d.cfg.Now, d.logf)

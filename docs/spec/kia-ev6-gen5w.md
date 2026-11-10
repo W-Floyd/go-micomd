@@ -44,6 +44,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | --- | --- |
 | 🟢 captured | 11 |
 | 🟡 code | 33 |
+| 🟠 inferred | 3 |
 
 Not yet backed by a capture:
 
@@ -72,6 +73,9 @@ Not yet backed by a capture:
 | Illumination | `system_rx` | 0x0d | 🟡 code | stock SystemService/VideoSetupService SYS_ILLUMINATION_STATUS_M; micom firmware 0x810d sender; micom-run |
 | Rheostat level | `system_rx` | 0x45 | 🟡 code | stock SYS_RHEOSTAT_M (func 0x8145) |
 | System 0x819B | `system_rx` | 0x9b | 🟡 code | stock battSoc, func 0x819b byte 7 |
+| sys-update-reservation | `system_tx` | 0x57 | 🟠 inferred | micom dispatcher cmd 0x57 -> event 0x125; micom-run console 2026-11-10 ('SYS_UPDATE_RESERVATION_C : 0x1, 0x20') |
+| sys-download-reservation | `system_tx` | 0x8d | 🟠 inferred | micom dispatcher cmd 0x8d -> event 0x18a; micom-run console 2026-11-10 ('SYS_DOWNLOAD_RESERVATION_C : 0x1, 0xFA') |
+| sys-sleep-boot-control | `system_tx` | 0x67 | 🟠 inferred | micom dispatcher cmd 0x67; name tentative (strings in the event consumers) |
 | 12 V battery | `body` | 0x14 | 🟡 code | stock BODY Batt_SoC |
 | Display 0x880C | `display_rx` | 0x0c | 🟡 code | micom-run: 0x080C [00] answered ff 08 8c 01 88 0c 00 02 02 fe |
 | Rheostat | `display_rx` | 0x10 | 🟡 code | micom-run: 0x0810 [00] answered 14 |
@@ -918,6 +922,57 @@ packet-beta
 8-15: "type"
 ```
 
+### system_tx
+
+`8a 01 01 01`: the CPU-alive reply
+
+#### sys-update-reservation
+
+cmd `0x57`, length 1 · 🟠 inferred
+
+> micom dispatcher cmd 0x57 -> event 0x125; micom-run console 2026-11-10 ('SYS_UPDATE_RESERVATION_C : 0x1, 0x20')
+
+| Field | At |
+| --- | --- |
+| value | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "value"
+```
+
+#### sys-download-reservation
+
+cmd `0x8d`, length 1 · 🟠 inferred
+
+> micom dispatcher cmd 0x8d -> event 0x18a; micom-run console 2026-11-10 ('SYS_DOWNLOAD_RESERVATION_C : 0x1, 0xFA')
+
+| Field | At |
+| --- | --- |
+| value | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "value"
+```
+
+#### sys-sleep-boot-control
+
+cmd `0x67`, length 2 · 🟠 inferred
+
+> micom dispatcher cmd 0x67; name tentative (strings in the event consumers)
+
+| Field | At |
+| --- | --- |
+| mode | byte 0 |
+| flag | byte 1 |
+
+```mermaid
+packet-beta
+0-7: "mode"
+8-15: "flag"
+```
+
 ### display_tx
 
 `8c 08 01 08`: EV6 micom firmware V002.208, micom-run
@@ -1007,8 +1062,8 @@ packet-beta
 | Name | Header | Cmd | Kind | Label | State |
 | --- | --- | --- | --- | --- | --- |
 | climate-burst | `43 c2 00 c3` (climate_panel) | 0x1b | burst lines |  |  |
-| climate-driver-set | `43 c2 00 c3` (climate_panel) | 0x05, 0x07 | number values | Climate driver set point | driver_set_f |
-| climate-passenger-set | `43 c2 00 c3` (climate_panel) | 0x09, 0x0b | number values | Climate passenger set point | passenger_set_f |
+| climate-driver-set | `43 c2 00 c3` (climate_panel) | 0x05, 0x07 | values number | Climate driver set point | driver_set_f |
+| climate-passenger-set | `43 c2 00 c3` (climate_panel) | 0x09, 0x0b | values number | Climate passenger set point | passenger_set_f |
 | climate-airflow | `43 c2 00 c3` (climate_panel) | 0x0d | enum | Climate airflow | airflow |
 | climate-auto | `43 c2 00 c3` (climate_panel) | 0x0f | flag | Climate auto | auto |
 | climate-ac | `43 c2 00 c3` (climate_panel) | 0x11 | flag | Climate A/C | ac |
@@ -1017,11 +1072,11 @@ packet-beta
 | climate-recirculation | `43 c2 00 c3` (climate_panel) | 0x1e, 0x43 | flag | Climate recirculation | recirculation |
 | climate-zones | `43 c2 00 c3` (climate_panel) | 0x27 | flag | Climate zones | zones_synced |
 | climate-heat | `43 c2 00 c3` (climate_panel) | 0x33 | flag | Climate heat |  |
-| climate-auto-level | `43 c2 00 c3` (climate_panel) | 0x4f | values number | Climate auto level |  |
-| climate-auto-level-inverse | `43 c2 00 c3` (climate_panel) | 0x50 | values number | Climate auto level (inverse) |  |
+| climate-auto-level | `43 c2 00 c3` (climate_panel) | 0x4f | number values | Climate auto level |  |
+| climate-auto-level-inverse | `43 c2 00 c3` (climate_panel) | 0x50 | number values | Climate auto level (inverse) |  |
 | seat-heat-driver | `55 ca 00 d5` (seat_node) | 0x20 | values number | Seat heat, driver | driver_seat_heat |
-| seat-heat-passenger | `55 ca 00 d5` (seat_node) | 0x21 | values number | Seat heat, passenger | passenger_seat_heat |
-| seat-heat-driver-repeat | `44 c1 00 c4` (body) | 0x19 | values number | Seat heat, driver (repeat) | driver_seat_heat |
+| seat-heat-passenger | `55 ca 00 d5` (seat_node) | 0x21 | number values | Seat heat, passenger | passenger_seat_heat |
+| seat-heat-driver-repeat | `44 c1 00 c4` (body) | 0x19 | number values | Seat heat, driver (repeat) | driver_seat_heat |
 | seat-heat-passenger-repeat | `44 c1 00 c4` (body) | 0x1b | values number | Seat heat, passenger (repeat) | passenger_seat_heat |
 | window-driver-switch | `55 ca 00 d5` (seat_node) | 0x08 | enum | Window driver |  |
 | window-passenger-switch | `55 ca 00 d5` (seat_node) | 0x0b | enum | Window passenger |  |
@@ -1085,6 +1140,12 @@ packet-beta
 
 | Name | Frame | Pattern | Status | Ref |
 | --- | --- | --- | --- | --- |
+| sys-power-config |  | `ff 8a 01 01 01 02 00 02 [00-ff] ..` | 🟠 inferred | jadx SystemService; EV6 micom dispatcher cmd 0x02, micom-run |
+| rear-camera-reset | `ff 8a 01 01 01 05 00 01 70` |  | 🟠 inferred | jadx SystemService |
+| last-info-init | `ff 8a 01 01 01 07 00 01 72` |  | 🟠 inferred | jadx SystemService |
+| variant-code-save |  | `ff 8a 01 01 01 18 00 02 [00-ff] ..` | 🟠 inferred | jadx SystemService |
+| spi-sending-stop | `ff 8a 01 01 01 1e 00 01 6b` |  | 🟠 inferred | jadx SystemService |
+| vbus-off-on | `ff 8a 01 01 01 28 00 01 5d` |  | 🟠 inferred | jadx SystemService |
 | av-mute-set | `ff 85 02 01 02 0b 00 03 02 01 70` |  | 🟢 captured | stock micomd strace, source switch |
 | mode-media | `ff 85 02 01 02 01 00 03 0e 00 77` |  | 🟢 captured | stock micomd strace, source switch |
 | mode-radio | `ff 85 02 01 02 01 00 03 01 00 78` |  | 🟢 captured | stock micomd strace, source switch |

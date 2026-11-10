@@ -198,12 +198,16 @@ func (v *Variant) KeyFunc() (uint16, bool) {
 func (v *Variant) keymap() (keymap, []uint16) { return v.keys, v.keyList }
 
 // Sends is what the control socket may send for this variant: captured
-// entries, and with inferred also those read from code or worked out.
-func (v *Variant) Sends(inferred bool) ([]Frame, []Pattern) {
+// entries, and with inferred also those read from code or worked out. A
+// dangerous entry is left out unless dangerous is set (-allow-dangerous).
+func (v *Variant) Sends(inferred, dangerous bool) ([]Frame, []Pattern) {
 	var fs []Frame
 	var ps []Pattern
 	for _, s := range v.sends {
 		if s.status != "captured" && !inferred {
+			continue
+		}
+		if s.dangerous != "" && !dangerous {
 			continue
 		}
 		if s.frame != nil {

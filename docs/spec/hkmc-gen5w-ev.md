@@ -7,6 +7,7 @@ Variant `hkmc-gen5w-ev`, extending `hkmc-gen5w` (merged here).
 - [Headers](#headers)
 - [Enums](#enums)
 - [Messages from micom](#messages-from-micom)
+- [Send (the control socket may send)](#send-the-control-socket-may-send)
 
 ## How to read this
 
@@ -270,4 +271,15 @@ cmd `0x4f`, length ≥ 4 · 🟡 code
 | Field | At |
 | --- | --- |
 | Charger ready bits | byte 3 bits 7:6 |
+
+## Send (the control socket may send)
+
+| Name | Frame | Pattern | Status | Ref |
+| --- | --- | --- | --- | --- |
+| sys-power-config |  | `ff 8a 01 01 01 02 00 02 [00-ff] ..` | 🟠 inferred | jadx SystemService; EV6 micom dispatcher cmd 0x02, micom-run |
+| rear-camera-reset | `ff 8a 01 01 01 05 00 01 70` |  | 🟠 inferred | jadx SystemService |
+| last-info-init | `ff 8a 01 01 01 07 00 01 72` |  | 🟠 inferred | jadx SystemService |
+| variant-code-save |  | `ff 8a 01 01 01 18 00 02 [00-ff] ..` | 🟠 inferred | jadx SystemService |
+| spi-sending-stop | `ff 8a 01 01 01 1e 00 01 6b` |  | 🟠 inferred | jadx SystemService |
+| vbus-off-on | `ff 8a 01 01 01 28 00 01 5d` |  | 🟠 inferred | jadx SystemService |
 

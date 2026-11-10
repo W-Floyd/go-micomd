@@ -93,9 +93,9 @@ func TestAllow(t *testing.T) {
 		{"pattern, above the range", volume, frame("ff 85 02 01 02 03 00 02 1f 65"), false},
 		{"pattern, other command", volume, frame(release), false},
 		{"pattern, longer payload", volume, longer, false},
-		{"denylisted, though allowed", "ff 8a 01 01 01 07 00 01 72", frame("ff 8a 01 01 01 07 00 01 72"), false},
-		{"denylisted, though a pattern allows it", "ff 8a 01 01 01 18 00 02 [00-ff] ..", frame("ff 8a 01 01 01 18 00 02 00 6e"), false},
-		{"denylisted power configuration", "ff 8a 01 01 01 02 00 02 [00-ff] ..", frame("ff 8a 01 01 01 02 00 02 00 74"), false},
+		{"dangerous, though allowed", "ff 8a 01 01 01 07 00 01 72", frame("ff 8a 01 01 01 07 00 01 72"), false},
+		{"dangerous, though a pattern allows it", "ff 8a 01 01 01 18 00 02 [00-ff] ..", frame("ff 8a 01 01 01 18 00 02 00 6e"), false},
+		{"dangerous power configuration", "ff 8a 01 01 01 02 00 02 [00-ff] ..", frame("ff 8a 01 01 01 02 00 02 00 74"), false},
 	} {
 		var al allowList
 		if err := al.Set(c.allow); err != nil {
@@ -106,6 +106,21 @@ func TestAllow(t *testing.T) {
 		d := New(Config{Port: a, Profile: []Periodic{}, Allow: al.frames, AllowPatterns: al.patterns})
 		if err := d.Send(c.f); (err == nil) != c.sent {
 			t.Errorf("%s: sent %v, want %v (%v)", c.name, err == nil, c.sent, err)
+		}
+		b.Close()
+	}
+	// A dangerous frame that -allow lists is sent only with -allow-dangerous.
+	for _, allowDanger := range []bool{false, true} {
+		var al allowList
+		if err := al.Set("ff 8a 01 01 01 07 00 01 72"); err != nil {
+			t.Fatal(err)
+		}
+		a, b := net.Pipe()
+		go io.Copy(io.Discard, b)
+		d := New(Config{Port: a, Profile: []Periodic{}, Allow: al.frames, AllowPatterns: al.patterns, AllowDangerous: allowDanger})
+		err := d.Send(frame("ff 8a 01 01 01 07 00 01 72"))
+		if (err == nil) != allowDanger {
+			t.Errorf("dangerous with allow=%v: sent %v (%v)", allowDanger, err == nil, err)
 		}
 		b.Close()
 	}

@@ -219,14 +219,14 @@ func TestEV6VariantSendsAsService(t *testing.T) {
 		sort.Strings(out)
 		return out
 	}
-	fs, ps := v.Sends(true)
+	fs, ps := v.Sends(true, false)
 	if a, b := hexes(al.frames), hexes(fs); !reflect.DeepEqual(a, b) {
 		t.Errorf("frames:\n service %v\n variant %v", a, b)
 	}
 	if !reflect.DeepEqual(al.patterns, ps) {
 		t.Errorf("patterns: service %+v, variant %+v", al.patterns, ps)
 	}
-	fs, ps = v.Sends(false)
+	fs, ps = v.Sends(false, false)
 	want := []string{"ff850201020b0003020170", "ff850201020100030e0077", "ff85020102010003010078", "ff85020102380003020042"}
 	sort.Strings(want)
 	if got := hexes(fs); !reflect.DeepEqual(got, want) {

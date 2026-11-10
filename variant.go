@@ -50,6 +50,10 @@ type Variant struct {
 	messages map[string]*msgSpec // to_micom, by name
 	sent     map[hdrCmd]*msgSpec // to_micom, by frame
 	required map[string]bool     // from_micom fields a to_micom message requires
+	// dangerous frames (hdr+cmd) reset/rewrite/reconfigure the micom; sent
+	// only with -allow-dangerous. Value is the defining entry's name, for
+	// the refusal message. Built from messages/sends marked dangerous.
+	dangerous map[hdrCmd]string
 
 	profile  []periodicSpec
 	sends    []sendSpec
@@ -95,10 +99,11 @@ type slot struct {
 }
 
 type sendSpec struct {
-	name    string
-	status  string
-	frame   *Frame
-	pattern *Pattern
+	name      string
+	status    string
+	frame     *Frame
+	pattern   *Pattern
+	dangerous string // non-empty = dangerous; the reason
 }
 
 // DefaultVariantName is the car micomd was written for, and what it runs as
@@ -464,6 +469,7 @@ func compile(rv rawVariant) (*Variant, error) {
 		keys:    keymap{push: map[keyKey]uint16{}, knob: map[knobKey]uint16{}},
 		signals: map[hdrCmd]*sigSpec{}, decoders: map[byte][]*decoder{}, names: map[hdrCmd]string{},
 		messages: map[string]*msgSpec{}, sent: map[hdrCmd]*msgSpec{}, required: map[string]bool{},
+		dangerous: map[hdrCmd]string{},
 	}
 	if rv.Schema != variantSchema {
 		c.errf("schema", "is %d, want %d", rv.Schema, variantSchema)
@@ -497,14 +503,12 @@ func compile(rv rawVariant) (*Variant, error) {
 		}
 		return b, true
 	}
-	// sendable refuses what a variant may never put on the wire.
+	// sendable refuses what a variant may never put on the wire. A dangerous
+	// frame is allowed here (it is defined and documented like any other);
+	// it is gated at send time by -allow-dangerous instead.
 	sendable := func(where string, hdr [4]byte, cmd byte) {
 		if (hdr == hdrAliveReply || hdr == hdrAliveReq) && cmd == cmdAlive {
 			c.errf(where, "the CPU-alive exchange is micomd's own, not a variant's")
-			return
-		}
-		if why := denied(hdr, cmd); why != "" {
-			c.errf(where, "denylisted (%s)", why)
 			return
 		}
 		for _, h := range headers {
@@ -676,6 +680,20 @@ func compile(rv rawVariant) (*Variant, error) {
 		}
 		if sp, ok := compileSend(c, where, s, sendable); ok {
 			v.sends = append(v.sends, sp)
+			if sp.dangerous != "" {
+				if sp.frame != nil {
+					v.dangerous[hdrCmd{sp.frame.Hdr, sp.frame.Cmd}] = sp.dangerous
+				} else if sp.pattern != nil {
+					v.dangerous[hdrCmd{sp.pattern.Hdr, sp.pattern.Cmd}] = sp.dangerous
+				}
+			}
+		}
+	}
+	// A dangerous frame may be sent only when asked (with -allow-dangerous),
+	// never put in the profile, which goes out unasked.
+	for _, p := range v.profile {
+		if why := v.dangerousReason(p.hdr, p.cmd); why != "" {
+			c.errf("profile["+p.name+"]", "dangerous (%s): a profile frame is sent unasked, so it may not be dangerous", why)
 		}
 	}
 	if err := c.err(); err != nil {
@@ -689,7 +707,7 @@ func compileSend(c *checker, where string, s rawSend, sendable func(string, [4]b
 	if s.Ref == "" {
 		c.errf(where, "ref is required")
 	}
-	sp := sendSpec{name: s.Name, status: s.Status}
+	sp := sendSpec{name: s.Name, status: s.Status, dangerous: s.Dangerous}
 	switch {
 	case (s.Frame == "") == (s.Pattern == ""):
 		c.errf(where, "exactly one of frame and pattern")
@@ -712,6 +730,16 @@ func compileSend(c *checker, where string, s rawSend, sendable func(string, [4]b
 		sendable(where, p.Hdr, p.Cmd)
 	}
 	return sp, true
+}
+
+// dangerousReason names the entry that makes hdr+cmd dangerous, "" if it is
+// not. A dangerous frame resets, rewrites or reconfigures the micom and is
+// sent only with -allow-dangerous.
+func (v *Variant) dangerousReason(hdr [4]byte, cmd byte) string {
+	if v == nil {
+		return ""
+	}
+	return v.dangerous[hdrCmd{hdr, cmd}]
 }
 
 func checkStatus(c *checker, where, s string, required bool) {

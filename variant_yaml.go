@@ -166,13 +166,14 @@ type rawPeriodic struct {
 }
 
 type rawSend struct {
-	Name    string `yaml:"name"`
-	Frame   string `yaml:"frame,omitempty"`
-	Pattern string `yaml:"pattern,omitempty"`
-	Status  string `yaml:"status,omitempty"`
-	Ref     string `yaml:"ref,omitempty"`
-	Note    string `yaml:"note,omitempty"`
-	Remove  bool   `yaml:"remove,omitempty"`
+	Name      string `yaml:"name"`
+	Frame     string `yaml:"frame,omitempty"`
+	Pattern   string `yaml:"pattern,omitempty"`
+	Status    string `yaml:"status,omitempty"`
+	Ref       string `yaml:"ref,omitempty"`
+	Note      string `yaml:"note,omitempty"`
+	Dangerous string `yaml:"dangerous,omitempty"`
+	Remove    bool   `yaml:"remove,omitempty"`
 }
 
 // parseVariant decodes one file.

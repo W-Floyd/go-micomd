@@ -174,3 +174,15 @@ messages:
       - { name: "ADM",              off: 12, enum: adm }
     status: code
     ref: "micom firmware 0x0117 handler; 61 S5W_M micom builds in emulation (en/ko, country 01/00); EV6 V015.012 automotive-service SystemService.onVariantCode/sendVariantCodeSave, automotive VariantCoding tables"
+
+# SystemService requests that reset, rewrite or reconfigure the micom. They are
+# on the system header (sendPacket(0x8a, 1, func)); the `dangerous` string marks
+# each so it is documented here yet refused on every path unless -allow-dangerous
+# (this replaces the old hardcoded Go denylist). From jadx SystemService.java.
+send:
+  - { name: sys-power-config,  pattern: "ff 8a 01 01 01 02 00 02 [00-ff] ..", status: inferred, dangerous: "func 0x0102 SYS_POWER_C: writes the micom's power configuration (EEPROM 0x1ad); value 0 makes ACC-off skip straight to bus sleep", ref: "jadx SystemService; EV6 micom dispatcher cmd 0x02, micom-run" }
+  - { name: rear-camera-reset, frame: "ff 8a 01 01 01 05 00 01 70", status: inferred, dangerous: "func 0x0105 requestRearCameraReset", ref: "jadx SystemService" }
+  - { name: last-info-init,    frame: "ff 8a 01 01 01 07 00 01 72", status: inferred, dangerous: "func 0x0107 requestLastInfoInitialization (also requestMicomFactoryReset)", ref: "jadx SystemService" }
+  - { name: variant-code-save, pattern: "ff 8a 01 01 01 18 00 02 [00-ff] ..", status: inferred, dangerous: "func 0x0118 requestVariantCodeSave: writes the variant coding", ref: "jadx SystemService" }
+  - { name: spi-sending-stop,  frame: "ff 8a 01 01 01 1e 00 01 6b", status: inferred, dangerous: "func 0x011e requestSPISendingStop", ref: "jadx SystemService" }
+  - { name: vbus-off-on,       frame: "ff 8a 01 01 01 28 00 01 5d", status: inferred, dangerous: "func 0x0128 requestVBusOffOn", ref: "jadx SystemService" }

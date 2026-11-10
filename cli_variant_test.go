@@ -49,7 +49,7 @@ func writeFile(t *testing.T, name, body string) string {
 func TestMainKeepsAliveWhateverTheVariant(t *testing.T) {
 	broken := writeFile(t, "broken.yaml", "schema: 1\nname: broken\ncolour: red\n")
 	unsafe := writeFile(t, "unsafe.yaml", "schema: 1\nname: unsafe\nextends: hkmc-gen5w\n"+
-		"send: [{name: reset, frame: \"ff 8a 01 01 01 07 00 01 72\", status: captured, ref: r}]\n")
+		"profile: [{name: reset, every: 1s, frame: \"ff 8a 01 01 01 07 00 01 72\", status: captured, ref: r}]\n")
 	for _, tc := range []struct {
 		name string
 		args []string
@@ -222,7 +222,7 @@ func TestMainVariantCommands(t *testing.T) {
 		{"show a file", []string{"-show-variant", "-variant-file", good}, 0, "title: An EV6 with a test title", ""},
 		{"show an unknown one", []string{"-show-variant", "-variant", "nope"}, 1, "", "no such embedded variant"},
 		{"check files", []string{"-variant-check", good}, 0, good + ": ok", ""},
-		{"check a bad file", []string{"-variant-check", good, bad}, 1, good + ": ok", "denylisted"},
+		{"check a bad file", []string{"-variant-check", good, bad}, 1, good + ": ok", "dangerous"},
 		{"check the chosen", []string{"-variant-check", "-variant", "kia-ev6-gen5w"}, 0, "kia-ev6-gen5w: ok", ""},
 	} {
 		var out, errb bytes.Buffer
