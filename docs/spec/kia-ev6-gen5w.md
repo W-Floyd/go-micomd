@@ -42,8 +42,8 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 
 | Status | Messages |
 | --- | --- |
-| 🟢 captured | 15 |
-| 🟡 code | 33 |
+| 🟢 captured | 17 |
+| 🟡 code | 43 |
 | 🟠 inferred | 3 |
 
 Not yet backed by a capture:
@@ -52,7 +52,16 @@ Not yet backed by a capture:
 | --- | --- | --- | --- | --- |
 | Variant code | `system_rx` | 0x17 | 🟡 code | micom firmware 0x0117 handler; 61 S5W_M micom builds in emulation (en/ko, country 01/00); EV6 V015.012 automotive-service SystemService.onVariantCode/sendVariantCodeSave, automotive VariantCoding tables |
 | Status flag | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService status-flag setter; seen live as 57 00 NN |
-| HEV status | `0c 88 ?? 8c` | 0x01 | 🟡 code | HEVService DATA_M_RESP (func 0x8c01, len >= 0x40) into flag ADDED_DIST_DATC_OFF |
+| Charge time estimate, DC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x0e QC_REM_TIME: a DC fast charge's time to full, while not charging; 10-41 seen |
+| Charge time estimate, AC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x13 SC_REM_TIME_EVSE_PHEV, an EV's NOT_CHAR_EVSE_REM_TIME (CAN DB generation > 0): a wallbox's time to full, while not charging; 20-220 seen, rising as the charge fell |
+| Charge time estimate, DC custom | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x61 VCRM_QCHCHRGRMNTIMEVALCUSTOM: DC time to full at the custom charge power |
+| Charge limit, AC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x21 SOC_SC_CHG (TARGET_SOC_SLOW): x0.5 % from the set side's pct / 0.5; never seen |
+| Charge limit, DC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x22 SOC_QC_CHG (TARGET_SOC_QUICK): x0.5 % from the set side's pct / 0.5; never seen |
+| Range at charge limit, AC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x1f SOC_DTE_SC_CHG (DTE_SLOW_CHARGER_SOC); 406-414 seen |
+| Range at charge limit, DC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x20 SOC_DTE_QC_CHG (DTE_QUICK_CHARGER_SOC) |
+| Trip energy | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x5e XEV_BATPWRSUM_KWH: the battery energy used; x0.1 kWh is a fit (20 -> 360 while the pack's energy fell 33 kWh), medium confidence |
+| Average efficiency | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x06 CLU_AVGFCL (AVG_FCI): 0-0x3ff; x0.1, per kWh in the unit item 0x05 gives (km or mi), is a guess, medium confidence; 31-41 seen |
+| HEV status | `0c 88 ?? 8c` | 0x01 | 🟡 code | HEVService DATA_M_RESP (func 0x8c01, len >= 0x40) into flags ADDED_DIST_DATC_OFF, AVG_FCI, the charge times (the AC one at 29, CAN DB generation > 0), TARGET_SOC_SLOW/QUICK and DTE_SLOW/QUICK_CHARGER_SOC |
 | EV power block | `0c 88 ?? 8c` | 0x5c | 🟡 code | HEVService setHEVStatusValue calls |
 | Departure timers | `0c 88 ?? 8c` | 0x55 | 🟡 code | HEVService; captured only at the default |
 | tbt-turn | `cluster_tx` | 0x04 | 🟡 code | stock ClusterService\$NaviCluster TBTInfo packer (byte 0 straight from the caller); GPM GpmNaviTBTManager.releaseGuidance; nemesis-report worked example "turn right, 0.3 km" |
@@ -71,6 +80,7 @@ Not yet backed by a capture:
 | Vehicle ready | `system_rx` | 0x0b | 🟡 code | stock SYS_ALTERNATE_STATUS_M (0x810b, ALT-L); micom firmware, 0x810b sender (a CAN value, debounced 0.5 s) |
 | Charge warning | `system_rx` | 0x0c | 🟡 code | stock SYS_FUELWARNING_STATUS_M (0x810c); micom firmware FUN_00073e46 |
 | Illumination | `system_rx` | 0x0d | 🟡 code | stock SystemService/VideoSetupService SYS_ILLUMINATION_STATUS_M; micom firmware 0x810d sender; micom-run |
+| Boot record (full) | `system_rx` | 0x01 | 🟡 code | stock SystemService InitialCarInfo; 149 bytes, byte 120 = 02 and byte 7 = ca in 2026-11 captures |
 | Rheostat level | `system_rx` | 0x45 | 🟡 code | stock SYS_RHEOSTAT_M (func 0x8145) |
 | System 0x819B | `system_rx` | 0x9b | 🟡 code | stock battSoc, func 0x819b byte 7 |
 | sys-update-reservation | `system_tx` | 0x57 | 🟠 inferred | micom dispatcher cmd 0x57 -> event 0x125; micom-run console 2026-11-10 ('SYS_UPDATE_RESERVATION_C : 0x1, 0x20') |
@@ -130,12 +140,12 @@ Not yet backed by a capture:
 | country | 9 values, below | Variant code: Country |
 | cruise | **0** inactive<br>**2** active | Cruise control: Cruise control |
 | day_night | **0** day<br>**1** night | cluster-day-night: mode |
-| dim_mode | **0** auto<br>**1** day<br>**2** night<br>**3** manual | Boot record: Dim mode; backlight-dim-mode: mode |
+| dim_mode | **0** auto<br>**1** day<br>**2** night<br>**3** manual | Boot record (full): Dim mode; Boot record: Dim mode; backlight-dim-mode: mode |
 | distance_unit | **0** m<br>**1** km<br>**2** mi<br>**3** ft<br>**4** yd | tbt-turn: unit; tbt-points: p1_unit; tbt-points: p2_unit; tbt-points: p3_unit; cluster-sub-info: remaining_unit |
 | dvd_region | **0** worldwide<br>**1** us<br>**2** eur<br>**3** kor<br>**4** c_s_america<br>**5** rus<br>**6** chn | Variant code: DVD region |
 | external_amp | **0** actune<br>**1** lexicon | Variant code: External amp |
 | hu_type | **0** daudio<br>**1** daudio_plus | Variant code: HU type |
-| illumination | **0** night<br>**1** day | Illumination: Illumination; Boot record: Illumination |
+| illumination | **0** night<br>**1** day | Illumination: Illumination; Boot record (full): Illumination; Boot record: Illumination |
 | maneuver | 40 values, below | tbt-turn: maneuver |
 | operation | **0** released<br>**1** operating | nav-operation: status |
 | period | **1** day<br>**2** night | backlight-period-level: period |
@@ -311,16 +321,184 @@ packet-beta
 24-31: "Range added, climate off"
 ```
 
+#### Charge time to full
+
+cmd `0x02`, length 3 · 🟢 captured
+
+> HEVService item 0x14 REAL_SC_REM_TIME (HEVFlag CHARGING_INTEGRATED_REM_TIME): the time left while charging; seen live falling 1 a minute to 0 at the end
+
+| Field | At | Type | Unit |
+| --- | --- | --- | --- |
+| Charge time to full | byte 1 | u16 | min |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "Charge time to full"
+```
+
+#### Charge time estimate, DC
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x0e QC_REM_TIME: a DC fast charge's time to full, while not charging; 10-41 seen
+
+| Field | At | Type | Unit |
+| --- | --- | --- | --- |
+| Charge time estimate, DC | byte 1 | u16 | min |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "Charge time estimate, DC"
+```
+
+#### Charge time estimate, AC
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x13 SC_REM_TIME_EVSE_PHEV, an EV's NOT_CHAR_EVSE_REM_TIME (CAN DB generation > 0): a wallbox's time to full, while not charging; 20-220 seen, rising as the charge fell
+
+| Field | At | Type | Unit |
+| --- | --- | --- | --- |
+| Charge time estimate, AC | byte 1 | u16 | min |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "Charge time estimate, AC"
+```
+
+#### Charge time estimate, DC custom
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x61 VCRM_QCHCHRGRMNTIMEVALCUSTOM: DC time to full at the custom charge power
+
+| Field | At | Type | Unit |
+| --- | --- | --- | --- |
+| Charge time estimate, DC custom | byte 1 | u16 | min |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "Charge time estimate, DC custom"
+```
+
+#### Charge limit, AC
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x21 SOC_SC_CHG (TARGET_SOC_SLOW): x0.5 % from the set side's pct / 0.5; never seen
+
+| Field | At | Scale | Unit |
+| --- | --- | --- | --- |
+| Charge limit, AC | byte 2 | 0.5 | % |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "Charge limit, AC"
+```
+
+#### Charge limit, DC
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x22 SOC_QC_CHG (TARGET_SOC_QUICK): x0.5 % from the set side's pct / 0.5; never seen
+
+| Field | At | Scale | Unit |
+| --- | --- | --- | --- |
+| Charge limit, DC | byte 2 | 0.5 | % |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "Charge limit, DC"
+```
+
+#### Range at charge limit, AC
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x1f SOC_DTE_SC_CHG (DTE_SLOW_CHARGER_SOC); 406-414 seen
+
+| Field | At | Type | Unit |
+| --- | --- | --- | --- |
+| Range at charge limit, AC | byte 1 | u16 | km |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "Range at charge limit, AC"
+```
+
+#### Range at charge limit, DC
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x20 SOC_DTE_QC_CHG (DTE_QUICK_CHARGER_SOC)
+
+| Field | At | Type | Unit |
+| --- | --- | --- | --- |
+| Range at charge limit, DC | byte 1 | u16 | km |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "Range at charge limit, DC"
+```
+
+#### Trip energy
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x5e XEV_BATPWRSUM_KWH: the battery energy used; x0.1 kWh is a fit (20 -> 360 while the pack's energy fell 33 kWh), medium confidence
+
+| Field | At | Type | Scale | Unit |
+| --- | --- | --- | --- | --- |
+| Trip energy | byte 1 | u16 | 0.1 | kWh |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "Trip energy"
+```
+
+#### Average efficiency
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x06 CLU_AVGFCL (AVG_FCI): 0-0x3ff; x0.1, per kWh in the unit item 0x05 gives (km or mi), is a guess, medium confidence; 31-41 seen
+
+| Field | At | Type | Scale |
+| --- | --- | --- | --- |
+| Average efficiency | byte 1 | u16 | 0.1 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "Average efficiency"
+```
+
 #### HEV status
 
 cmd `0x01`, length ≥ 64 · 🟡 code
 
-> HEVService DATA_M_RESP (func 0x8c01, len >= 0x40) into flag ADDED_DIST_DATC_OFF
+> HEVService DATA_M_RESP (func 0x8c01, len >= 0x40) into flags ADDED_DIST_DATC_OFF, AVG_FCI, the charge times (the AC one at 29, CAN DB generation > 0), TARGET_SOC_SLOW/QUICK and DTE_SLOW/QUICK_CHARGER_SOC
 
-| Field | At | Type | Unit |
-| --- | --- | --- | --- |
-| Range, climate on | byte 60 | u16 | km |
-| Range added, climate off | byte 54 |  | km |
+| Field | At | Type | Scale | Unit |
+| --- | --- | --- | --- | --- |
+| Range, climate on | byte 60 | u16 |  | km |
+| Range added, climate off | byte 54 |  |  | km |
+| Average efficiency | byte 9 | u16 | 0.1 |  |
+| Charge time estimate, DC | byte 19 | u16 |  | min |
+| Charge time estimate, AC | byte 29 | u16 |  | min |
+| Charge time to full | byte 31 | u16 |  | min |
+| Range at charge limit, AC | byte 46 | u16 |  | km |
+| Range at charge limit, DC | byte 48 | u16 |  | km |
+| Charge limit, AC | byte 50 |  | 0.5 | % |
+| Charge limit, DC | byte 51 |  | 0.5 | % |
 
 #### EV power block
 
@@ -498,6 +676,48 @@ cmd `0x0d`, length 1 · 🟡 code
 ```mermaid
 packet-beta
 0-7: "Illumination"
+```
+
+#### Boot record (full)
+
+cmd `0x01`, length ≥ 149 · 🟡 code
+
+> stock SystemService InitialCarInfo; 149 bytes, byte 120 = 02 and byte 7 = ca in 2026-11 captures
+
+| Field | At | Type | Enum |
+| --- | --- | --- | --- |
+| Boot mode | byte 0 |  |  |
+| Reset reason | byte 1 |  |  |
+| Driving regulation | byte 2 | bool |  |
+| Illumination | byte 4 |  | illumination |
+| ACC | byte 7 bits 7 | bool |  |
+| IGN1 | byte 7 bits 6 | bool |  |
+| Vehicle ready | byte 7 bits 5 | bool |  |
+| IGN3 | byte 7 bits 1 | bool |  |
+| Reverse | byte 8 bits 6 | bool |  |
+| Parking brake | byte 8 bits 1 | bool |  |
+| Dim mode | byte 18 |  | dim_mode |
+| CAN DB generation | byte 120 |  |  |
+| Light sensor fitted | byte 130 | bool |  |
+| Driving regulation B | byte 148 | bool |  |
+
+#### Regulation inputs
+
+cmd `0x89`, length ≥ 3 · 🟢 captured
+
+> stock SYS_SPEED_REG_TYPE_B_M_RESP (0x8189) -> onGearPStatus / onParkingBrakeStatus / onEPBStatus; 3 frames, 2026-11
+
+| Field | At | Type |
+| --- | --- | --- |
+| In P | byte 0 | bool |
+| Parking brake lever | byte 1 | bool |
+| EPB state | byte 2 |  |
+
+```mermaid
+packet-beta
+0-7: "In P"
+8-15: "Parking brake lever"
+16-23: "EPB state"
 ```
 
 #### Boot record
@@ -1131,54 +1351,62 @@ packet-beta
 
 ## Signals
 
-| Name | Header | Cmd | Kind | Label | State | Ref |
-| --- | --- | --- | --- | --- | --- | --- |
-| climate-burst | `43 c2 00 c3` (climate_panel) | 0x1b | burst lines |  |  |  |
-| climate-driver-set-c | `43 c2 00 c3` (climate_panel) | 0x05 | number values | Climate driver set point | driver_set_half_c | DATCService DrTempDispC / PsTempDispC (C = raw * 0.5 + 14; 1 LO, 254 HI) |
-| climate-driver-set | `43 c2 00 c3` (climate_panel) | 0x07 | number values | Climate driver set point | driver_set_f |  |
-| climate-passenger-set-c | `43 c2 00 c3` (climate_panel) | 0x09 | number values | Climate passenger set point | passenger_set_half_c |  |
-| climate-passenger-set | `43 c2 00 c3` (climate_panel) | 0x0b | number values | Climate passenger set point | passenger_set_f |  |
-| climate-airflow | `43 c2 00 c3` (climate_panel) | 0x0d | enum | Climate airflow | airflow |  |
-| climate-auto | `43 c2 00 c3` (climate_panel) | 0x0f | flag | Climate auto | auto |  |
-| climate-ac | `43 c2 00 c3` (climate_panel) | 0x11 | flag | Climate A/C | ac |  |
-| climate-fan | `43 c2 00 c3` (climate_panel) | 0x15 | fan | Climate fan | fan |  |
-| climate-driver-only | `43 c2 00 c3` (climate_panel) | 0x19 | flag | Climate driver only | driver_only |  |
-| climate-recirculation | `43 c2 00 c3` (climate_panel) | 0x1e, 0x43 | flag | Climate recirculation | recirculation |  |
-| climate-zones | `43 c2 00 c3` (climate_panel) | 0x27 | flag | Climate zones | zones_synced |  |
-| climate-heat | `43 c2 00 c3` (climate_panel) | 0x33 | flag | Climate heat |  |  |
-| climate-auto-level | `43 c2 00 c3` (climate_panel) | 0x4f | number values | Climate auto level |  |  |
-| climate-auto-level-inverse | `43 c2 00 c3` (climate_panel) | 0x50 | number values | Climate auto level (inverse) |  |  |
-| seat-heat-driver | `55 ca 00 d5` (seat_node) | 0x20 | number values | Seat heat, driver | driver_seat_heat |  |
-| seat-heat-passenger | `55 ca 00 d5` (seat_node) | 0x21 | number values | Seat heat, passenger | passenger_seat_heat |  |
-| seat-heat-driver-repeat | `44 c1 00 c4` (body) | 0x19 | number values | Seat heat, driver (repeat) | driver_seat_heat |  |
-| seat-heat-passenger-repeat | `44 c1 00 c4` (body) | 0x1b | number values | Seat heat, passenger (repeat) | passenger_seat_heat |  |
-| window-driver-switch | `55 ca 00 d5` (seat_node) | 0x08 | enum | Window driver |  |  |
-| window-passenger-switch | `55 ca 00 d5` (seat_node) | 0x0b | enum | Window passenger |  |  |
-| window-driver-position | `55 ca 00 d5` (seat_node) | 0x06 | enum | Window driver |  |  |
-| window-passenger-position | `55 ca 00 d5` (seat_node) | 0x09 | enum | Window passenger |  |  |
-| window-driver-switch-repeat | `44 c1 00 c4` (body) | 0x26 | enum | Window driver |  |  |
-| window-passenger-switch-repeat | `44 c1 00 c4` (body) | 0x27 | enum | Window passenger |  |  |
-| window-driver-position-repeat | `44 c1 00 c4` (body) | 0x24 | enum | Window driver |  |  |
-| window-passenger-position-repeat | `44 c1 00 c4` (body) | 0x25 | enum | Window passenger |  |  |
-| door-front-right-lock | `44 c1 00 c4` (body) | 0x00 | enum | Door front right |  |  |
-| door-front-right-open | `44 c1 00 c4` (body) | 0x01 | enum | Door front right |  |  |
-| door-driver-lock | `44 c1 00 c4` (body) | 0x02 | enum | Door driver |  |  |
-| door-driver-open | `44 c1 00 c4` (body) | 0x03 | enum | Door driver |  |  |
-| door-rear-left-lock | `44 c1 00 c4` (body) | 0x04 | enum | Door rear left |  |  |
-| door-rear-left-open | `44 c1 00 c4` (body) | 0x05 | enum | Door rear left |  |  |
-| door-rear-right-lock | `44 c1 00 c4` (body) | 0x07 | enum | Door rear right |  |  |
-| door-rear-right-open | `44 c1 00 c4` (body) | 0x08 | enum | Door rear right |  |  |
-| trunk | `44 c1 00 c4` (body) | 0x06 | enum | Trunk |  |  |
-| hood | `44 c1 00 c4` (body) | 0x11 | enum | Hood |  |  |
-| open-doors | `01 8a 01 81` (system_rx) | 0x2f | bits | Open doors |  |  |
-| gear | `50 c4 00 d0` (gear_node) | 0x4a | enum | Gear |  |  |
-| driving-regulation | `01 8a 01 81` (system_rx) | 0x03 | flag | Driving regulation |  | stock SYS_REGULATOIN_STATUS_M (0x8103) -> RegulationService |
-| gear-status | `01 8a 01 81` (system_rx) | 0x26 | flag | Out of park |  | stock SYS_GEAR_STATUS_M (0x8126); 0/1 on this car |
-| driving-regulation-b | `01 8a 01 81` (system_rx) | 0x9a | flag | Driving regulation B |  | stock SYS_REGULATION_B_STATUS_M (0x819a) -> RegulationService |
-| out-of-park-body | `44 c1 00 c4` (body) | 0x10 | flag | Out of park |  | stock BODY C_PpositionClutch |
-| reverse-active | `01 8a 01 81` (system_rx) | 0x1b | flag | Reverse |  |  |
-| parking-brake | `01 8a 01 81` (system_rx) | 0x29 | flag | Parking brake |  | stock SYS_PARKING_STATUS_M (0x8129) -> onParkingStatus |
-| rear-camera | `01 c4 01 81` (camera) | 0x51 | enum | Rear camera |  |  |
+| Name | Header | Cmd | Kind | Label | State | Status | Ref |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| climate-burst | `43 c2 00 c3` (climate_panel) | 0x1b | burst lines |  |  |  |  |
+| climate-driver-set-c | `43 c2 00 c3` (climate_panel) | 0x05 | number values | Climate driver set point | driver_set_half_c |  | DATCService DrTempDispC / PsTempDispC (C = raw * 0.5 + 14; 1 LO, 254 HI) |
+| climate-driver-set | `43 c2 00 c3` (climate_panel) | 0x07 | number values | Climate driver set point | driver_set_f |  |  |
+| climate-passenger-set-c | `43 c2 00 c3` (climate_panel) | 0x09 | number values | Climate passenger set point | passenger_set_half_c |  |  |
+| climate-passenger-set | `43 c2 00 c3` (climate_panel) | 0x0b | number values | Climate passenger set point | passenger_set_f |  |  |
+| climate-airflow | `43 c2 00 c3` (climate_panel) | 0x0d | enum | Climate airflow | airflow |  |  |
+| climate-auto | `43 c2 00 c3` (climate_panel) | 0x0f | flag | Climate auto | auto |  |  |
+| climate-ac | `43 c2 00 c3` (climate_panel) | 0x11 | flag | Climate A/C | ac |  |  |
+| climate-fan | `43 c2 00 c3` (climate_panel) | 0x15 | fan | Climate fan | fan |  |  |
+| climate-driver-only | `43 c2 00 c3` (climate_panel) | 0x19 | flag | Climate driver only | driver_only |  |  |
+| climate-recirculation | `43 c2 00 c3` (climate_panel) | 0x1e, 0x43 | flag | Climate recirculation | recirculation |  |  |
+| climate-zones | `43 c2 00 c3` (climate_panel) | 0x27 | flag | Climate zones | zones_synced |  |  |
+| climate-heat | `43 c2 00 c3` (climate_panel) | 0x33 | flag | Climate heat |  |  |  |
+| climate-on | `43 c2 00 c3` (climate_panel) | 0x12 | flag | Climate | on |  | stock DATCService DATC_OpSts; 00 and 01 seen |
+| climate-key | `43 c2 00 c3` (climate_panel) | 0x16 | flag | Climate key |  | 🟡 code | stock DATCService DATC_ClimateScnDisp -> the climate screen |
+| climate-auto-level | `43 c2 00 c3` (climate_panel) | 0x4f | number values | Climate auto level |  |  |  |
+| climate-auto-level-inverse | `43 c2 00 c3` (climate_panel) | 0x50 | number values | Climate auto level (inverse) |  |  |  |
+| seat-heat-driver | `55 ca 00 d5` (seat_node) | 0x20 | number values | Seat heat, driver | driver_seat_heat |  |  |
+| seat-heat-passenger | `55 ca 00 d5` (seat_node) | 0x21 | number values | Seat heat, passenger | passenger_seat_heat |  |  |
+| seat-heat-driver-repeat | `44 c1 00 c4` (body) | 0x19 | number values | Seat heat, driver (repeat) | driver_seat_heat |  |  |
+| seat-heat-passenger-repeat | `44 c1 00 c4` (body) | 0x1b | number values | Seat heat, passenger (repeat) | passenger_seat_heat |  |  |
+| seat-heat-rear-left | `44 c1 00 c4` (body) | 0x1d | number values | Seat heat, rear left |  | 🟡 code | stock BODY C_RLSeatHeatState |
+| seat-heat-rear-right | `44 c1 00 c4` (body) | 0x1f | number values | Seat heat, rear right |  | 🟡 code | stock BODY C_RRSeatHeatState |
+| steering-wheel-heat | `44 c1 00 c4` (body) | 0x0d | number | Steering wheel heat |  | 🟡 code | stock BODY C_StrgWhlHeatedState |
+| rear-defrost | `44 c1 00 c4` (body) | 0x0e | flag | Rear defrost | rear_defrost | 🟡 code | stock BODY C_DefoggerRly |
+| window-driver-switch | `55 ca 00 d5` (seat_node) | 0x08 | enum | Window driver |  |  |  |
+| window-passenger-switch | `55 ca 00 d5` (seat_node) | 0x0b | enum | Window passenger |  |  |  |
+| window-driver-position | `55 ca 00 d5` (seat_node) | 0x06 | enum | Window driver |  |  |  |
+| window-passenger-position | `55 ca 00 d5` (seat_node) | 0x09 | enum | Window passenger |  |  |  |
+| window-driver-switch-repeat | `44 c1 00 c4` (body) | 0x26 | enum | Window driver |  |  |  |
+| window-passenger-switch-repeat | `44 c1 00 c4` (body) | 0x27 | enum | Window passenger |  |  |  |
+| window-driver-position-repeat | `44 c1 00 c4` (body) | 0x24 | enum | Window driver |  |  |  |
+| window-passenger-position-repeat | `44 c1 00 c4` (body) | 0x25 | enum | Window passenger |  |  |  |
+| door-front-right-lock | `44 c1 00 c4` (body) | 0x00 | enum | Door front right |  |  |  |
+| door-front-right-open | `44 c1 00 c4` (body) | 0x01 | enum | Door front right |  |  |  |
+| door-driver-lock | `44 c1 00 c4` (body) | 0x02 | enum | Door driver |  |  |  |
+| door-driver-open | `44 c1 00 c4` (body) | 0x03 | enum | Door driver |  |  |  |
+| door-rear-left-lock | `44 c1 00 c4` (body) | 0x04 | enum | Door rear left |  |  |  |
+| door-rear-left-open | `44 c1 00 c4` (body) | 0x05 | enum | Door rear left |  |  |  |
+| door-rear-right-lock | `44 c1 00 c4` (body) | 0x07 | enum | Door rear right |  |  |  |
+| door-rear-right-open | `44 c1 00 c4` (body) | 0x08 | enum | Door rear right |  |  |  |
+| trunk | `44 c1 00 c4` (body) | 0x06 | enum | Trunk |  |  |  |
+| hood | `44 c1 00 c4` (body) | 0x11 | enum | Hood |  |  |  |
+| charge-port | `44 c1 00 c4` (body) | 0x49 | enum | Charge port |  |  | stock BODY CDM_HS_OpnClsState |
+| open-doors | `01 8a 01 81` (system_rx) | 0x2f | bits | Open doors |  |  |  |
+| gear | `50 c4 00 d0` (gear_node) | 0x4a | enum | Gear |  |  |  |
+| driving-regulation | `01 8a 01 81` (system_rx) | 0x03 | flag | Driving regulation |  |  | stock SYS_REGULATOIN_STATUS_M (0x8103) -> RegulationService |
+| gear-status | `01 8a 01 81` (system_rx) | 0x26 | flag | Out of park |  |  | stock SYS_GEAR_STATUS_M (0x8126); 0/1 on this car |
+| driving-regulation-b | `01 8a 01 81` (system_rx) | 0x9a | flag | Driving regulation B |  |  | stock SYS_REGULATION_B_STATUS_M (0x819a) -> RegulationService |
+| out-of-park-body | `44 c1 00 c4` (body) | 0x10 | flag | Out of park |  |  | stock BODY C_PpositionClutch |
+| reverse-active | `01 8a 01 81` (system_rx) | 0x1b | flag | Reverse |  |  |  |
+| light-sensor | `01 8a 01 81` (system_rx) | 0x95 | flag | Light sensor |  |  | stock SYS 0x8195 -> VideoSetupService onIlluminateStatus |
+| parking-brake | `01 8a 01 81` (system_rx) | 0x29 | flag | Parking brake |  |  | stock SYS_PARKING_STATUS_M (0x8129) -> onParkingStatus |
+| rear-camera | `01 c4 01 81` (camera) | 0x51 | enum | Rear camera |  |  |  |
 
 ## Keys
 

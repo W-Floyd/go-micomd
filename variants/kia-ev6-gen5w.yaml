@@ -140,6 +140,11 @@ signals:
     flag: { on: 1, off: "*", on_text: "synced", off_text: "independent" }
     state: zones_synced
   - { name: climate-heat, hdr: climate_panel, cmd: 0x33, label: "Climate heat", flag: { on: 1, off: 0 } }
+  # The climate system on or off (stock DATC_OpSts: 0 power off, 1 on,
+  # 2 off), and the panel's climate key asking the HU for its climate
+  # screen (DATC_ClimateScnDisp, 1).
+  - { name: climate-on,  hdr: climate_panel, cmd: 0x12, label: "Climate", flag: { on: 1, off: "*" }, state: "on", ref: "stock DATCService DATC_OpSts; 00 and 01 seen" }
+  - { name: climate-key, hdr: climate_panel, cmd: 0x16, label: "Climate key", flag: { on: 1, off: 0, on_text: "pressed", off_text: "released" }, status: code, ref: "stock DATCService DATC_ClimateScnDisp -> the climate screen" }
   - name: climate-auto-level
     hdr: climate_panel
     cmd: 0x4f
@@ -159,6 +164,15 @@ signals:
   - { name: seat-heat-passenger,         hdr: seat_node, cmd: 0x21, len: 0, label: "Seat heat, passenger",         number: *seat, values: *seatoff, state: passenger_seat_heat }
   - { name: seat-heat-driver-repeat,     hdr: body,      cmd: 0x19, len: 0, label: "Seat heat, driver (repeat)",   number: *seat, values: *seatoff, state: driver_seat_heat }
   - { name: seat-heat-passenger-repeat,  hdr: body,      cmd: 0x1b, len: 0, label: "Seat heat, passenger (repeat)",number: *seat, values: *seatoff, state: passenger_seat_heat }
+  # The rear seats', on the body node beside the front ones (stock
+  # C_RLSeatHeatState, C_RRSeatHeatState), read as the front ones: never
+  # seen, so the levels are a guess.
+  - { name: seat-heat-rear-left,  hdr: body, cmd: 0x1d, len: 0, label: "Seat heat, rear left",  number: *seat, values: *seatoff, status: code, ref: "stock BODY C_RLSeatHeatState" }
+  - { name: seat-heat-rear-right, hdr: body, cmd: 0x1f, len: 0, label: "Seat heat, rear right", number: *seat, values: *seatoff, status: code, ref: "stock BODY C_RRSeatHeatState" }
+  # The steering wheel's heat (C_StrgWhlHeatedState; its levels are not
+  # known, 0 is likely off) and the rear defroster's relay (C_DefoggerRly).
+  - { name: steering-wheel-heat, hdr: body, cmd: 0x0d, label: "Steering wheel heat", number: { format: "state %d" }, status: code, ref: "stock BODY C_StrgWhlHeatedState" }
+  - { name: rear-defrost,        hdr: body, cmd: 0x0e, label: "Rear defrost", flag: { on: 1, off: 0 }, state: rear_defrost, status: code, ref: "stock BODY C_DefoggerRly" }
 
   # Power windows of the driver and front passenger, from the driver's door
   # switches. "Switch" is stock's *WindowActState, the motor's action as the
@@ -187,6 +201,9 @@ signals:
   - { name: door-rear-right-open,  hdr: body, cmd: 0x08, label: "Door rear right",  enum: *open, unknown: "" }
   - { name: trunk,                 hdr: body, cmd: 0x06, label: "Trunk",            enum: *open, unknown: "" }
   - { name: hood,                  hdr: body, cmd: 0x11, label: "Hood",             enum: *open, unknown: "" }
+  # The charge port door (stock CDM_HS_OpnClsState: 1 open, 2 closed,
+  # 3 invalid); 02 seen.
+  - { name: charge-port,           hdr: body, cmd: 0x49, label: "Charge port",      enum: { 1: "open", 2: "closed" }, unknown: "", ref: "stock BODY CDM_HS_OpnClsState" }
 
   # The system node's bitmask of what keeps the micom awake: bit 0 always
   # set, then one bit per open door and the trunk. Other bits not known.
@@ -223,6 +240,10 @@ signals:
   # (rear-camera, code 01) and gear (0x4a = 0x07) are.
   - { name: reverse-active, hdr: system_rx, cmd: 0x1b, label: "Reverse", flag: { on: 1, off: 0 }, unknown: "" }
 
+  # Stock's day or night from the two-way light sensor (0x8195: 1 day, else
+  # night). Stock takes it over 0x810d when boot record byte 130 says the
+  # sensor is fitted, as on this car; the two flipped together in captures.
+  - { name: light-sensor, hdr: system_rx, cmd: 0x95, label: "Light sensor", flag: { on: 1, off: "*", on_text: "day", off_text: "night" }, ref: "stock SYS 0x8195 -> VideoSetupService onIlluminateStatus" }
   # Stock's parking status (0x8129, > 0 applied). Here 0 1-5 s after leaving
   # Park and 1 1-5 s after returning to it, as the electric parking brake
   # releases and applies itself; never seen with the brake set by hand.
@@ -581,6 +602,47 @@ messages:
       - { name: "Illumination", off: 0, enum: illumination }
     status: code
     ref: "stock SystemService/VideoSetupService SYS_ILLUMINATION_STATUS_M; micom firmware 0x810d sender; micom-run"
+  # The whole boot record, read first: the car's state when the micom
+  # answered, which the frames below send only on change. Byte 2 the
+  # driving regulation, 7 bits ACC 7, IGN1 6, ALT-L (ready) 5, IGN3 1; 8 bits
+  # reverse 6, parking brake 1; 120 the CAN DB generation; 130 the two-way
+  # light sensor fitted; 148 regulation B.
+  - name: "Boot record (full)"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x01
+    min_length: 149
+    fields:
+      - { name: "Boot mode", off: 0 }
+      - { name: "Reset reason", off: 1 }
+      - { name: "Driving regulation", off: 2, type: bool }
+      - { name: "Illumination", off: 4, enum: illumination }
+      - { name: "ACC", off: 7, bits: "7", type: bool }
+      - { name: "IGN1", off: 7, bits: "6", type: bool }
+      - { name: "Vehicle ready", off: 7, bits: "5", type: bool }
+      - { name: "IGN3", off: 7, bits: "1", type: bool }
+      - { name: "Reverse", off: 8, bits: "6", type: bool }
+      - { name: "Parking brake", off: 8, bits: "1", type: bool }
+      - { name: "Dim mode", off: 0x12, enum: dim_mode }
+      - { name: "CAN DB generation", off: 120 }
+      - { name: "Light sensor fitted", off: 130, type: bool }
+      - { name: "Driving regulation B", off: 148, type: bool }
+    status: code
+    ref: "stock SystemService InitialCarInfo; 149 bytes, byte 120 = 02 and byte 7 = ca in 2026-11 captures"
+  # Stock's regulation-B inputs (0x8189, answering 0x0189 or on change):
+  # in P, parking brake, electric parking brake, and the gearbox type. Seen
+  # 00 00 {02, 04, 01} ff while leaving Park: the EPB values are not known.
+  - name: "Regulation inputs"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x89
+    min_length: 3
+    fields:
+      - { name: "In P", off: 0, type: bool }
+      - { name: "Parking brake lever", off: 1, type: bool }
+      - { name: "EPB state", off: 2 }
+    status: captured
+    ref: "stock SYS_SPEED_REG_TYPE_B_M_RESP (0x8189) -> onGearPStatus / onParkingBrakeStatus / onEPBStatus; 3 frames, 2026-11"
   # Stock's InitialCarInfo: the micom's answer to boot-mode-request (it
   # never sends it unasked), 149 bytes on this car. Byte 0 is the boot mode
   # (what woke the car: 1 normal, 2 door unlock, 8 charging, ...), 1 the

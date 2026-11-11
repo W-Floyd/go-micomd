@@ -37,6 +37,11 @@ func legacyCarDescribe(f Frame) string {
 		}
 	case h == [4]byte{0x01, 0x8a, 0x01, 0x81} && f.Cmd == 0x2f && len(p) == 1:
 		return legacyDescribeOpen(p[0])
+	case h == [4]byte{0x01, 0x8a, 0x01, 0x81} && f.Cmd == 0x95 && len(p) == 1:
+		if p[0] == 1 {
+			return "Light sensor: day"
+		}
+		return "Light sensor: night"
 	case h == [4]byte{0x01, 0x8a, 0x01, 0x81} && len(p) == 1 && p[0] <= 1:
 		// The driving regulation, the gear status and Reverse, 2026-11-10.
 		onOff := "off"
@@ -82,6 +87,26 @@ func legacyCarDescribe(f Frame) string {
 			return "Seat heat, driver (repeat): " + legacySeatHeat(p)
 		case 0x1b:
 			return "Seat heat, passenger (repeat): " + legacySeatHeat(p)
+		case 0x1d:
+			return "Seat heat, rear left: " + legacySeatHeat(p)
+		case 0x1f:
+			return "Seat heat, rear right: " + legacySeatHeat(p)
+		}
+		if len(p) != 1 {
+			return ""
+		}
+		switch f.Cmd {
+		case 0x0d:
+			return fmt.Sprintf("Steering wheel heat: state %d", p[0])
+		case 0x0e:
+			return "Rear defrost: " + legacyOnOff(p[0], 1, 0)
+		case 0x49:
+			switch p[0] {
+			case 1:
+				return "Charge port: open"
+			case 2:
+				return "Charge port: closed"
+			}
 		case 0x10:
 			if len(p) == 1 && p[0] <= 1 {
 				if p[0] == 1 {
@@ -343,6 +368,19 @@ func legacyDescribeClimate(cmd byte, p []byte) string {
 		return "Climate zones: independent"
 	case 0x33:
 		return "Climate heat: " + legacyOnOff(v, 1, 0)
+	case 0x12:
+		if v == 1 {
+			return "Climate: on"
+		}
+		return "Climate: off"
+	case 0x16:
+		switch v {
+		case 1:
+			return "Climate key: pressed"
+		case 0:
+			return "Climate key: released"
+		}
+		return fmt.Sprintf("Climate key: code %#02x", v)
 	case 0x4f:
 		if v == 1 {
 			return "Climate auto level: off"
@@ -384,6 +422,13 @@ func legacyApply(c *CarClimate, f Frame) ClimateEvent {
 			return legacySetSeat(&c.DriverSeatHeat, v)
 		case 0x1b:
 			return legacySetSeat(&c.PassengerSeatHeat, v)
+		case 0x0e:
+			switch v {
+			case 1:
+				return set(&c.RearDefrost, true)
+			case 0:
+				return set(&c.RearDefrost, false)
+			}
 		}
 	case legacyHdrClimatePanel:
 		return legacyApplyPanel(c, f.Cmd, v)
@@ -438,6 +483,8 @@ func legacyApplyPanel(c *CarClimate, cmd, v byte) ClimateEvent {
 		return flag(&c.Recirculation, 1, 2)
 	case 0x27:
 		return set(&c.ZonesSynced, v == 1)
+	case 0x12:
+		return set(&c.On, v == 1)
 	}
 	return ClimateNone
 }

@@ -57,6 +57,109 @@ messages:
     status: captured
     ref: "HEVService flag ADDED_DIST_DATC_OFF (0x26); seen live as 25 01 6b 07"
 
+  # More of HEVService's items (0x8c02 [id] ...), each sent on change: a u8
+  # at byte 2 or a u16 at bytes 1-2.
+  - name: "Charge time to full"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x14 } ]
+    fields:
+      - { name: "Charge time to full", off: 1, type: u16, unit: " min" }
+    status: captured
+    ref: "HEVService item 0x14 REAL_SC_REM_TIME (HEVFlag CHARGING_INTEGRATED_REM_TIME): the time left while charging; seen live falling 1 a minute to 0 at the end"
+  - name: "Charge time estimate, DC"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x0e } ]
+    fields:
+      - { name: "Charge time estimate, DC", off: 1, type: u16, unit: " min" }
+    status: code
+    ref: "HEVService item 0x0e QC_REM_TIME: a DC fast charge's time to full, while not charging; 10-41 seen"
+  - name: "Charge time estimate, AC"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x13 } ]
+    fields:
+      - { name: "Charge time estimate, AC", off: 1, type: u16, unit: " min" }
+    status: code
+    ref: "HEVService item 0x13 SC_REM_TIME_EVSE_PHEV, an EV's NOT_CHAR_EVSE_REM_TIME (CAN DB generation > 0): a wallbox's time to full, while not charging; 20-220 seen, rising as the charge fell"
+  - name: "Charge time estimate, DC custom"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x61 } ]
+    fields:
+      - { name: "Charge time estimate, DC custom", off: 1, type: u16, unit: " min" }
+    status: code
+    ref: "HEVService item 0x61 VCRM_QCHCHRGRMNTIMEVALCUSTOM: DC time to full at the custom charge power"
+  - name: "Charge limit, AC"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x21 } ]
+    fields:
+      - { name: "Charge limit, AC", off: 2, scale: 0.5, unit: " %" }
+    status: code
+    ref: "HEVService item 0x21 SOC_SC_CHG (TARGET_SOC_SLOW): x0.5 % from the set side's pct / 0.5; never seen"
+  - name: "Charge limit, DC"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x22 } ]
+    fields:
+      - { name: "Charge limit, DC", off: 2, scale: 0.5, unit: " %" }
+    status: code
+    ref: "HEVService item 0x22 SOC_QC_CHG (TARGET_SOC_QUICK): x0.5 % from the set side's pct / 0.5; never seen"
+  - name: "Range at charge limit, AC"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x1f } ]
+    fields:
+      - { name: "Range at charge limit, AC", off: 1, type: u16, unit: " km" }
+    status: code
+    ref: "HEVService item 0x1f SOC_DTE_SC_CHG (DTE_SLOW_CHARGER_SOC); 406-414 seen"
+  - name: "Range at charge limit, DC"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x20 } ]
+    fields:
+      - { name: "Range at charge limit, DC", off: 1, type: u16, unit: " km" }
+    status: code
+    ref: "HEVService item 0x20 SOC_DTE_QC_CHG (DTE_QUICK_CHARGER_SOC)"
+  - name: "Trip energy"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x5e } ]
+    fields:
+      - { name: "Trip energy", off: 1, type: u16, scale: 0.1, unit: " kWh" }
+    status: code
+    ref: "HEVService item 0x5e XEV_BATPWRSUM_KWH: the battery energy used; x0.1 kWh is a fit (20 -> 360 while the pack's energy fell 33 kWh), medium confidence"
+  - name: "Average efficiency"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x06 } ]
+    fields:
+      - { name: "Average efficiency", off: 1, type: u16, scale: 0.1, unit: "" }
+    status: code
+    ref: "HEVService item 0x06 CLU_AVGFCL (AVG_FCI): 0-0x3ff; x0.1, per kWh in the unit item 0x05 gives (km or mi), is a guess, medium confidence; 31-41 seen"
+
   # 0x8c01, stock's bulk answer to hev-status-request: the same range and
   # climate-off addition as above, so a value exists before the first
   # change. Never captured: micomd sends the request only with
@@ -69,8 +172,16 @@ messages:
     fields:
       - { name: "Range, climate on",        off: 0x3c, type: u16, unit: " km" }
       - { name: "Range added, climate off", off: 0x36,            unit: " km" }
+      - { name: "Average efficiency",        off: 9,  type: u16, scale: 0.1 }
+      - { name: "Charge time estimate, DC",  off: 19, type: u16, unit: " min" }
+      - { name: "Charge time estimate, AC",  off: 29, type: u16, unit: " min" }
+      - { name: "Charge time to full",       off: 31, type: u16, unit: " min" }
+      - { name: "Range at charge limit, AC", off: 46, type: u16, unit: " km" }
+      - { name: "Range at charge limit, DC", off: 48, type: u16, unit: " km" }
+      - { name: "Charge limit, AC",          off: 50, scale: 0.5, unit: " %" }
+      - { name: "Charge limit, DC",          off: 51, scale: 0.5, unit: " %" }
     status: code
-    ref: "HEVService DATA_M_RESP (func 0x8c01, len >= 0x40) into flag ADDED_DIST_DATC_OFF"
+    ref: "HEVService DATA_M_RESP (func 0x8c01, len >= 0x40) into flags ADDED_DIST_DATC_OFF, AVG_FCI, the charge times (the AC one at 29, CAN DB generation > 0), TARGET_SOC_SLOW/QUICK and DTE_SLOW/QUICK_CHARGER_SOC"
 
   - name: "EV power block"
     dir: from_micom

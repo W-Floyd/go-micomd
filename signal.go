@@ -178,7 +178,7 @@ func (s *sigSpec) apply(c *CarClimate, v byte) ClimateEvent {
 		if _, ok := s.enum[v]; ok {
 			return set(&c.Airflow, v)
 		}
-	case "auto", "ac", "driver_only", "recirculation", "zones_synced":
+	case "auto", "ac", "driver_only", "recirculation", "zones_synced", "on", "rear_defrost":
 		field := c.boolField(s.state)
 		switch {
 		case v == s.on:
@@ -208,6 +208,7 @@ var stateKinds = map[string]signalKind{
 	"airflow": kindEnum,
 	"auto":    kindFlag, "ac": kindFlag, "driver_only": kindFlag,
 	"recirculation": kindFlag, "zones_synced": kindFlag,
+	"on": kindFlag, "rear_defrost": kindFlag,
 	"fan": kindFan,
 }
 
@@ -237,6 +238,10 @@ func (c *CarClimate) boolField(name string) **bool {
 		return &c.DriverOnly
 	case "recirculation":
 		return &c.Recirculation
+	case "on":
+		return &c.On
+	case "rear_defrost":
+		return &c.RearDefrost
 	}
 	return &c.ZonesSynced
 }

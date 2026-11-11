@@ -16,6 +16,9 @@ type CarClimate struct {
 	Airflow *byte
 	// Switches; recirculation off is the car's 2, the others' 0.
 	Auto, AC, DriverOnly, Recirculation, ZonesSynced *bool
+	// On is the climate system's own on or off; RearDefrost the rear
+	// window's heater.
+	On, RearDefrost *bool
 	// FanLevel 0 is off, 1 to 8 the levels; FanAuto when the fan runs on auto.
 	FanLevel *int
 	FanAuto  *bool
