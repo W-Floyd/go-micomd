@@ -52,18 +52,23 @@ func TestPrecondition(t *testing.T) {
 		{"a new route: starts again", 18 * time.Second, stop(150, 30000, 1200, nil), soc, opStart, "", "running"},
 		{"arrived: stop", 19 * time.Second, stop(150, 150, 10, nil), soc, opStop, "at the charger", "armed"},
 		// LIVI's settings.
-		{"asked for, no route: start", 20 * time.Second, prefs(&navigation{Active: ptr(false)}, "auto", true), soc, opStart, "", "running"},
-		{"asked for, refresh", 25 * time.Second, prefs(&navigation{Active: ptr(false)}, "auto", true), soc, opRefresh, "", "running"},
-		{"asked for, charge low: stop", 26 * time.Second, prefs(&navigation{Active: ptr(false)}, "auto", true), ptr(15.0), opStop, "15 %", "armed"},
+		{"asked for, no route: the car's mode on", 20 * time.Second, prefs(&navigation{Active: ptr(false)}, "auto", true), soc, opModeOn, "", "running"},
+		{"asked for: the car holds the mode", 25 * time.Second, prefs(&navigation{Active: ptr(false)}, "auto", true), soc, opNone, "", "running"},
+		{"asked for, charge low: mode off", 26 * time.Second, prefs(&navigation{Active: ptr(false)}, "auto", true), ptr(15.0), opModeOff, "15 %", "armed"},
 		{"the request ends", 27 * time.Second, prefs(&navigation{Active: ptr(false)}, "auto", false), soc, opNone, "the request in LIVI ended", "armed"},
-		{"asked for again", 27500 * time.Millisecond, prefs(&navigation{Active: ptr(true)}, "auto", true), soc, opStart, "", "running"},
-		{"switched off on a route: stop, and why", 27700 * time.Millisecond, prefs(&navigation{Active: ptr(true)}, "auto", false), soc, opStop, "the request in LIVI ended", "armed"},
+		{"asked for again", 27500 * time.Millisecond, prefs(&navigation{Active: ptr(true)}, "auto", true), soc, opModeOn, "", "running"},
+		{"switched off on a route: mode off, and why", 27700 * time.Millisecond, prefs(&navigation{Active: ptr(true)}, "auto", false), soc, opModeOff, "the request in LIVI ended", "armed"},
 		{"then the route's own reason", 27800 * time.Millisecond, prefs(&navigation{Active: ptr(true)}, "auto", false), soc, opNone, "not a charger", "armed"},
 		{"LIVI's threshold above the charger", 27900 * time.Millisecond, minKw(stop(350, 90000, 3500, nil), 400), soc, opNone, "not above 400", "armed"},
 		{"auto, a charger: start", 28 * time.Second, prefs(stop(350, 90000, 3500, nil), "auto", false), soc, opStart, "", "running"},
 		{"turned off: stop", 29 * time.Second, prefs(stop(350, 89000, 3450, nil), "off", false), soc, opStop, "off in LIVI", "off"},
 		{"off wins over asked for", 30 * time.Second, prefs(stop(350, 88000, 3400, nil), "off", true), soc, opNone, "off in LIVI", "off"},
 		{"LIVI's threshold below the flag's", 31 * time.Second, minKw(stop(40, 30000, 1200, nil), 30), soc, opStart, "", "running"},
+		{"asked for during the route's run: it goes on", 31500 * time.Millisecond, prefs(stop(350, 29500, 1180, nil), "auto", true), soc, opNone, "", "running"},
+		{"the route and the request end: stop", 32 * time.Second, &navigation{Active: ptr(false)}, soc, opStop, "the request in LIVI ended", "armed"},
+		{"asked for: mode on", 33 * time.Second, prefs(&navigation{Active: ptr(false)}, "auto", true), soc, opModeOn, "", "running"},
+		{"the request ends nearing a charger: mode off", 34 * time.Second, prefs(stop(350, 90000, 3500, nil), "auto", false), soc, opModeOff, "", "armed"},
+		{"then the route's own run", 35 * time.Second, prefs(stop(350, 90000, 3500, nil), "auto", false), soc, opStart, "", "running"},
 	} {
 		got := p.step(tc.n, tc.soc, t0.Add(tc.at))
 		if st := p.state(tc.n); got != tc.want || !strings.Contains(p.why, tc.why) || st != tc.state {

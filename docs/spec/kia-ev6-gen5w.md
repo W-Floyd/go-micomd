@@ -43,7 +43,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 17 |
-| 🟡 code | 50 |
+| 🟡 code | 51 |
 | 🟠 inferred | 3 |
 
 Not yet backed by a capture:
@@ -77,6 +77,7 @@ Not yet backed by a capture:
 | batt-cond-route-distance | `poll_tx` | 0x66 | 🟡 code | stock HEVService.setBattCondRouteDis: sendPacket(0x88, 0x0c, 0x0c66, [hi, lo]) |
 | batt-cond-remain-time | `poll_tx` | 0x65 | 🟡 code | stock HEVService.setBattCondRemainTime: sendPacket(0x88, 0x0c, 0x0c65, [hi, lo]) |
 | batt-cond-ev-station | `poll_tx` | 0x68 | 🟡 code | stock HEVService.setBattCondEvStation: sendPacket(0x88, 0x0c, 0x0c68, [flag & 0xf, type & 0xf]), then HEVService\$6 [7, 7] after 120 ms; github.com/paytondevs/gen5w-preconditioning PreconditioningProfile |
+| batt-cond-mode | `poll_tx` | 0x62 | 🟡 code | stock HEVManager.setBatteryConditioning -> HEVService: sendPacket(0x88, 0x0c, 0x0c62, [mode]), then HEVService\$5 [0] after 120 ms |
 | Power state | `system_rx` | 0x08 | 🟡 code | micom firmware FUN_0006ee40; micom-run ACC off to state 0 |
 | Power state (ACC on) | `system_rx` | 0x08 | 🟡 code | micom-run: ff 01 8a 01 81 08 00 03 01 05 fb on ACC on |
 | ACC edge | `system_rx` | 0x33 | 🟡 code | micom-run: 0x8133 [01] on ACC off, [02] on ACC on |
@@ -148,7 +149,7 @@ Not yet backed by a capture:
 | acc_edge | **1** off<br>**2** on | ACC edge: ACC |
 | adm | **0** off<br>**1** on | Variant code: ADM |
 | batt_cond_failure | **1** range<br>**2** temperature_optimal<br>**3** heat_management | Battery conditioning failure: Battery conditioning failure; HEV status (full): Battery conditioning failure |
-| batt_cond_mode | **0** default<br>**1** off<br>**2** on | Battery conditioning mode: Battery conditioning mode; HEV status (full): Battery conditioning mode |
+| batt_cond_mode | **0** default<br>**1** off<br>**2** on | Battery conditioning mode: Battery conditioning mode; HEV status (full): Battery conditioning mode; batt-cond-mode: mode |
 | camera | **0** r_cam<br>**1** r_cam_old<br>**2** lvs<br>**3** avm | Variant code: Camera |
 | camera_mode | **0** analog<br>**1** digital | Variant code: Camera mode |
 | country | 9 values, below | Variant code: Country |
@@ -1380,6 +1381,21 @@ cmd `0x68`, length 2 · 🟡 code
 packet-beta
 0-7: "flag"
 8-15: "type"
+```
+
+#### batt-cond-mode
+
+cmd `0x62`, length 1 · 🟡 code
+
+> stock HEVManager.setBatteryConditioning -> HEVService: sendPacket(0x88, 0x0c, 0x0c62, [mode]), then HEVService\$5 [0] after 120 ms
+
+| Field | At | Enum |
+| --- | --- | --- |
+| mode | byte 0 | batt_cond_mode |
+
+```mermaid
+packet-beta
+0-7: "mode"
 ```
 
 ### system_tx

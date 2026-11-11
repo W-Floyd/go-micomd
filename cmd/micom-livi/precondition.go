@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"cmp"
 	"context"
 	"fmt"
 	"math"
@@ -56,6 +57,7 @@ type precond struct {
 	sentAt  time.Time
 	why     string // the last reason it is not running, for the log
 	manual  bool   // LIVI's request, at the last step
+	byMode  bool   // running started with the car's mode, not the route
 }
 
 type precondOp int
@@ -65,6 +67,11 @@ const (
 	opStart             // the route, then the station event
 	opRefresh           // the route again, every precondRefresh
 	opStop              // the cancel
+	// LIVI's request, as the car's own EV settings toggle does it: its
+	// battery conditioning mode on, then off. The car holds the mode, so
+	// nothing is refreshed.
+	opModeOn
+	opModeOff
 )
 
 // precondRefresh is how often the route goes again while running, as
@@ -131,16 +138,21 @@ func (p *precond) step(n *navigation, soc *float64, now time.Time) precondOp {
 	}
 	p.manual = manual
 	switch {
+	case p.running && p.byMode && (!ok || !manual):
+		// A route that wants it starts its own run at the next step.
+		p.running, p.byMode = false, false
+		return opModeOff
 	case p.running && !ok:
 		p.running = false
 		return opStop
+	case p.running && p.byMode:
 	case p.running && now.Sub(p.sentAt) >= precondRefresh:
 		p.sentAt = now
 		return opRefresh
 	case !p.running && ok && manual:
 		// Asked for: the per-route cap is against flapping, not the user.
-		p.running, p.sentAt = true, now
-		return opStart
+		p.running, p.byMode, p.sentAt = true, true, now
+		return opModeOn
 	case !p.running && ok && p.starts < p.rules.maxStarts:
 		p.running, p.sentAt = true, now
 		p.starts++
@@ -191,6 +203,13 @@ const (
 	// Stock's HEVService sends station 07 07 this long after every station
 	// event: the event is a pulse.
 	stationPulse = 120 * time.Millisecond
+)
+
+// micomd's batt-cond-mode sends stock's 00 ("to default") itself, 120 ms
+// after each.
+const (
+	modeOn  = `{"msg":"batt-cond-mode","mode":"on"}`
+	modeOff = `{"msg":"batt-cond-mode","mode":"off"}`
 )
 
 var routeNone = []string{`{"msg":"batt-cond-route-distance","km":2047}`, `{"msg":"batt-cond-remain-time","minutes":1023}`}
@@ -258,9 +277,15 @@ func (r *precondRunner) run(ctx context.Context) {
 			if cs := n.ChargingStop; cs != nil && cs.DistanceM != nil && cs.TimeS != nil {
 				r.logf("battery conditioning: start, the %d kW charger %d m and %d s away", cs.PowerW/1000, *cs.DistanceM, *cs.TimeS)
 			} else {
-				r.logf("battery conditioning: start, asked for in LIVI")
+				r.logf("battery conditioning: start")
 			}
 			err = send(append(routeFor(n), stationStart, "", stationInvalid)...)
+		case opModeOn:
+			r.logf("battery conditioning: the car's mode on, asked for in LIVI")
+			err = send(modeOn)
+		case opModeOff:
+			r.logf("battery conditioning: the car's mode off (%s)", cmp.Or(r.p.why, "the request in LIVI ended"))
+			err = send(modeOff)
 		case opRefresh:
 			err = send(routeFor(n)...)
 		case opStop:
@@ -278,7 +303,11 @@ func (r *precondRunner) run(ctx context.Context) {
 		case <-ctx.Done():
 			if r.p.running {
 				r.p.why = "micom-livi stopping"
-				exec(opStop, nil)
+				op := opStop
+				if r.p.byMode {
+					op = opModeOff
+				}
+				exec(op, nil)
 			}
 			if conn != nil {
 				conn.Close()
@@ -304,7 +333,7 @@ func (r *precondRunner) run(ctx context.Context) {
 			said = r.p.why
 		}
 		now := time.Now()
-		if op == opStart {
+		if op == opStart || op == opModeOn {
 			askedAt, warned = now, false
 		}
 		c := r.cond()

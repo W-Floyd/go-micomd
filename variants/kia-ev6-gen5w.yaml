@@ -537,6 +537,22 @@ messages:
     on_change: false
     status: code
     ref: "stock HEVService.setBattCondEvStation: sendPacket(0x88, 0x0c, 0x0c68, [flag & 0xf, type & 0xf]), then HEVService$6 [7, 7] after 120 ms; github.com/paytondevs/gen5w-preconditioning PreconditioningProfile"
+  # The EV settings' "Battery Conditioning Mode": on starts conditioning now
+  # and lets the navigation's route (above) start it; the car holds it and
+  # reports it as "Battery conditioning mode". Stock follows it with
+  # default (00) 120 ms later, a pulse: here its timeout and end send that.
+  - name: batt-cond-mode
+    dir: to_micom
+    hdr: poll_tx
+    cmd: 0x62
+    length: 1
+    fields:
+      - { name: mode, off: 0, enum: batt_cond_mode }
+    timeout: 120ms
+    end:
+      - { msg: batt-cond-mode, set: { mode: default } }
+    status: code
+    ref: "stock HEVManager.setBatteryConditioning -> HEVService: sendPacket(0x88, 0x0c, 0x0c62, [mode]), then HEVService$5 [0] after 120 ms"
 
   # Power and ACC, from the micom firmware (CV_E.USA.S5W_M.V002.208) in
   # emulation and disassembly; not yet seen from a car. The ACC-off timeline

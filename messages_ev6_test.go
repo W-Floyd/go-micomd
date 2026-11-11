@@ -10,8 +10,9 @@ import (
 )
 
 // The EV6's to_micom messages: input lines and the frames they send, whole
-// and with their checksums. A line "rx FRAME" is a frame received; "INPUT
-// => ERROR" an input refused with that error. Every frame sent also reads
+// and with their checksums. A line "rx FRAME" is a frame received; "after
+// D" the clock moving on D, then a tick; "INPUT => ERROR" an input refused
+// with that error. Every frame sent also reads
 // back (DecodeInput) into an input that encodes to it again.
 func TestEV6Messages(t *testing.T) {
 	v := ev6(t)
@@ -106,13 +107,29 @@ func TestEV6Messages(t *testing.T) {
 			`{"msg":"batt-cond-ev-station","flag":0,"type":0}`,
 			`{"msg":"batt-cond-route-distance","km":2048} => above the maximum 2047`,
 		}, []string{"ff 88 0c 01 0c 66 00 03 07 ff eb", "ff 88 0c 01 0c 65 00 03 03 ff ec", "ff 88 0c 01 0c 68 00 03 00 00 1d"}},
+		// Stock's EV settings toggle: the mode, then default 120 ms on.
+		{"battery conditioning mode on, then off", []string{
+			`{"msg":"batt-cond-mode","mode":"on"}`, "after 50ms", "after 100ms",
+			`{"msg":"batt-cond-mode","mode":"off"}`, "after 150ms",
+			`{"msg":"batt-cond-mode","on":true} => on: no such field`,
+		}, []string{"ff 88 0c 01 0c 62 00 02 02 14", "ff 88 0c 01 0c 62 00 02 00 16", "ff 88 0c 01 0c 62 00 02 01 17", "ff 88 0c 01 0c 62 00 02 00 16"}},
 	} {
 		var sent []Frame
 		send := func(f Frame) error { sent = append(sent, f); return nil }
-		now := func() time.Time { return time.Unix(0, 0) }
+		clock := time.Unix(0, 0)
+		now := func() time.Time { return clock }
 		all := InputGates{Inferred: true, Persistent: true}
 		e := newInputEngine(v, all, send, func([]string, bool) {}, now, t.Logf)
 		for _, l := range tc.lines {
+			if s, ok := strings.CutPrefix(l, "after "); ok {
+				d, err := time.ParseDuration(s)
+				if err != nil {
+					t.Fatalf("%s: %v", tc.name, err)
+				}
+				clock = clock.Add(d)
+				e.tick(clock)
+				continue
+			}
 			if s, ok := strings.CutPrefix(l, "rx "); ok {
 				f, err := ParseHexFrame(s)
 				if err != nil {
@@ -173,8 +190,8 @@ func TestEV6Messages(t *testing.T) {
 	}{
 		{InputGates{}, nil},
 		{InputGates{Persistent: true}, nil},
-		{InputGates{Inferred: true}, []string{"backlight", "batt-cond-ev-station", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-position", "cluster-sub-info", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
-		{InputGates{Inferred: true, Persistent: true}, []string{"backlight", "backlight-dim-mode", "backlight-manual-level", "backlight-period-level", "batt-cond-ev-station", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-position", "cluster-sub-info", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
+		{InputGates{Inferred: true}, []string{"backlight", "batt-cond-ev-station", "batt-cond-mode", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-position", "cluster-sub-info", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
+		{InputGates{Inferred: true, Persistent: true}, []string{"backlight", "backlight-dim-mode", "backlight-manual-level", "backlight-period-level", "batt-cond-ev-station", "batt-cond-mode", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-position", "cluster-sub-info", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
 	} {
 		e := newInputEngine(v, tc.g, func(Frame) error { return nil }, func([]string, bool) {}, time.Now, t.Logf)
 		if ok, _ := e.enabled(); !slices.Equal(ok, tc.want) {

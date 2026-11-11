@@ -55,7 +55,7 @@ func main() {
 	minSpeed := flag.Float64("heading-min-speed", 0, "m/s: take the track as the heading only at this speed or above, for a plain GNSS track; 0 takes every track (hippod's is the gyro-held DR bearing)")
 	hold := flag.Duration("heading-hold", 10*time.Minute, "with -heading-min-speed, how long the last heading stays on the compass below it")
 	releaseAfter := flag.Duration("release-after", 0, "give the cluster's navigation pane back once LIVI has been unreadable this long; 0 keeps it until micom-livi stops")
-	precondition := flag.Bool("precondition", false, "with -input, ask the car to warm its battery while Android Auto's route leads to a fast charger (the variant's batt-cond-* messages, as stock's navigation does); the BMS decides")
+	precondition := flag.Bool("precondition", false, "with -input, ask the car to warm its battery while Android Auto's route leads to a fast charger (the variant's batt-cond-* messages, as stock's navigation does), and while LIVI asks for it switch the car's battery conditioning mode on (batt-cond-mode, as stock's EV settings do); the BMS decides")
 	pcMinKw := flag.Float64("precondition-min-kw", 50, "kW: only for chargers above this, Android Auto giving no DC or AC")
 	pcMaxTime := flag.Duration("precondition-max-time", time.Hour, "start this close to the charger")
 	pcMinSoC := flag.Float64("precondition-min-soc", 20, "%: the car's charge it needs, now")
