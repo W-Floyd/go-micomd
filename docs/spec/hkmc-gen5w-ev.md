@@ -37,6 +37,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 
 | Status | Messages |
 | --- | --- |
+| 🟢 captured | 2 |
 | 🟡 code | 5 |
 
 Not yet backed by a capture:
@@ -203,6 +204,42 @@ cmd `0x02`, length 3 · 🟡 code
 packet-beta
 0-7: "?"
 8-23: "Climate power draw"
+```
+
+#### Range, climate
+
+cmd `0x02`, length 4 · 🟢 captured
+
+> HEVService flag ADDED_DIST_DATC_OFF (0x26); seen live as 2a 00 f3 08 beside cluster Range=243 km
+
+| Field | At | Type | Unit |
+| --- | --- | --- | --- |
+| Range, climate on | byte 1 | u16 | km |
+| Range added, climate off | byte 3 |  | km |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "Range, climate on"
+24-31: "Range added, climate off"
+```
+
+#### Range, climate (0x25)
+
+cmd `0x02`, length 4 · 🟢 captured
+
+> HEVService flag ADDED_DIST_DATC_OFF (0x26); seen live as 25 01 6b 07
+
+| Field | At | Type | Unit |
+| --- | --- | --- | --- |
+| Range, climate on | byte 1 | u16 | km |
+| Range added, climate off | byte 3 |  | km |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "Range, climate on"
+24-31: "Range added, climate off"
 ```
 
 #### EV power block

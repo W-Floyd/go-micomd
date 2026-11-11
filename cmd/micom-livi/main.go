@@ -1,8 +1,9 @@
 // Command micom-livi feeds the car's state, as micomd decodes it, into LIVI's
 // telemetry: it reads micomd's tap socket and posts the climate (panel and seat
 // heat) to LIVI's telemetry endpoint as the car's ("source": "car"), and
-// speedKph, fuelPct, batteryLevelKwh, rangeKm, ambientC, odometerKm and
-// nightMode (the micom's illumination), each when it changes (carFields).
+// speedKph, fuelPct, batteryLevelKwh, rangeKm, rangeClimateOffKm, ambientC,
+// odometerKm and nightMode (the micom's illumination), each when it changes
+// (carFields, liviCar).
 // With -input it also reads LIVI's route guidance (GET /navigation) and shows
 // it on the instrument cluster through micomd's -input socket (nav.go).
 //
@@ -211,10 +212,21 @@ var carFields = map[string]string{
 }
 
 // liviCar is what of a frame's decoded fields LIVI takes, as its telemetry
-// fields.
+// fields. rangeClimateOffKm is a sum, the range plus what switching the
+// climate off adds, read from one frame; rangeKm stays the cluster's, which
+// is the same range but sent periodically rather than on change.
 func liviCar(fs []micom.Field) map[string]any {
 	var out map[string]any
+	var on, added *int
 	for _, f := range fs {
+		if f.Valid {
+			switch f.Name {
+			case "Range, climate on":
+				on = &f.Value
+			case "Range added, climate off":
+				added = &f.Value
+			}
+		}
 		key, ok := carFields[f.Name]
 		if !ok || !f.Valid {
 			continue
@@ -230,6 +242,12 @@ func liviCar(fs []micom.Field) map[string]any {
 			out = map[string]any{}
 		}
 		out[key] = v
+	}
+	if on != nil && added != nil {
+		if out == nil {
+			out = map[string]any{}
+		}
+		out["rangeClimateOffKm"] = float64(*on + *added)
 	}
 	return out
 }

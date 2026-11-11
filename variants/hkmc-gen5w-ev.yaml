@@ -29,6 +29,33 @@ messages:
     status: code
     ref: "HEVService status-flag setter; seen live as 57 00 NN"
 
+  # Ids 0x2a and 0x25 (HEVFlag ADDED_DIST_DATC_OFF): the range as the car
+  # computes it, then what switching the climate off would add; sent on
+  # change only. The EV app shows the first as "climate on", the sum as
+  # "climate off". Same field names: telemetry keys readings by name.
+  - name: "Range, climate"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 4
+    when: [ { off: 0, eq: 0x2a } ]
+    fields:
+      - { name: "Range, climate on",        off: 1, type: u16, unit: " km" }
+      - { name: "Range added, climate off", off: 3,            unit: " km" }
+    status: captured
+    ref: "HEVService flag ADDED_DIST_DATC_OFF (0x26); seen live as 2a 00 f3 08 beside cluster Range=243 km"
+  - name: "Range, climate (0x25)"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 4
+    when: [ { off: 0, eq: 0x25 } ]
+    fields:
+      - { name: "Range, climate on",        off: 1, type: u16, unit: " km" }
+      - { name: "Range added, climate off", off: 3,            unit: " km" }
+    status: captured
+    ref: "HEVService flag ADDED_DIST_DATC_OFF (0x26); seen live as 25 01 6b 07"
+
   - name: "EV power block"
     dir: from_micom
     hdr: "0c 88 ?? 8c"
