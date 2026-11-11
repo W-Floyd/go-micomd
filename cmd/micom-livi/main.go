@@ -287,19 +287,34 @@ func field(s, prefix string) ([]byte, bool) {
 
 // liviClimate is the car's climate as LIVI's telemetry block, with only what
 // the car has reported. LIVI's ranges are narrower than the car's in two
-// places: set points are 16 to 28 C (the car's are whole Fahrenheit degrees),
-// and the fan has 7 levels to the car's 8, so the car's top two both show as 7.
+// places: set points are 16 to 28 C, its ends LO and HI (the car's own LO and
+// HI go there), and the fan has 7 levels to the car's 8, so the car's top two
+// both show as 7. The car's Celsius set point is exact; its Fahrenheit one is
+// converted only when that is all there is.
 // Which vent stands for which airflow is a reading of the names, not a capture.
 func liviClimate(c micom.CarClimate) map[string]any {
 	out := map[string]any{"source": "car"}
-	setPoint := func(key string, f *int) {
-		if f != nil && *f != 0 {
-			cel := float64(*f-32) * 5 / 9
-			out[key] = math.Min(28, math.Max(16, math.Round(cel*2)/2))
+	setPoint := func(key string, halfC, f *int) {
+		v, cel := halfC, 0.0
+		switch {
+		case halfC != nil:
+			cel = float64(*halfC) / 2
+		case f != nil:
+			v, cel = f, float64(*f-32)*5/9
 		}
+		if v == nil || *v == 0 {
+			return
+		}
+		switch *v {
+		case micom.SetPointLo:
+			cel = 16
+		case micom.SetPointHi:
+			cel = 28
+		}
+		out[key] = math.Min(28, math.Max(16, math.Round(cel*2)/2))
 	}
-	setPoint("driverTargetC", c.DriverSetF)
-	setPoint("passengerTargetC", c.PassengerSetF)
+	setPoint("driverTargetC", c.DriverSetHalfC, c.DriverSetF)
+	setPoint("passengerTargetC", c.PassengerSetHalfC, c.PassengerSetF)
 	flag := func(key string, b *bool) {
 		if b != nil {
 			out[key] = *b

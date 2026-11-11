@@ -19,7 +19,11 @@ func TestCarClimateApply(t *testing.T) {
 	}{
 		{"43c200c3", 0x1b, "01", ClimateBegin, CarClimate{}},
 		{"43c200c3", 0x1b, "00", ClimateEnd, CarClimate{}},
-		{"43c200c3", 0x05, "10", ClimateChanged, CarClimate{DriverSetF: ptr(72)}},
+		{"43c200c3", 0x05, "10", ClimateChanged, CarClimate{DriverSetHalfC: ptr(44)}},
+		{"43c200c3", 0x07, "10", ClimateChanged, CarClimate{DriverSetF: ptr(72)}},
+		{"43c200c3", 0x09, "01", ClimateChanged, CarClimate{PassengerSetHalfC: ptr(SetPointLo)}},
+		{"43c200c3", 0x07, "fe", ClimateChanged, CarClimate{DriverSetF: ptr(SetPointHi)}},
+		{"43c200c3", 0x05, "40", ClimateNone, CarClimate{}},
 		{"43c200c3", 0x0b, "00", ClimateChanged, CarClimate{PassengerSetF: ptr(0)}},
 		{"43c200c3", 0x0d, "03", ClimateChanged, CarClimate{Airflow: ptr(byte(3))}},
 		{"43c200c3", 0x0d, "07", ClimateNone, CarClimate{}},

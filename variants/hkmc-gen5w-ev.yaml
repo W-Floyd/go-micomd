@@ -115,15 +115,18 @@ messages:
     # LSB- or MSB-first by a field the decompile lost.
     ref: "HEVService; captured only at the default"
 
+  # The on-board charger ready (OBC_SYSRDYSTA). Where it sits depends on the
+  # CAN DB generation (byte 120 of the 0x8101 boot record): bits 7:6 before
+  # generation 2, bits 1:0 from it; a car's file picks its own.
   - name: "Charger state"
     dir: from_micom
     hdr: "0c 88 ?? 8c"
     cmd: 0x4f
     min_length: 4
     fields:
-      - { name: "Charger ready bits", off: 3, bits: "7:6" }
+      - { name: "Charger ready", off: 3, bits: "7:6" }
     status: code
-    ref: "HEVService"
+    ref: "HEVService OBC ready (CAN DB generation < 2)"
 
 send:
   # Inferred statically, never seen sent; -hev-status-request sends it.

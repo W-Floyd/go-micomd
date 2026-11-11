@@ -28,7 +28,10 @@ headers:
   body:          { hdr: "44 c1 00 c4", dir: from_micom, status: captured, ref: "doors; repeats seat heat and windows" }
   camera:        { hdr: "01 c4 01 81", dir: from_micom, status: captured }
   cluster_rx:    { hdr: "0d 8f 01 8d", dir: from_micom, status: captured, ref: "battery and cruise; cluster_tx's reverse" }
-  bms_rx:        { hdr: "40 c7 80 c0", dir: from_micom, status: captured, ref: "the BMS's state of charge (cmd ad); ac, ae, a9 and aa barely change while charging" }
+  # Not a BMS broadcast: the micom relays diagnostic (OBD-II / UDS) replies
+  # it sees on the bus (stock passes them raw to its hscand), present only
+  # while an external tester polls.
+  diag_relay:    { hdr: "40 c7 80 c0", dir: from_micom, status: captured, ref: "stock HscanMicomService (rcvId 0xc7); seen only in logs taken while Car Scanner polled over OBD" }
   poll_tx:       { hdr: "88 0c 01 0c", dir: to_micom, status: captured }
   # ClusterService.sendPacket: sndId 0x8f, rcvId 0x0d, type 1, funcH 0x0d.
   cluster_tx:    { hdr: "8f 0d 01 0d", dir: to_micom, status: captured, ref: "the ack profile frame; stock ClusterService" }
@@ -66,7 +69,9 @@ keys:
     - { type: 2, code: 8,  label: "Wheel voice",       key: KEY_F13 }
     - { type: 2, code: 10, label: "Wheel call",        key: KEY_F14 }
     - { type: 2, code: 11, label: "Wheel star",        key: KEY_F21 }
-  # A knob step is the high nibble of the second byte: 1 up, 0 down.
+  # A knob turn: the high nibble of the second byte 1 up, 0 down, the low
+  # nibble the detents turned (stock KnobKeyFromMicom), one tap each. A knob
+  # is named by its one-detent frame, code 1.
   knobs:
     - { type: 8, code: 1, label: "Tune knob",   up: KEY_F15,      down: KEY_F16 }
     - { type: 9, code: 1, label: "Volume knob", up: KEY_VOLUMEUP, down: KEY_VOLUMEDOWN }
@@ -79,19 +84,37 @@ signals:
     burst: { begin: 0x01 }
     lines: { 0x01: "Climate update begins" }
     unknown_line: "Climate update ends"
+  # Set points, each in both units: 0x05 and 0x09 Celsius, raw / 2 + 14
+  # (state in half degrees, raw + 28), 0x07 and 0x0b Fahrenheit, raw + 56.
+  # 00 is the zone off (the passenger's with driver only), 01 LO, fe HI.
+  - name: climate-driver-set-c
+    hdr: climate_panel
+    cmd: 0x05
+    label: "Climate driver set point"
+    number: { add: 28, div: 2, range: [2, 36], format: "%g C" }
+    values: &setc { 0x00: { text: "off", state: 0 }, 0x01: { text: "LO", state: -1 }, 0xfe: { text: "HI", state: -2 } }
+    state: driver_set_half_c
+    ref: "DATCService DrTempDispC / PsTempDispC (C = raw * 0.5 + 14; 1 LO, 254 HI)"
   - name: climate-driver-set
     hdr: climate_panel
-    cmd: [0x05, 0x07]
+    cmd: 0x07
     label: "Climate driver set point"
-    number: { add: 56, format: "%d F" }          # degrees Fahrenheit less 56
-    values: { 0x00: { text: "off", state: 0 } }  # the zone off
+    number: { add: 56, range: [2, 36], format: "%d F" }
+    values: *setc
     state: driver_set_f
+  - name: climate-passenger-set-c
+    hdr: climate_panel
+    cmd: 0x09
+    label: "Climate passenger set point"
+    number: { add: 28, div: 2, range: [2, 36], format: "%g C" }
+    values: *setc
+    state: passenger_set_half_c
   - name: climate-passenger-set
     hdr: climate_panel
-    cmd: [0x09, 0x0b]
+    cmd: 0x0b
     label: "Climate passenger set point"
-    number: { add: 56, format: "%d F" }
-    values: { 0x00: { text: "off", state: 0 } }  # off with driver only
+    number: { add: 56, range: [2, 36], format: "%d F" }
+    values: *setc
     state: passenger_set_f
   - name: climate-airflow
     hdr: climate_panel
@@ -138,7 +161,8 @@ signals:
   - { name: seat-heat-passenger-repeat,  hdr: body,      cmd: 0x1b, len: 0, label: "Seat heat, passenger (repeat)",number: *seat, values: *seatoff, state: passenger_seat_heat }
 
   # Power windows of the driver and front passenger, from the driver's door
-  # switches. Switch: 0 released, 1 and 2 held down and up, 5 and 6 pressed
+  # switches. "Switch" is stock's *WindowActState, the motor's action as the
+  # switch drives it. Switch: 0 released, 1 and 2 held down and up, 5 and 6 pressed
   # hard (auto down and up). Position: coarse, 0 closed (top) to 3 fully
   # down, sent when it crosses a step. The rear windows were not tried.
   - { name: window-driver-switch,    hdr: seat_node, cmd: 0x08, label: "Window driver",    enum: &winsw { 0: "switch released", 1: "switch down", 2: "switch up", 5: "switch hard down (auto)", 6: "switch hard up (auto)" }, unknown: "switch code %#02x" }
@@ -183,31 +207,26 @@ signals:
     enum: { 0x00: "park", 0x05: "drive", 0x06: "neutral", 0x07: "reverse" }
     unknown: "code %#02x"
 
-  # Out of Park: true (01) in D, N and R alike, false (00) only in Park;
-  # confirmed independent of gear (a D->N shift changed only cmd 0x4a, not
-  # this) and independent of the doors (a P->D shift with the doors already
-  # locked - no lock/unlock frame at all that transition - still flipped
-  # this). Three identical copies seen, each on its own cmd: the one below,
-  # and the two -repeat entries. One more copy on the body node
-  # (out-of-park-body). Firmware side (micom-findings.md): in emulation the
-  # micom sends 0x1b and 0x03 frames unprompted once link-up happens, no CAN
-  # input modelled - consistent with these being state broadcasts off a CAN
-  # signal the emulation does not drive, not computed from anything else on
-  # the wire; that doc does not record the payloads, so it neither confirms
-  # nor refutes the meaning here.
-  - { name: out-of-park,           hdr: system_rx, cmd: 0x03, label: "Out of park", flag: { on: 1, off: 0 }, unknown: "" }
-  - { name: out-of-park-repeat-1,  hdr: system_rx, cmd: 0x26, label: "Out of park", flag: { on: 1, off: 0 }, unknown: "", suffix: " (repeat)" }
-  - { name: out-of-park-repeat-2,  hdr: system_rx, cmd: 0x9a, label: "Out of park", flag: { on: 1, off: 0 }, unknown: "", suffix: " (repeat)" }
-  - { name: out-of-park-body,      hdr: body,      cmd: 0x10, label: "Out of park", flag: { on: 1, off: 0 }, unknown: "", suffix: " (body node)" }
+  # Three system frames went 01 together on leaving Park (in D, N and R
+  # alike) and 00 back in it. Stock names them: 0x8103 is the driving
+  # regulation (the video and keyboard lockout; the micom decides when, the
+  # HU applies no speed of its own), 0x819a regulation B (the stricter one
+  # tied to P and the parking brake), 0x8126 the gear status, whose stock
+  # codes (P 0, D 5, N 6, R 7) this micom does not use: it sends 0 in P and
+  # 1 out of it. The body node's 0x10 is the P position (C_PpositionClutch).
+  - { name: driving-regulation,   hdr: system_rx, cmd: 0x03, label: "Driving regulation",   flag: { on: 1, off: 0 }, unknown: "", ref: "stock SYS_REGULATOIN_STATUS_M (0x8103) -> RegulationService" }
+  - { name: gear-status,          hdr: system_rx, cmd: 0x26, label: "Out of park",          flag: { on: 1, off: 0 }, unknown: "", suffix: " (gear status)", ref: "stock SYS_GEAR_STATUS_M (0x8126); 0/1 on this car" }
+  - { name: driving-regulation-b, hdr: system_rx, cmd: 0x9a, label: "Driving regulation B", flag: { on: 1, off: 0 }, unknown: "", ref: "stock SYS_REGULATION_B_STATUS_M (0x819a) -> RegulationService" }
+  - { name: out-of-park-body,     hdr: body,      cmd: 0x10, label: "Out of park",          flag: { on: 1, off: 0 }, unknown: "", suffix: " (body node)", ref: "stock BODY C_PpositionClutch" }
 
   # Reverse specifically (not just out-of-park): on exactly when the camera
   # (rear-camera, code 01) and gear (0x4a = 0x07) are.
   - { name: reverse-active, hdr: system_rx, cmd: 0x1b, label: "Reverse", flag: { on: 1, off: 0 }, unknown: "" }
 
-  # Fires 1-5s after out-of-park, opposite polarity (0 shortly after
-  # leaving Park, 1 shortly after returning to it); meaning not understood
-  # - a settle/debounce confirmation is a guess, not a fact.
-  - { name: shift-settled, hdr: system_rx, cmd: 0x29, label: "Flag 0x8129", enum: { 0x00: "0", 0x01: "1" }, unknown: "" }
+  # Stock's parking status (0x8129, > 0 applied). Here 0 1-5 s after leaving
+  # Park and 1 1-5 s after returning to it, as the electric parking brake
+  # releases and applies itself; never seen with the brake set by hand.
+  - { name: parking-brake, hdr: system_rx, cmd: 0x29, label: "Parking brake", flag: { on: 1, off: 0 }, unknown: "", ref: "stock SYS_PARKING_STATUS_M (0x8129) -> onParkingStatus" }
 
   # The rear camera button: 09 when pressed on, 00 off, with cmd 52 (six
   # bytes) following, its last byte 02 on / 00 off; other values unknown.
@@ -254,15 +273,16 @@ profile:
     ref: "stock GpmNaviTBTManager / ClusterService$NaviCluster TBTSubInfo packer (hmg_nemesis projection-tbt, stock automotive-service smali)"
   # The two frames whose payload follows the wall clock: only with -clock,
   # as a wrong time may be stored by the car.
-  # clock-sec is ?? a0 MM SS 80: the 2026-11-07 strace has 02 a0 14 32 80
-  # at 20:20:50 and 02 a0 15 10 80 at 20:21:16 (the 01 of the first capture
-  # was its minute, 20:01). The first byte was 04 then and 02 since: unknown.
+  # clock-sec is HEVService's HU clock for the car's charge scheduling:
+  # weekday bit, hour << 3, minute, second, 80. The first capture
+  # (Friday 20:01) had 04 a0 01, the 2026-11-07 strace (Saturday 20:20:50)
+  # 02 a0 14 32 80.
   - name: clock-sec
     every: 1s
     opt_in: clock
-    template: "ff 88 0c 01 0c 09 00 06 04 a0 {minute} {second} 80 .."
+    template: "ff 88 0c 01 0c 09 00 06 {weekday_bit} {hour_shl3} {minute} {second} 80 .."
     status: captured
-    ref: "logcat MicomD 2026-10-16 20:01:16-17; stock micomd strace 2026-11-07"
+    ref: "logcat MicomD 2026-10-16 20:01:16-17; stock micomd strace 2026-11-07; stock HEVService clock (0x0C09, CAN DB generation 2)"
   - name: clock
     every: 1s
     opt_in: clock
@@ -274,11 +294,12 @@ profile:
 # ones also need -allow-inferred). Captured from the stock micomd (strace on
 # its UART) on a source switch: 0x020B AV mute set, 0x0201 mode (0e Media,
 # 01 Radio), 0x0203 volume, then 0.2-1.3 s later 0x0238 AV mute release,
-# which the micom answers with 0x820B.
+# which the micom answers with 0x820B. The 0x0201 modes are stock's
+# AudioMode: 01 AM, 0e Bluetooth streaming, 09 USB, 12 MUSIC.
 send:
   - { name: av-mute-set,     frame: "ff 85 02 01 02 0b 00 03 02 01 70", status: captured, ref: "stock micomd strace, source switch" }
-  - { name: mode-media,      frame: "ff 85 02 01 02 01 00 03 0e 00 77", status: captured, ref: "stock micomd strace, source switch" }
-  - { name: mode-radio,      frame: "ff 85 02 01 02 01 00 03 01 00 78", status: captured, ref: "stock micomd strace, source switch" }
+  - { name: mode-bt-stream,  frame: "ff 85 02 01 02 01 00 03 0e 00 77", status: captured, ref: "stock micomd strace, source switch (Media); AudioMode BT_STREAM" }
+  - { name: mode-am,         frame: "ff 85 02 01 02 01 00 03 01 00 78", status: captured, ref: "stock micomd strace, source switch (Radio); AudioMode AM" }
   - { name: av-mute-release, frame: "ff 85 02 01 02 38 00 03 02 00 42", status: captured, ref: "stock micomd strace, source switch" }
   - name: main-volume
     pattern: "ff 85 02 01 02 03 00 02 [00-23] .."
@@ -287,8 +308,8 @@ send:
     note: "levels 0-35: the maximum is unknown, 35 is the cap (the I2S card's control)"
   # Inferred statically, never seen sent.
   - { name: boot-mode-request,  frame: "ff 8a 01 01 01 01 00 01 74", status: inferred, ref: "SystemService; the micom answers 0x8101 with its last mode, mute and volume" }
-  - { name: mode-09,            frame: "ff 85 02 01 02 01 00 03 09 00 70", status: inferred, ref: "MicomAudioService audio mode USB" }
-  - { name: mode-12,            frame: "ff 85 02 01 02 01 00 03 12 00 6b", status: inferred, ref: "MicomAudioService audio mode MUSIC" }
+  - { name: mode-usb,           frame: "ff 85 02 01 02 01 00 03 09 00 70", status: inferred, ref: "MicomAudioService audio mode USB" }
+  - { name: mode-music,         frame: "ff 85 02 01 02 01 00 03 12 00 6b", status: inferred, ref: "MicomAudioService audio mode MUSIC" }
   - { name: av-mute-release-0b, frame: "ff 85 02 01 02 0b 00 03 02 00 71", status: inferred, ref: "0x020B mute control: AV, RELEASE" }
   - { name: amp-mute-release,   frame: "ff 85 02 01 02 0b 00 03 01 00 72", status: inferred, ref: "0x020B mute control: AMP, RELEASE" }
   - { name: amp-mute-set,       frame: "ff 85 02 01 02 0b 00 03 01 01 73", status: inferred, ref: "0x020B mute control: AMP, SET" }
@@ -516,38 +537,37 @@ messages:
       - { name: "ACC", off: 0, enum: acc_edge }
     status: code
     ref: "micom-run: 0x8133 [01] on ACC off, [02] on ACC on"
-  # 0x810a-0x810d are not ACC or ignition (ACC is reported only by 0x8108
-  # and 0x8133). Their triggers are CAN signals not yet identified.
-  - name: "CAN rheostat flag"
+  # Stock's ignition, ALT-L and low fuel/charge warning (sticky
+  # SYSTEM_STATE_IGN1/ALTL/FUELWANING). IGN1 went 00 at ACC off and 01 at
+  # ACC on in the captures; ALT-L is the DC-DC on an EV, so the car READY.
+  # (The micom firmware also feeds 0x810a into its CAN rheostat selection.)
+  - name: "IGN1"
     dir: from_micom
     hdr: system_rx
     cmd: 0x0a
     length: 1
     fields:
-      # Sets the micom's "use the CAN rheostat, not the stored one" bit; the
-      # caller is indirect (vehicle or ignition on, a guess).
-      - { name: "CAN rheostat selected", off: 0 }
-    status: code
-    ref: "micom firmware FUN_00062f9c"
-  - name: "CAN rheostat state"
+      - { name: "IGN1", off: 0, type: bool }
+    status: captured
+    ref: "stock SYS_IGN_STATUS_M (0x810a); 00 at ACC off, 01 at ACC on, 2026-11 captures; micom firmware FUN_00062f9c"
+  - name: "Vehicle ready"
     dir: from_micom
     hdr: system_rx
     cmd: 0x0b
     length: 1
     fields:
-      # The flag above and a CAN value (0x40016cc6 == 1), debounced 0.5 s.
-      - { name: "CAN rheostat active", off: 0 }
+      - { name: "Vehicle ready", off: 0, type: bool }
     status: code
-    ref: "micom firmware, 0x810b sender"
-  - name: "Flag 0x810c"
+    ref: "stock SYS_ALTERNATE_STATUS_M (0x810b, ALT-L); micom firmware, 0x810b sender (a CAN value, debounced 0.5 s)"
+  - name: "Charge warning"
     dir: from_micom
     hdr: system_rx
     cmd: 0x0c
     length: 1
     fields:
-      - { name: "Flag 0x810c", off: 0 }   # always 0 on this build (FUN_00073e46)
+      - { name: "Charge warning", off: 0, type: bool }   # always 0 on this micom build (FUN_00073e46)
     status: code
-    ref: "micom firmware FUN_00073e46"
+    ref: "stock SYS_FUELWARNING_STATUS_M (0x810c); micom firmware FUN_00073e46"
   # Stock's SYS_ILLUMINATION_STATUS_M: any non-zero is day ("illuminate
   # on"), 0 night. The micom sends NOT(CAN 0x11f == 1), on change only;
   # stock seeds the state from the 0x8101 boot record (below). Stock's dim
@@ -562,16 +582,18 @@ messages:
     status: code
     ref: "stock SystemService/VideoSetupService SYS_ILLUMINATION_STATUS_M; micom firmware 0x810d sender; micom-run"
   # Stock's InitialCarInfo: the micom's answer to boot-mode-request (it
-  # never sends it unasked), 150 bytes. Byte 4 is the illumination from
-  # the same CAN bit as 0x810d, byte 0x12 the dim mode; the rest is not
-  # decoded. Seen live: night gave 00 at byte 4.
+  # never sends it unasked), 149 bytes on this car. Byte 0 is the boot mode
+  # (what woke the car: 1 normal, 2 door unlock, 8 charging, ...), 1 the
+  # micom's reset reason, 4 the illumination from the same CAN bit as
+  # 0x810d, 0x12 the dim mode. Seen live: night gave 00 at byte 4.
   - name: "Boot record"
     dir: from_micom
     hdr: system_rx
     cmd: 0x01
     min_length: 0x13
     fields:
-      - { name: "Boot reason", off: 0 }
+      - { name: "Boot mode", off: 0 }
+      - { name: "Reset reason", off: 1 }
       - { name: "Illumination", off: 4, enum: illumination }
       - { name: "Dim mode", off: 0x12, enum: dim_mode }
     status: captured
@@ -714,12 +736,17 @@ messages:
       - { name: "Battery minimum temperature", off: 1, type: i8, unit: " °C" }
       - { name: "Battery remaining energy", off: 2, type: u16, scale: 0.002, unit: " kWh" }
       # Likely, not certain: r 0.97/0.88 driving, 0.84/0.67 charging.
+      # TODO: stock names byte 6 DATC_OutTempSnsr, the climate's outside air
+      # sensor, which the fit (0.53 * raw - 44) is also near. Check against
+      # the outdoor temperature (climate_panel 0x02) on a day the pack and
+      # the air differ.
       - { name: "Battery inlet temperature", off: 6, scale: 0.5, offset: -40, unit: " °C" }
     status: captured
     ref: "drive 2026-11, micomd snapshots against Car Scanner OBD2 displayed SoC, minimum battery temperature (r 0.998), remaining energy (r >= 0.99) and battery inlet temperature (fit 0.53*raw-44)"
   # Battery conditioning running: 1 from 68 s after micom-precondition's
   # start until its stop, with the EV power block's battery heater byte
-  # 0 -> 53-54 -> 0 and 0c88018c 54 byte 0 bit 4 over the same window.
+  # 0 -> 53-54 -> 0 and 0c88018c 54 byte 1 over the same window (01, 05 at
+  # the start, 15 once heating, 01 at the stop).
   - name: "Battery conditioning"
     dir: from_micom
     hdr: body
@@ -732,6 +759,10 @@ messages:
   # Active while cruise control holds the speed: it followed off, resume,
   # off and set exactly; arming cruise does not change it. The set speed,
   # LKAS and the following distance are not on this link.
+  # TODO: stock reads byte 0 as VCRM_HDA, Highway Driving Assist's state
+  # (bytes 1-4: info display, lane-centring, alive, navigation status), so
+  # this may be HDA, which follows cruise on a highway. Needs a capture with
+  # cruise set off the highway.
   - name: "Cruise control"
     dir: from_micom
     hdr: cluster_rx
@@ -800,17 +831,32 @@ messages:
       - { name: "Vehicle speed (whole km/h)", off: 0, type: u16, unit: " km/h" }
     status: captured
     ref: "drive 2026-11-08 18:21-18:36 against Car Scanner OBD2 [HVAC] Real Vehicle Speed, and against ground speed from the phone's positions (579 10 s windows above 40 km/h) and the unit's gpsd"
-  # The BMS's own state of charge, not the displayed one (0d8f018d 47);
-  # about 0.4 % a step. 3, 4 and 39 bytes long; the rest not known.
-  - name: "BMS state of charge"
+  # An OBD-II mode 01 reply for PID 0x5b (hybrid/EV pack remaining life,
+  # A * 100 / 255 %), relayed while a tester asked for it: it tracked the
+  # BMS's own state of charge. Other replies on this header: 41 31 (distance
+  # since codes cleared), 62 01 .. (UDS ReadDataByIdentifier), 7f (negative).
+  - name: "OBD pack remaining (PID 0x5b)"
     dir: from_micom
-    hdr: bms_rx
+    hdr: diag_relay
     cmd: 0xad
-    min_length: 3
+    length: 3
+    when: [ { off: 0, eq: 0x41 }, { off: 1, eq: 0x5b } ]
     fields:
-      - { name: "BMS state of charge", off: 2, scale: 0.4, unit: " %" }
+      - { name: "OBD pack remaining", off: 2, scale: 0.39215686274509803, unit: " %" }
     status: captured
-    ref: "drive 2026-11-08 against Car Scanner OBD2 [BMS] State of Charge BMS (r 0.997, change 0.83): fit 0.383*raw+2.1, 200 at 80 %"
+    ref: "drive 2026-11-08 against Car Scanner OBD2 [BMS] State of Charge BMS (r 0.997, change 0.83): fit 0.383*raw+2.1; payloads 41 5b xx"
+
+  # The EV6 is CAN DB generation 2 (boot record byte 120): the charger's
+  # ready bits are 1:0. Every captured frame has byte 3 = 01, ready.
+  - name: "Charger state"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x4f
+    min_length: 4
+    fields:
+      - { name: "Charger ready", off: 3, bits: "1:0" }
+    status: captured
+    ref: "HEVService OBC ready (CAN DB generation >= 2); boot record byte 120 = 02 and 0x8c4f byte 3 = 01 in every 2026-11 capture"
 
   # The backlight. Off from power-up until the first on; on is refused while
   # the supply is low. The micom writes a config byte to EEPROM on every

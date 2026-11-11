@@ -49,7 +49,7 @@ Not yet backed by a capture:
 | HEV status | `0c 88 ?? 8c` | 0x01 | 🟡 code | HEVService DATA_M_RESP (func 0x8c01, len >= 0x40) into flag ADDED_DIST_DATC_OFF |
 | EV power block | `0c 88 ?? 8c` | 0x5c | 🟡 code | HEVService setHEVStatusValue calls |
 | Departure timers | `0c 88 ?? 8c` | 0x55 | 🟡 code | HEVService; captured only at the default |
-| Charger state | `0c 88 ?? 8c` | 0x4f | 🟡 code | HEVService |
+| Charger state | `0c 88 ?? 8c` | 0x4f | 🟡 code | HEVService OBC ready (CAN DB generation < 2) |
 
 ## Headers
 
@@ -316,11 +316,11 @@ cmd `0x55`, length ≥ 5 · 🟡 code
 
 cmd `0x4f`, length ≥ 4 · 🟡 code
 
-> HEVService
+> HEVService OBC ready (CAN DB generation < 2)
 
 | Field | At |
 | --- | --- |
-| Charger ready bits | byte 3 bits 7:6 |
+| Charger ready | byte 3 bits 7:6 |
 
 ## Send (the control socket may send)
 

@@ -42,8 +42,8 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 
 | Status | Messages |
 | --- | --- |
-| 🟢 captured | 13 |
-| 🟡 code | 35 |
+| 🟢 captured | 15 |
+| 🟡 code | 33 |
 | 🟠 inferred | 3 |
 
 Not yet backed by a capture:
@@ -55,7 +55,6 @@ Not yet backed by a capture:
 | HEV status | `0c 88 ?? 8c` | 0x01 | 🟡 code | HEVService DATA_M_RESP (func 0x8c01, len >= 0x40) into flag ADDED_DIST_DATC_OFF |
 | EV power block | `0c 88 ?? 8c` | 0x5c | 🟡 code | HEVService setHEVStatusValue calls |
 | Departure timers | `0c 88 ?? 8c` | 0x55 | 🟡 code | HEVService; captured only at the default |
-| Charger state | `0c 88 ?? 8c` | 0x4f | 🟡 code | HEVService |
 | tbt-turn | `cluster_tx` | 0x04 | 🟡 code | stock ClusterService\$NaviCluster TBTInfo packer (byte 0 straight from the caller); GPM GpmNaviTBTManager.releaseGuidance; nemesis-report worked example "turn right, 0.3 km" |
 | tbt-points | `cluster_tx` | 0x02 | 🟡 code | stock ClusterService\$NaviCluster TBTSubInfo2C packer |
 | cluster-sub-info | `cluster_tx` | 0x03 | 🟡 code | stock ClusterService\$NaviCluster TBTSubInfo packer; the captured ack frame |
@@ -69,9 +68,8 @@ Not yet backed by a capture:
 | Power state | `system_rx` | 0x08 | 🟡 code | micom firmware FUN_0006ee40; micom-run ACC off to state 0 |
 | Power state (ACC on) | `system_rx` | 0x08 | 🟡 code | micom-run: ff 01 8a 01 81 08 00 03 01 05 fb on ACC on |
 | ACC edge | `system_rx` | 0x33 | 🟡 code | micom-run: 0x8133 [01] on ACC off, [02] on ACC on |
-| CAN rheostat flag | `system_rx` | 0x0a | 🟡 code | micom firmware FUN_00062f9c |
-| CAN rheostat state | `system_rx` | 0x0b | 🟡 code | micom firmware, 0x810b sender |
-| Flag 0x810c | `system_rx` | 0x0c | 🟡 code | micom firmware FUN_00073e46 |
+| Vehicle ready | `system_rx` | 0x0b | 🟡 code | stock SYS_ALTERNATE_STATUS_M (0x810b, ALT-L); micom firmware, 0x810b sender (a CAN value, debounced 0.5 s) |
+| Charge warning | `system_rx` | 0x0c | 🟡 code | stock SYS_FUELWARNING_STATUS_M (0x810c); micom firmware FUN_00073e46 |
 | Illumination | `system_rx` | 0x0d | 🟡 code | stock SystemService/VideoSetupService SYS_ILLUMINATION_STATUS_M; micom firmware 0x810d sender; micom-run |
 | Rheostat level | `system_rx` | 0x45 | 🟡 code | stock SYS_RHEOSTAT_M (func 0x8145) |
 | System 0x819B | `system_rx` | 0x9b | 🟡 code | stock battSoc, func 0x819b byte 7 |
@@ -102,13 +100,13 @@ Not yet backed by a capture:
 | Name | Header | Direction | Status | Ref |
 | --- | --- | --- | --- | --- |
 | audio_tx | `85 02 01 02` | to_micom | 🟢 captured | stock micomd strace, source switch |
-| bms_rx | `40 c7 80 c0` | from_micom | 🟢 captured | the BMS's state of charge (cmd ad); ac, ae, a9 and aa barely change while charging |
 | body | `44 c1 00 c4` | from_micom | 🟢 captured | doors; repeats seat heat and windows |
 | camera | `01 c4 01 81` | from_micom | 🟢 captured |  |
 | climate_panel | `43 c2 00 c3` | from_micom | 🟢 captured |  |
 | clock_tx | `c2 43 00 43` | to_micom | 🟢 captured |  |
 | cluster_rx | `0d 8f 01 8d` | from_micom | 🟢 captured | battery and cruise; cluster_tx's reverse |
 | cluster_tx | `8f 0d 01 0d` | to_micom | 🟢 captured | the ack profile frame; stock ClusterService |
+| diag_relay | `40 c7 80 c0` | from_micom | 🟢 captured | stock HscanMicomService (rcvId 0xc7); seen only in logs taken while Car Scanner polled over OBD |
 | display_rx | `08 8c 01 88` | from_micom | 🟡 code | EV6 micom firmware V002.208, micom-run |
 | display_tx | `8c 08 01 08` | to_micom | 🟡 code | EV6 micom firmware V002.208, micom-run |
 | gear_node | `50 c4 00 d0` | from_micom | 🟢 captured | micomd capture, 2026-11-10, P/D/N/R shifts |
@@ -383,13 +381,13 @@ cmd `0x55`, length ≥ 5 · 🟡 code
 
 #### Charger state
 
-cmd `0x4f`, length ≥ 4 · 🟡 code
+cmd `0x4f`, length ≥ 4 · 🟢 captured
 
-> HEVService
+> HEVService OBC ready (CAN DB generation >= 2); boot record byte 120 = 02 and 0x8c4f byte 3 = 01 in every 2026-11 capture
 
 | Field | At |
 | --- | --- |
-| Charger ready bits | byte 3 bits 7:6 |
+| Charger ready | byte 3 bits 1:0 |
 
 ### system_rx
 
@@ -442,49 +440,49 @@ packet-beta
 0-7: "ACC"
 ```
 
-#### CAN rheostat flag
+#### IGN1
 
-cmd `0x0a`, length 1 · 🟡 code
+cmd `0x0a`, length 1 · 🟢 captured
 
-> micom firmware FUN_00062f9c
+> stock SYS_IGN_STATUS_M (0x810a); 00 at ACC off, 01 at ACC on, 2026-11 captures; micom firmware FUN_00062f9c
 
-| Field | At |
-| --- | --- |
-| CAN rheostat selected | byte 0 |
+| Field | At | Type |
+| --- | --- | --- |
+| IGN1 | byte 0 | bool |
 
 ```mermaid
 packet-beta
-0-7: "CAN rheostat selected"
+0-7: "IGN1"
 ```
 
-#### CAN rheostat state
+#### Vehicle ready
 
 cmd `0x0b`, length 1 · 🟡 code
 
-> micom firmware, 0x810b sender
+> stock SYS_ALTERNATE_STATUS_M (0x810b, ALT-L); micom firmware, 0x810b sender (a CAN value, debounced 0.5 s)
 
-| Field | At |
-| --- | --- |
-| CAN rheostat active | byte 0 |
+| Field | At | Type |
+| --- | --- | --- |
+| Vehicle ready | byte 0 | bool |
 
 ```mermaid
 packet-beta
-0-7: "CAN rheostat active"
+0-7: "Vehicle ready"
 ```
 
-#### Flag 0x810c
+#### Charge warning
 
 cmd `0x0c`, length 1 · 🟡 code
 
-> micom firmware FUN_00073e46
+> stock SYS_FUELWARNING_STATUS_M (0x810c); micom firmware FUN_00073e46
 
-| Field | At |
-| --- | --- |
-| Flag 0x810c | byte 0 |
+| Field | At | Type |
+| --- | --- | --- |
+| Charge warning | byte 0 | bool |
 
 ```mermaid
 packet-beta
-0-7: "Flag 0x810c"
+0-7: "Charge warning"
 ```
 
 #### Illumination
@@ -510,14 +508,16 @@ cmd `0x01`, length ≥ 19 · 🟢 captured
 
 | Field | At | Enum |
 | --- | --- | --- |
-| Boot reason | byte 0 |  |
+| Boot mode | byte 0 |  |
+| Reset reason | byte 1 |  |
 | Illumination | byte 4 | illumination |
 | Dim mode | byte 18 | dim_mode |
 
 ```mermaid
 packet-beta
-0-7: "Boot reason"
-8-31: "?"
+0-7: "Boot mode"
+8-15: "Reset reason"
+16-31: "?"
 32-39: "Illumination"
 40-143: "?"
 144-151: "Dim mode"
@@ -798,24 +798,24 @@ packet-beta
 0-15: "Vehicle speed (whole km/h)"
 ```
 
-### bms_rx
+### diag_relay
 
-`40 c7 80 c0`: the BMS's state of charge (cmd ad); ac, ae, a9 and aa barely change while charging
+`40 c7 80 c0`: stock HscanMicomService (rcvId 0xc7); seen only in logs taken while Car Scanner polled over OBD
 
-#### BMS state of charge
+#### OBD pack remaining (PID 0x5b)
 
-cmd `0xad`, length ≥ 3 · 🟢 captured
+cmd `0xad`, length 3 · 🟢 captured
 
-> drive 2026-11-08 against Car Scanner OBD2 [BMS] State of Charge BMS (r 0.997, change 0.83): fit 0.383*raw+2.1, 200 at 80 %
+> drive 2026-11-08 against Car Scanner OBD2 [BMS] State of Charge BMS (r 0.997, change 0.83): fit 0.383*raw+2.1; payloads 41 5b xx
 
 | Field | At | Scale | Unit |
 | --- | --- | --- | --- |
-| BMS state of charge | byte 2 | 0.4 | % |
+| OBD pack remaining | byte 2 | 0.39215686274509803 | % |
 
 ```mermaid
 packet-beta
 0-15: "?"
-16-23: "BMS state of charge"
+16-23: "OBD pack remaining"
 ```
 
 ## Messages to micom
@@ -1131,52 +1131,54 @@ packet-beta
 
 ## Signals
 
-| Name | Header | Cmd | Kind | Label | State |
-| --- | --- | --- | --- | --- | --- |
-| climate-burst | `43 c2 00 c3` (climate_panel) | 0x1b | burst lines |  |  |
-| climate-driver-set | `43 c2 00 c3` (climate_panel) | 0x05, 0x07 | number values | Climate driver set point | driver_set_f |
-| climate-passenger-set | `43 c2 00 c3` (climate_panel) | 0x09, 0x0b | number values | Climate passenger set point | passenger_set_f |
-| climate-airflow | `43 c2 00 c3` (climate_panel) | 0x0d | enum | Climate airflow | airflow |
-| climate-auto | `43 c2 00 c3` (climate_panel) | 0x0f | flag | Climate auto | auto |
-| climate-ac | `43 c2 00 c3` (climate_panel) | 0x11 | flag | Climate A/C | ac |
-| climate-fan | `43 c2 00 c3` (climate_panel) | 0x15 | fan | Climate fan | fan |
-| climate-driver-only | `43 c2 00 c3` (climate_panel) | 0x19 | flag | Climate driver only | driver_only |
-| climate-recirculation | `43 c2 00 c3` (climate_panel) | 0x1e, 0x43 | flag | Climate recirculation | recirculation |
-| climate-zones | `43 c2 00 c3` (climate_panel) | 0x27 | flag | Climate zones | zones_synced |
-| climate-heat | `43 c2 00 c3` (climate_panel) | 0x33 | flag | Climate heat |  |
-| climate-auto-level | `43 c2 00 c3` (climate_panel) | 0x4f | number values | Climate auto level |  |
-| climate-auto-level-inverse | `43 c2 00 c3` (climate_panel) | 0x50 | number values | Climate auto level (inverse) |  |
-| seat-heat-driver | `55 ca 00 d5` (seat_node) | 0x20 | number values | Seat heat, driver | driver_seat_heat |
-| seat-heat-passenger | `55 ca 00 d5` (seat_node) | 0x21 | number values | Seat heat, passenger | passenger_seat_heat |
-| seat-heat-driver-repeat | `44 c1 00 c4` (body) | 0x19 | number values | Seat heat, driver (repeat) | driver_seat_heat |
-| seat-heat-passenger-repeat | `44 c1 00 c4` (body) | 0x1b | number values | Seat heat, passenger (repeat) | passenger_seat_heat |
-| window-driver-switch | `55 ca 00 d5` (seat_node) | 0x08 | enum | Window driver |  |
-| window-passenger-switch | `55 ca 00 d5` (seat_node) | 0x0b | enum | Window passenger |  |
-| window-driver-position | `55 ca 00 d5` (seat_node) | 0x06 | enum | Window driver |  |
-| window-passenger-position | `55 ca 00 d5` (seat_node) | 0x09 | enum | Window passenger |  |
-| window-driver-switch-repeat | `44 c1 00 c4` (body) | 0x26 | enum | Window driver |  |
-| window-passenger-switch-repeat | `44 c1 00 c4` (body) | 0x27 | enum | Window passenger |  |
-| window-driver-position-repeat | `44 c1 00 c4` (body) | 0x24 | enum | Window driver |  |
-| window-passenger-position-repeat | `44 c1 00 c4` (body) | 0x25 | enum | Window passenger |  |
-| door-front-right-lock | `44 c1 00 c4` (body) | 0x00 | enum | Door front right |  |
-| door-front-right-open | `44 c1 00 c4` (body) | 0x01 | enum | Door front right |  |
-| door-driver-lock | `44 c1 00 c4` (body) | 0x02 | enum | Door driver |  |
-| door-driver-open | `44 c1 00 c4` (body) | 0x03 | enum | Door driver |  |
-| door-rear-left-lock | `44 c1 00 c4` (body) | 0x04 | enum | Door rear left |  |
-| door-rear-left-open | `44 c1 00 c4` (body) | 0x05 | enum | Door rear left |  |
-| door-rear-right-lock | `44 c1 00 c4` (body) | 0x07 | enum | Door rear right |  |
-| door-rear-right-open | `44 c1 00 c4` (body) | 0x08 | enum | Door rear right |  |
-| trunk | `44 c1 00 c4` (body) | 0x06 | enum | Trunk |  |
-| hood | `44 c1 00 c4` (body) | 0x11 | enum | Hood |  |
-| open-doors | `01 8a 01 81` (system_rx) | 0x2f | bits | Open doors |  |
-| gear | `50 c4 00 d0` (gear_node) | 0x4a | enum | Gear |  |
-| out-of-park | `01 8a 01 81` (system_rx) | 0x03 | flag | Out of park |  |
-| out-of-park-repeat-1 | `01 8a 01 81` (system_rx) | 0x26 | flag | Out of park |  |
-| out-of-park-repeat-2 | `01 8a 01 81` (system_rx) | 0x9a | flag | Out of park |  |
-| out-of-park-body | `44 c1 00 c4` (body) | 0x10 | flag | Out of park |  |
-| reverse-active | `01 8a 01 81` (system_rx) | 0x1b | flag | Reverse |  |
-| shift-settled | `01 8a 01 81` (system_rx) | 0x29 | enum | Flag 0x8129 |  |
-| rear-camera | `01 c4 01 81` (camera) | 0x51 | enum | Rear camera |  |
+| Name | Header | Cmd | Kind | Label | State | Ref |
+| --- | --- | --- | --- | --- | --- | --- |
+| climate-burst | `43 c2 00 c3` (climate_panel) | 0x1b | burst lines |  |  |  |
+| climate-driver-set-c | `43 c2 00 c3` (climate_panel) | 0x05 | number values | Climate driver set point | driver_set_half_c | DATCService DrTempDispC / PsTempDispC (C = raw * 0.5 + 14; 1 LO, 254 HI) |
+| climate-driver-set | `43 c2 00 c3` (climate_panel) | 0x07 | number values | Climate driver set point | driver_set_f |  |
+| climate-passenger-set-c | `43 c2 00 c3` (climate_panel) | 0x09 | number values | Climate passenger set point | passenger_set_half_c |  |
+| climate-passenger-set | `43 c2 00 c3` (climate_panel) | 0x0b | number values | Climate passenger set point | passenger_set_f |  |
+| climate-airflow | `43 c2 00 c3` (climate_panel) | 0x0d | enum | Climate airflow | airflow |  |
+| climate-auto | `43 c2 00 c3` (climate_panel) | 0x0f | flag | Climate auto | auto |  |
+| climate-ac | `43 c2 00 c3` (climate_panel) | 0x11 | flag | Climate A/C | ac |  |
+| climate-fan | `43 c2 00 c3` (climate_panel) | 0x15 | fan | Climate fan | fan |  |
+| climate-driver-only | `43 c2 00 c3` (climate_panel) | 0x19 | flag | Climate driver only | driver_only |  |
+| climate-recirculation | `43 c2 00 c3` (climate_panel) | 0x1e, 0x43 | flag | Climate recirculation | recirculation |  |
+| climate-zones | `43 c2 00 c3` (climate_panel) | 0x27 | flag | Climate zones | zones_synced |  |
+| climate-heat | `43 c2 00 c3` (climate_panel) | 0x33 | flag | Climate heat |  |  |
+| climate-auto-level | `43 c2 00 c3` (climate_panel) | 0x4f | number values | Climate auto level |  |  |
+| climate-auto-level-inverse | `43 c2 00 c3` (climate_panel) | 0x50 | number values | Climate auto level (inverse) |  |  |
+| seat-heat-driver | `55 ca 00 d5` (seat_node) | 0x20 | number values | Seat heat, driver | driver_seat_heat |  |
+| seat-heat-passenger | `55 ca 00 d5` (seat_node) | 0x21 | number values | Seat heat, passenger | passenger_seat_heat |  |
+| seat-heat-driver-repeat | `44 c1 00 c4` (body) | 0x19 | number values | Seat heat, driver (repeat) | driver_seat_heat |  |
+| seat-heat-passenger-repeat | `44 c1 00 c4` (body) | 0x1b | number values | Seat heat, passenger (repeat) | passenger_seat_heat |  |
+| window-driver-switch | `55 ca 00 d5` (seat_node) | 0x08 | enum | Window driver |  |  |
+| window-passenger-switch | `55 ca 00 d5` (seat_node) | 0x0b | enum | Window passenger |  |  |
+| window-driver-position | `55 ca 00 d5` (seat_node) | 0x06 | enum | Window driver |  |  |
+| window-passenger-position | `55 ca 00 d5` (seat_node) | 0x09 | enum | Window passenger |  |  |
+| window-driver-switch-repeat | `44 c1 00 c4` (body) | 0x26 | enum | Window driver |  |  |
+| window-passenger-switch-repeat | `44 c1 00 c4` (body) | 0x27 | enum | Window passenger |  |  |
+| window-driver-position-repeat | `44 c1 00 c4` (body) | 0x24 | enum | Window driver |  |  |
+| window-passenger-position-repeat | `44 c1 00 c4` (body) | 0x25 | enum | Window passenger |  |  |
+| door-front-right-lock | `44 c1 00 c4` (body) | 0x00 | enum | Door front right |  |  |
+| door-front-right-open | `44 c1 00 c4` (body) | 0x01 | enum | Door front right |  |  |
+| door-driver-lock | `44 c1 00 c4` (body) | 0x02 | enum | Door driver |  |  |
+| door-driver-open | `44 c1 00 c4` (body) | 0x03 | enum | Door driver |  |  |
+| door-rear-left-lock | `44 c1 00 c4` (body) | 0x04 | enum | Door rear left |  |  |
+| door-rear-left-open | `44 c1 00 c4` (body) | 0x05 | enum | Door rear left |  |  |
+| door-rear-right-lock | `44 c1 00 c4` (body) | 0x07 | enum | Door rear right |  |  |
+| door-rear-right-open | `44 c1 00 c4` (body) | 0x08 | enum | Door rear right |  |  |
+| trunk | `44 c1 00 c4` (body) | 0x06 | enum | Trunk |  |  |
+| hood | `44 c1 00 c4` (body) | 0x11 | enum | Hood |  |  |
+| open-doors | `01 8a 01 81` (system_rx) | 0x2f | bits | Open doors |  |  |
+| gear | `50 c4 00 d0` (gear_node) | 0x4a | enum | Gear |  |  |
+| driving-regulation | `01 8a 01 81` (system_rx) | 0x03 | flag | Driving regulation |  | stock SYS_REGULATOIN_STATUS_M (0x8103) -> RegulationService |
+| gear-status | `01 8a 01 81` (system_rx) | 0x26 | flag | Out of park |  | stock SYS_GEAR_STATUS_M (0x8126); 0/1 on this car |
+| driving-regulation-b | `01 8a 01 81` (system_rx) | 0x9a | flag | Driving regulation B |  | stock SYS_REGULATION_B_STATUS_M (0x819a) -> RegulationService |
+| out-of-park-body | `44 c1 00 c4` (body) | 0x10 | flag | Out of park |  | stock BODY C_PpositionClutch |
+| reverse-active | `01 8a 01 81` (system_rx) | 0x1b | flag | Reverse |  |  |
+| parking-brake | `01 8a 01 81` (system_rx) | 0x29 | flag | Parking brake |  | stock SYS_PARKING_STATUS_M (0x8129) -> onParkingStatus |
+| rear-camera | `01 c4 01 81` (camera) | 0x51 | enum | Rear camera |  |  |
 
 ## Keys
 
@@ -1211,7 +1213,7 @@ packet-beta
 | poll | 1s | `ff 88 0c 01 0c 5c 00 01 2b` |  |  |  | 🟢 captured | logcat MicomD 2026-10-16; strace 2026-11-07 identical |
 | ack | 600ms | `ff 8f 0d 01 0d 03 00 0a ff ff ff 0e 03 ff ff 03 ff 76` |  |  |  | 🟢 captured | logcat MicomD 2026-10-16 |
 | tbt-sub-info | 600ms | `ff 8f 0d 01 0d 03 00 0a ff ff ff 3f 03 ff ff 03 ff 47` |  | code | ack | 🟡 code | stock GpmNaviTBTManager / ClusterService\$NaviCluster TBTSubInfo packer (hmg_nemesis projection-tbt, stock automotive-service smali) |
-| clock-sec | 1s |  | ff 88 0c 01 0c 09 00 06 04 a0 {minute} {second} 80 .. | clock |  | 🟢 captured | logcat MicomD 2026-10-16 20:01:16-17; stock micomd strace 2026-11-07 |
+| clock-sec | 1s |  | ff 88 0c 01 0c 09 00 06 {weekday_bit} {hour_shl3} {minute} {second} 80 .. | clock |  | 🟢 captured | logcat MicomD 2026-10-16 20:01:16-17; stock micomd strace 2026-11-07; stock HEVService clock (0x0C09, CAN DB generation 2) |
 | clock | 1s |  | ff c2 43 00 43 33 00 0c 02 02 {hour} {minute} {second} {month} 01 {year2} {day} 00 02 .. | clock |  | 🟢 captured | logcat MicomD 2026-10-16 20:01; strace 2026-11-07 matches the unit's clock |
 
 ## Send (the control socket may send)
@@ -1226,13 +1228,13 @@ packet-beta
 | vbus-off-on | `ff 8a 01 01 01 28 00 01 5d` |  | 🟠 inferred | jadx SystemService |
 | hev-status-request | `ff 88 0c 01 0c 01 00 01 76` |  | 🟠 inferred | HEVService requestInitHevStatus: func 0x0c01, empty payload; answered by 0x8c01 |
 | av-mute-set | `ff 85 02 01 02 0b 00 03 02 01 70` |  | 🟢 captured | stock micomd strace, source switch |
-| mode-media | `ff 85 02 01 02 01 00 03 0e 00 77` |  | 🟢 captured | stock micomd strace, source switch |
-| mode-radio | `ff 85 02 01 02 01 00 03 01 00 78` |  | 🟢 captured | stock micomd strace, source switch |
+| mode-bt-stream | `ff 85 02 01 02 01 00 03 0e 00 77` |  | 🟢 captured | stock micomd strace, source switch (Media); AudioMode BT_STREAM |
+| mode-am | `ff 85 02 01 02 01 00 03 01 00 78` |  | 🟢 captured | stock micomd strace, source switch (Radio); AudioMode AM |
 | av-mute-release | `ff 85 02 01 02 38 00 03 02 00 42` |  | 🟢 captured | stock micomd strace, source switch |
 | main-volume |  | `ff 85 02 01 02 03 00 02 [00-23] ..` | 🟢 captured | stock micomd strace, source switch: levels 22-31 |
 | boot-mode-request | `ff 8a 01 01 01 01 00 01 74` |  | 🟠 inferred | SystemService; the micom answers 0x8101 with its last mode, mute and volume |
-| mode-09 | `ff 85 02 01 02 01 00 03 09 00 70` |  | 🟠 inferred | MicomAudioService audio mode USB |
-| mode-12 | `ff 85 02 01 02 01 00 03 12 00 6b` |  | 🟠 inferred | MicomAudioService audio mode MUSIC |
+| mode-usb | `ff 85 02 01 02 01 00 03 09 00 70` |  | 🟠 inferred | MicomAudioService audio mode USB |
+| mode-music | `ff 85 02 01 02 01 00 03 12 00 6b` |  | 🟠 inferred | MicomAudioService audio mode MUSIC |
 | av-mute-release-0b | `ff 85 02 01 02 0b 00 03 02 00 71` |  | 🟠 inferred | 0x020B mute control: AV, RELEASE |
 | amp-mute-release | `ff 85 02 01 02 0b 00 03 01 00 72` |  | 🟠 inferred | 0x020B mute control: AMP, RELEASE |
 | amp-mute-set | `ff 85 02 01 02 0b 00 03 01 01 73` |  | 🟠 inferred | 0x020B mute control: AMP, SET |

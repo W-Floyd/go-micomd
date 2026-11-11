@@ -5,9 +5,12 @@ package micom
 // and the seat heat frames, 55 ca 00 d5 and 44 c1 00 c4). A nil field has not
 // been reported yet.
 type CarClimate struct {
-	// Set points in degrees Fahrenheit; 0 is the zone off (driver only, for
-	// the passenger's).
-	DriverSetF, PassengerSetF *int
+	// Set points in degrees Fahrenheit, and in half degrees Celsius (the
+	// car sends both; the Celsius ones are exact): 0 is the zone off (driver
+	// only, for the passenger's), SetPointLo and SetPointHi the panel's LO
+	// and HI.
+	DriverSetF, PassengerSetF         *int
+	DriverSetHalfC, PassengerSetHalfC *int
 	// Airflow: 0 off, 1 face, 2 face and feet, 3 feet, 4 feet and defrost,
 	// 5 defrost, 8 auto.
 	Airflow *byte
@@ -19,6 +22,12 @@ type CarClimate struct {
 	// Seat heat 0 (off) to 3.
 	DriverSeatHeat, PassengerSeatHeat *int
 }
+
+// SetPointLo and SetPointHi are a set point at the panel's LO and HI ends.
+const (
+	SetPointLo = -1
+	SetPointHi = -2
+)
 
 // ClimateEvent is what a frame did to a CarClimate.
 type ClimateEvent int

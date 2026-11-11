@@ -9,7 +9,8 @@ import (
 // Hard-key frames, from Android's ModeKeyDispatcher.handleKey(byte[]) and the
 // stock micomd binary's log strings. Payload p: p[0] is the key type, the low
 // nibble of p[1] the key code, and p[1]>>4 the press (0 release, 1 short, 2
-// long). Types 0-7 are push keys, 8-11 knobs. Which Func carries it is NOT
+// long). Types 0-7 are push keys, 8-11 knobs, whose low nibble is the
+// detents turned and high nibble the direction. Which Func carries it is NOT
 // known: take it from a -dump capture and give it to -keyfunc.
 
 // Press is how a key was pressed.
@@ -44,21 +45,28 @@ func ParseKey(p []byte) (e KeyEvent, ok bool) {
 	return KeyEvent{Type: int(p[0]), Code: int(p[1] & 0xf), Press: int(p[1] >> 4)}, true
 }
 
-// KnobEvent is one step of a rotary knob (types 8 to 11): up is clockwise.
+// KnobEvent is a turn of a rotary knob (types 8 to 11): Count detents, up
+// clockwise.
 type KnobEvent struct {
-	Type, Code int
-	Up         bool
+	Type, Count int
+	Up          bool
 }
 
 // ParseKnob reads a knob payload (type 8 the tune knob, 9 the volume knob on
-// the EV6 unit), the direction the high nibble of the second byte: 1 up, 0
-// down. ok is false for push keys, other values and short data.
+// the EV6 unit): the high nibble of the second byte the direction, 1 up, 0
+// down, the low nibble the detents turned since the last frame (stock
+// KnobKeyFromMicom). ok is false for push keys, other values, no detent and
+// short data.
 func ParseKnob(p []byte) (e KnobEvent, ok bool) {
-	if len(p) < 2 || p[0] < 8 || p[0] > 11 || p[1]>>4 > 1 {
+	if len(p) < 2 || p[0] < 8 || p[0] > 11 || p[1]>>4 > 1 || p[1]&0xf == 0 {
 		return e, false
 	}
-	return KnobEvent{Type: int(p[0]), Code: int(p[1] & 0xf), Up: p[1]>>4 == 1}, true
+	return KnobEvent{Type: int(p[0]), Count: int(p[1] & 0xf), Up: p[1]>>4 == 1}, true
 }
+
+// knobCode is the code a keymap names a knob by: its one-detent frame's
+// (type.1.up), whatever the count of a turn.
+const knobCode = 1
 
 // keyKey is a push key as the keymap names it, knobKey one direction of a knob.
 type keyKey [2]int
@@ -117,7 +125,7 @@ type keySink interface {
 // injectKeys wraps prev (it may be nil) so that a frame with Func fn, from the
 // micom, that parses as a mapped push key is sent to ui, as a
 // press (1), release (0) or long press (2, the kernel's key repeat); a knob
-// step is a tap of its key (press and release).
+// turn is a tap of its key (press and release) per detent.
 func injectKeys(prev func(Frame), ui keySink, km keymap, fn uint16, logf func(string, ...any)) func(Frame) {
 	return func(f Frame) {
 		if prev != nil {
@@ -127,15 +135,17 @@ func injectKeys(prev func(Frame), ui keySink, km keymap, fn uint16, logf func(st
 			return
 		}
 		if ke, ok := ParseKnob(f.Payload); ok {
-			k, ok := km.knob[knobKey{ke.Type, ke.Code, ke.Up}]
+			k, ok := km.knob[knobKey{ke.Type, knobCode, ke.Up}]
 			if !ok {
-				logf("unmapped knob type %d code %d up %v", ke.Type, ke.Code, ke.Up)
+				logf("unmapped knob type %d up %v", ke.Type, ke.Up)
 				return
 			}
-			for _, v := range []int32{1, 0} {
-				if err := ui.Key(k, v); err != nil {
-					logf("uinput: %v", err)
-					return
+			for range ke.Count {
+				for _, v := range []int32{1, 0} {
+					if err := ui.Key(k, v); err != nil {
+						logf("uinput: %v", err)
+						return
+					}
 				}
 			}
 			return

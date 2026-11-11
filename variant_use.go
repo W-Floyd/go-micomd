@@ -49,11 +49,15 @@ func (v *Variant) describeKey(p []byte) string {
 	}
 	typ, code, hi := p[0], p[1]&0xf, p[1]>>4
 	if name, ok := v.knobLabels[typ]; ok {
+		times := ""
+		if code > 1 {
+			times = fmt.Sprintf(" ×%d", code) // the detents turned
+		}
 		switch hi {
 		case 1:
-			return name + " up"
+			return name + " up" + times
 		case 0:
-			return name + " down"
+			return name + " down" + times
 		}
 		return fmt.Sprintf("%s turn %d code %d", name, hi, code)
 	}

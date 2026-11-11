@@ -122,6 +122,9 @@ type rawFlag struct {
 type rawNumber struct {
 	Add    int     `yaml:"add,omitempty"`
 	Mul    *int    `yaml:"mul,omitempty"`
+	// Div divides the result for the text only (format %g): the state keeps
+	// the whole number, in 1/Div units.
+	Div *int `yaml:"div,omitempty"`
 	Range  []uint8 `yaml:"range,omitempty"`
 	Format string  `yaml:"format"`
 	// Wrap takes the result modulo 256, as byte arithmetic does.

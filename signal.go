@@ -30,6 +30,7 @@ type sigSpec struct {
 	offText    string
 	enum       map[byte]string // enum
 	add, mul   int             // number
+	div        int
 	ranged     bool
 	wrap       bool
 	lo, hi     byte
@@ -86,6 +87,9 @@ func (s *sigSpec) text(v byte) (string, bool) {
 		return t, ok
 	case kindNumber:
 		if n, ok := s.number(v); ok {
+			if s.div > 1 {
+				return fmt.Sprintf(s.format, float64(n)/float64(s.div)), true
+			}
 			return format1(s.format, n), true
 		}
 	case kindFan:
@@ -159,7 +163,7 @@ func (s *sigSpec) apply(c *CarClimate, v byte) ClimateEvent {
 		return ClimateEnd
 	}
 	switch s.state {
-	case "driver_set_f", "passenger_set_f", "driver_seat_heat", "passenger_seat_heat":
+	case "driver_set_f", "passenger_set_f", "driver_set_half_c", "passenger_set_half_c", "driver_seat_heat", "passenger_seat_heat":
 		field := c.intField(s.state)
 		if vs, ok := s.values[v]; ok {
 			if vs.State == nil {
@@ -199,6 +203,7 @@ func (s *sigSpec) apply(c *CarClimate, v byte) ClimateEvent {
 // needs.
 var stateKinds = map[string]signalKind{
 	"driver_set_f": kindNumber, "passenger_set_f": kindNumber,
+	"driver_set_half_c": kindNumber, "passenger_set_half_c": kindNumber,
 	"driver_seat_heat": kindNumber, "passenger_seat_heat": kindNumber,
 	"airflow": kindEnum,
 	"auto":    kindFlag, "ac": kindFlag, "driver_only": kindFlag,
@@ -212,6 +217,10 @@ func (c *CarClimate) intField(name string) **int {
 		return &c.DriverSetF
 	case "passenger_set_f":
 		return &c.PassengerSetF
+	case "driver_set_half_c":
+		return &c.DriverSetHalfC
+	case "passenger_set_half_c":
+		return &c.PassengerSetHalfC
 	case "driver_seat_heat":
 		return &c.DriverSeatHeat
 	}

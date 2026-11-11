@@ -38,24 +38,25 @@ func legacyCarDescribe(f Frame) string {
 	case h == [4]byte{0x01, 0x8a, 0x01, 0x81} && f.Cmd == 0x2f && len(p) == 1:
 		return legacyDescribeOpen(p[0])
 	case h == [4]byte{0x01, 0x8a, 0x01, 0x81} && len(p) == 1 && p[0] <= 1:
-		// Out of Park (repeated on three cmds) and Reverse, 2026-11-10.
+		// The driving regulation, the gear status and Reverse, 2026-11-10.
+		onOff := "off"
+		if p[0] == 1 {
+			onOff = "on"
+		}
 		switch f.Cmd {
-		case 0x03, 0x26, 0x9a:
-			s := "Out of park: off"
-			if p[0] == 1 {
-				s = "Out of park: on"
-			}
-			if f.Cmd != 0x03 {
-				s += " (repeat)"
-			}
-			return s
+		case 0x03:
+			return "Driving regulation: " + onOff
+		case 0x9a:
+			return "Driving regulation B: " + onOff
+		case 0x26:
+			return "Out of park: " + onOff + " (gear status)"
 		case 0x1b:
 			if p[0] == 1 {
 				return "Reverse: on"
 			}
 			return "Reverse: off"
 		case 0x29:
-			return fmt.Sprintf("Flag 0x8129: %d", p[0])
+			return "Parking brake: " + onOff
 		}
 	case h == [4]byte{0x50, 0xc4, 0x00, 0xd0} && f.Cmd == 0x4a && len(p) == 1:
 		switch p[0] {
@@ -223,11 +224,15 @@ func legacyDescribeKey(p []byte) string {
 		if typ == 9 {
 			name = "Volume knob"
 		}
+		times := ""
+		if code > 1 {
+			times = fmt.Sprintf(" ×%d", code)
+		}
 		switch hi {
 		case 1:
-			return name + " up"
+			return name + " up" + times
 		case 0:
-			return name + " down"
+			return name + " down" + times
 		}
 		return fmt.Sprintf("%s turn %d code %d", name, hi, code)
 	}
@@ -276,9 +281,19 @@ func legacyOnOff(v byte, on, off byte) string {
 	return fmt.Sprintf("code %#02x", v)
 }
 
-func legacySetPoint(v byte) string {
-	if v == 0 {
+// legacySetPoint is a set point frame's text: Celsius on 0x05 and 0x09.
+func legacySetPoint(v byte, celsius bool) string {
+	switch {
+	case v == 0:
 		return "off"
+	case v == 1:
+		return "LO"
+	case v == 0xfe:
+		return "HI"
+	case v > 36:
+		return fmt.Sprintf("code %#02x", v)
+	case celsius:
+		return fmt.Sprintf("%g C", float64(v)/2+14)
 	}
 	return fmt.Sprintf("%d F", legacySetPointF(v))
 }
@@ -290,9 +305,9 @@ func legacyDescribeClimate(cmd byte, p []byte) string {
 	v := p[0]
 	switch cmd {
 	case 0x05, 0x07:
-		return "Climate driver set point: " + legacySetPoint(v)
+		return "Climate driver set point: " + legacySetPoint(v, cmd == 0x05)
 	case 0x09, 0x0b:
-		return "Climate passenger set point: " + legacySetPoint(v)
+		return "Climate passenger set point: " + legacySetPoint(v, cmd == 0x09)
 	case 0x0d:
 		if s, ok := legacyAirflow[v]; ok {
 			return "Climate airflow: " + s
@@ -392,10 +407,14 @@ func legacyApplyPanel(c *CarClimate, cmd, v byte) ClimateEvent {
 			return ClimateBegin
 		}
 		return ClimateEnd
-	case 0x05, 0x07:
-		return set(&c.DriverSetF, legacySetPointF(v))
-	case 0x09, 0x0b:
-		return set(&c.PassengerSetF, legacySetPointF(v))
+	case 0x05:
+		return legacySetSetPoint(&c.DriverSetHalfC, v, int(v)+28)
+	case 0x07:
+		return legacySetSetPoint(&c.DriverSetF, v, legacySetPointF(v))
+	case 0x09:
+		return legacySetSetPoint(&c.PassengerSetHalfC, v, int(v)+28)
+	case 0x0b:
+		return legacySetSetPoint(&c.PassengerSetF, v, legacySetPointF(v))
 	case 0x0d:
 		if _, ok := legacyAirflow[v]; ok {
 			return set(&c.Airflow, v)
@@ -421,6 +440,20 @@ func legacyApplyPanel(c *CarClimate, cmd, v byte) ClimateEvent {
 		return set(&c.ZonesSynced, v == 1)
 	}
 	return ClimateNone
+}
+
+func legacySetSetPoint(field **int, v byte, n int) ClimateEvent {
+	switch {
+	case v == 0:
+		return set(field, 0)
+	case v == 1:
+		return set(field, SetPointLo)
+	case v == 0xfe:
+		return set(field, SetPointHi)
+	case v > 36:
+		return ClimateNone
+	}
+	return set(field, n)
 }
 
 func legacySetPointF(v byte) int {
@@ -463,7 +496,7 @@ func legacyDefaultProfile() []Periodic {
 func legacyClockProfile() []Periodic {
 	return []Periodic{
 		{Name: "clock-sec", Every: time.Second, Build: func(now time.Time) Frame {
-			return Frame{Hdr: hdrPoll, Cmd: 0x09, Payload: []byte{0x04, 0xa0, 0x01, byte(now.Second()), 0x80}}
+			return Frame{Hdr: hdrPoll, Cmd: 0x09, Payload: []byte{1 << ((7 - int(now.Weekday())) % 7), byte(now.Hour() << 3), byte(now.Minute()), byte(now.Second()), 0x80}}
 		}},
 		{Name: "clock", Every: time.Second, Build: func(now time.Time) Frame {
 			return Frame{Hdr: hdrClock, Cmd: 0x33, Payload: []byte{
@@ -525,7 +558,7 @@ func legacyDecode(f Frame) []Field {
 		}
 	case 0x8c4f:
 		if len(p) >= 4 {
-			return []Field{{Name: "Charger ready bits", Value: int(p[3] >> 6), Valid: true}}
+			return []Field{{Name: "Charger ready", Value: int(p[3] & 3), Valid: true}}
 		}
 	}
 	return nil

@@ -222,8 +222,9 @@ profile:                     # the only frames sent unasked: status must be capt
   - name: clock-sec
     every: 1s
     opt_in: clock            # only with -clock
-    template: "ff 88 0c 01 0c 09 00 06 04 a0 {minute} {second} 80 .."
-    # placeholders: {second} {minute} {hour} {day} {month} {year2}, payload only
+    template: "ff 88 0c 01 0c 09 00 06 {weekday_bit} {hour_shl3} {minute} {second} 80 .."
+    # placeholders: {second} {minute} {hour} {day} {month} {year2}, {weekday_bit}
+    # (Sunday bit 0, Saturday bit 1 ... Monday bit 6), {hour_shl3}; payload only
     status: captured
     ref: "..."
   - name: tbt-sub-info       # a captured frame corrected from stock code
@@ -261,7 +262,7 @@ A file can make frames sendable. Nothing in it can send arbitrary frames:
    - Every sendable frame is written whole, and must parse with its checksum.
    - A pattern may range over payload bytes only. The header, command and
      length are fixed, as `ParsePattern` already demands.
-   - A template's placeholders are the six clock fields, in the payload.
+   - A template's placeholders are the clock fields, in the payload.
    - A to_micom message fixes its header, command and length; an input only
      fills its declared fields, each checked against its type, range and
      enum ([messages.md](messages.md)).

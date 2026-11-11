@@ -62,6 +62,9 @@ func TestParseKnob(t *testing.T) {
 		{"volume down", []byte{9, 0x01, 0}, KnobEvent{9, 1, false}, true},
 		{"tune up", []byte{8, 0x11, 0}, KnobEvent{8, 1, true}, true},
 		{"tune down", []byte{8, 0x01, 0}, KnobEvent{8, 1, false}, true},
+		{"a fast spin: the low nibble counts detents", []byte{9, 0x13, 0}, KnobEvent{9, 3, true}, true},
+		{"fifteen down", []byte{8, 0x0f, 0}, KnobEvent{8, 15, false}, true},
+		{"no detent", []byte{9, 0x10, 0}, KnobEvent{}, false},
 		{"a push key", []byte{0, 0x11, 0}, KnobEvent{}, false},
 		{"a direction we do not know", []byte{9, 0x21, 0}, KnobEvent{}, false},
 		{"too short", []byte{9}, KnobEvent{}, false},
@@ -123,8 +126,8 @@ func TestInjectKeys(t *testing.T) {
 	}
 }
 
-// A knob step is a tap of its key: the press and the release, and nothing for a
-// step the keymap does not name.
+// A knob detent is a tap of its key: the press and the release, once per
+// detent turned, and nothing for a knob the keymap does not name.
 func TestInjectKnobs(t *testing.T) {
 	sink := &fakeSink{}
 	var logged []string
@@ -136,7 +139,8 @@ func TestInjectKnobs(t *testing.T) {
 	h(knob(9, 0x11)) // volume up
 	h(knob(9, 0x01)) // volume down
 	h(knob(8, 0x11)) // tune up: unmapped
-	want := []int32{115<<8 | 1, 115<<8 | 0, 114<<8 | 1, 114<<8 | 0}
+	h(knob(9, 0x13)) // volume up, three detents
+	want := []int32{115<<8 | 1, 115<<8 | 0, 114<<8 | 1, 114<<8 | 0, 115<<8 | 1, 115<<8 | 0, 115<<8 | 1, 115<<8 | 0, 115<<8 | 1, 115<<8 | 0}
 	if !reflect.DeepEqual(sink.got, want) {
 		t.Errorf("injected %v, want %v", sink.got, want)
 	}

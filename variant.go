@@ -136,6 +136,11 @@ var (
 		"day":    func(t time.Time) byte { return byte(t.Day()) },
 		"month":  func(t time.Time) byte { return byte(t.Month()) },
 		"year2":  func(t time.Time) byte { return byte(t.Year() % 100) },
+		// HEVService's clock (CAN DB generation 2): the weekday as one bit,
+		// Sunday bit 0 then Saturday bit 1 down to Monday bit 6, and the
+		// hour in bits 7:3.
+		"weekday_bit": func(t time.Time) byte { return 1 << ((7 - int(t.Weekday())) % 7) },
+		"hour_shl3":   func(t time.Time) byte { return byte(t.Hour() << 3) },
 	}
 	expectKeys = map[string]bool{"amp_type": true, "climate_variant": true}
 )
@@ -836,6 +841,19 @@ func compileSignals(c *checker, v *Variant, raws []rawSignal, hdrOf func(string,
 			if n.Mul != nil {
 				s.mul = *n.Mul
 			}
+			s.div = 1
+			if n.Div != nil {
+				s.div = *n.Div
+			}
+			hasG := strings.Contains(n.Format, "%g")
+			switch {
+			case s.div < 1:
+				c.errf(where, "number.div is 1 or more")
+			case s.div > 1 && (!hasG || strings.Contains(n.Format, "%d") || strings.Contains(n.Format, "%#02x")):
+				c.errf(where, "number.format with div is %%g")
+			case s.div == 1 && hasG:
+				c.errf(where, "number.format %%g is for div")
+			}
 			switch len(n.Range) {
 			case 0:
 			case 2:
@@ -849,7 +867,7 @@ func compileSignals(c *checker, v *Variant, raws []rawSignal, hdrOf func(string,
 			if n.Format == "" {
 				c.errf(where, "number.format is required")
 			}
-			if err := checkFormat(n.Format); err != nil {
+			if err := checkFormat(strings.Replace(n.Format, "%g", "%d", 1)); err != nil {
 				c.errf(where, "%v", err)
 			}
 		}
