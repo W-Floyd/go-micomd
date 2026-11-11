@@ -250,6 +250,13 @@ var carFields = map[string]string{
 	"Reverse":              "reverse",
 }
 
+// condFields are the car's battery conditioning mode ("on", "off") and why
+// it would not condition (1 to 3), each null when the car gives no value.
+var condFields = map[string]string{
+	"Battery conditioning mode":    "batteryConditioningMode",
+	"Battery conditioning failure": "batteryConditioningError",
+}
+
 // carBools are the carFields LIVI takes as true or false.
 var carBools = map[string]bool{
 	"chargerReady": true, "ignition": true, "vehicleReady": true, "drivingRegulation": true,
@@ -349,11 +356,27 @@ func liviCar(fs []micom.Field) map[string]any {
 				added = &f.Value
 			}
 		}
+		var v any
+		switch f.Name {
+		case "Battery conditioning mode":
+			v = map[int]any{1: "off", 2: "on"}[f.Value] // others: none, null
+		case "Battery conditioning failure":
+			if f.Value >= 1 && f.Value <= 3 {
+				v = float64(f.Value)
+			}
+		}
+		if key, ok := condFields[f.Name]; ok {
+			if out == nil {
+				out = map[string]any{}
+			}
+			out[key] = v
+			continue
+		}
 		key, ok := carFields[f.Name]
 		if !ok || !f.Valid {
 			continue
 		}
-		var v any = float64(f.Value)
+		v = float64(f.Value)
 		switch {
 		case key == "nightMode":
 			v = f.Value == 0

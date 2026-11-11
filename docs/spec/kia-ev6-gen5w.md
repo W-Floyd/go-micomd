@@ -43,7 +43,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 17 |
-| 🟡 code | 47 |
+| 🟡 code | 50 |
 | 🟠 inferred | 3 |
 
 Not yet backed by a capture:
@@ -57,10 +57,13 @@ Not yet backed by a capture:
 | Charge time estimate, DC custom | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x61 VCRM_QCHCHRGRMNTIMEVALCUSTOM: DC time to full at the custom charge power |
 | Charge limit, AC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x21 SOC_SC_CHG (TARGET_SOC_SLOW): x0.5 % from the set side's pct / 0.5; never seen |
 | Charge limit, DC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x22 SOC_QC_CHG (TARGET_SOC_QUICK): x0.5 % from the set side's pct / 0.5; never seen |
+| Battery conditioning mode | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x63 EV_BATTERYCONDITIONING (HEVFlag 0x5e); never seen |
+| Battery conditioning failure | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x79 BMS_BATTCONDFAILPOPUP (HEVFlag 0x73); never seen |
 | Range at charge limit, AC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x1f SOC_DTE_SC_CHG (DTE_SLOW_CHARGER_SOC); 406-414 seen |
 | Range at charge limit, DC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x20 SOC_DTE_QC_CHG (DTE_QUICK_CHARGER_SOC) |
 | Trip energy | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x5e XEV_BATPWRSUM_KWH: the battery energy used; x0.1 kWh is a fit (20 -> 360 while the pack's energy fell 33 kWh), medium confidence |
 | Average efficiency | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x06 CLU_AVGFCL (AVG_FCI): 0-0x3ff; x0.1, per kWh in the unit item 0x05 gives (km or mi), is a guess, medium confidence; 31-41 seen |
+| HEV status (full) | `0c 88 ?? 8c` | 0x01 | 🟡 code | HEVService DATA_M_RESP as below, and [0x8d] into EV_BATTERYCONDITIONING (len >= 0x8e), [0xb6] into BMS_BATTCONDFAILPOPUP |
 | HEV status | `0c 88 ?? 8c` | 0x01 | 🟡 code | HEVService DATA_M_RESP (func 0x8c01, len >= 0x40) into flags ADDED_DIST_DATC_OFF, AVG_FCI, the charge times (the AC one at 29, CAN DB generation > 0), TARGET_SOC_SLOW/QUICK and DTE_SLOW/QUICK_CHARGER_SOC |
 | EV power block | `0c 88 ?? 8c` | 0x5c | 🟡 code | HEVService setHEVStatusValue calls |
 | Departure timers | `0c 88 ?? 8c` | 0x55 | 🟡 code | HEVService; captured only at the default |
@@ -144,6 +147,8 @@ Not yet backed by a capture:
 | --- | --- | --- |
 | acc_edge | **1** off<br>**2** on | ACC edge: ACC |
 | adm | **0** off<br>**1** on | Variant code: ADM |
+| batt_cond_failure | **1** range<br>**2** temperature_optimal<br>**3** heat_management | Battery conditioning failure: Battery conditioning failure; HEV status (full): Battery conditioning failure |
+| batt_cond_mode | **0** default<br>**1** off<br>**2** on | Battery conditioning mode: Battery conditioning mode; HEV status (full): Battery conditioning mode |
 | camera | **0** r_cam<br>**1** r_cam_old<br>**2** lvs<br>**3** avm | Variant code: Camera |
 | camera_mode | **0** analog<br>**1** digital | Variant code: Camera mode |
 | country | 9 values, below | Variant code: Country |
@@ -426,6 +431,38 @@ packet-beta
 16-23: "Charge limit, DC"
 ```
 
+#### Battery conditioning mode
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x63 EV_BATTERYCONDITIONING (HEVFlag 0x5e); never seen
+
+| Field | At | Enum |
+| --- | --- | --- |
+| Battery conditioning mode | byte 2 | batt_cond_mode |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "Battery conditioning mode"
+```
+
+#### Battery conditioning failure
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x79 BMS_BATTCONDFAILPOPUP (HEVFlag 0x73); never seen
+
+| Field | At | Enum |
+| --- | --- | --- |
+| Battery conditioning failure | byte 2 | batt_cond_failure |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "Battery conditioning failure"
+```
+
 #### Range at charge limit, AC
 
 cmd `0x02`, length 3 · 🟡 code
@@ -489,6 +526,27 @@ packet-beta
 0-7: "?"
 8-23: "Average efficiency"
 ```
+
+#### HEV status (full)
+
+cmd `0x01`, length ≥ 183 · 🟡 code
+
+> HEVService DATA_M_RESP as below, and [0x8d] into EV_BATTERYCONDITIONING (len >= 0x8e), [0xb6] into BMS_BATTCONDFAILPOPUP
+
+| Field | At | Type | Scale | Unit | Enum |
+| --- | --- | --- | --- | --- | --- |
+| Range, climate on | byte 60 | u16 |  | km |  |
+| Range added, climate off | byte 54 |  |  | km |  |
+| Average efficiency | byte 9 | u16 | 0.1 |  |  |
+| Charge time estimate, DC | byte 19 | u16 |  | min |  |
+| Charge time estimate, AC | byte 29 | u16 |  | min |  |
+| Charge time to full | byte 31 | u16 |  | min |  |
+| Range at charge limit, AC | byte 46 | u16 |  | km |  |
+| Range at charge limit, DC | byte 48 | u16 |  | km |  |
+| Charge limit, AC | byte 50 |  | 0.5 | % |  |
+| Charge limit, DC | byte 51 |  | 0.5 | % |  |
+| Battery conditioning mode | byte 141 |  |  |  | batt_cond_mode |
+| Battery conditioning failure | byte 182 |  |  |  | batt_cond_failure |
 
 #### HEV status
 

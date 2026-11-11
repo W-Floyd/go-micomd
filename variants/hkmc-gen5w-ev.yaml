@@ -119,6 +119,31 @@ messages:
       - { name: "Charge limit, DC", off: 2, scale: 0.5, unit: " %" }
     status: code
     ref: "HEVService item 0x22 SOC_QC_CHG (TARGET_SOC_QUICK): x0.5 % from the set side's pct / 0.5; never seen"
+  # The EV settings' "Battery Conditioning Mode" as the car holds it (set
+  # with batt-cond-mode): 2 on, 1 off, any other value none.
+  - name: "Battery conditioning mode"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x63 } ]
+    fields:
+      - { name: "Battery conditioning mode", off: 2, enum: batt_cond_mode }
+    status: code
+    ref: "HEVService item 0x63 EV_BATTERYCONDITIONING (HEVFlag 0x5e); never seen"
+  # Why the BMS would not condition, stock's popup: 1 the driving range too
+  # short, 2 the battery temperature already optimal, 3 a heat-management
+  # error.
+  - name: "Battery conditioning failure"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x79 } ]
+    fields:
+      - { name: "Battery conditioning failure", off: 2, enum: batt_cond_failure }
+    status: code
+    ref: "HEVService item 0x79 BMS_BATTCONDFAILPOPUP (HEVFlag 0x73); never seen"
   - name: "Range at charge limit, AC"
     dir: from_micom
     hdr: "0c 88 ?? 8c"
@@ -163,7 +188,29 @@ messages:
   # 0x8c01, stock's bulk answer to hev-status-request: the same range and
   # climate-off addition as above, so a value exists before the first
   # change. Never captured: micomd sends the request only with
-  # -hev-status-request.
+  # -hev-status-request. Stock reads each later byte only when the frame
+  # reaches it; a frame long enough for the battery conditioning bytes is
+  # read by the first of these, any other by the second.
+  - name: "HEV status (full)"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x01
+    min_length: 0xb7
+    fields:
+      - { name: "Range, climate on",        off: 0x3c, type: u16, unit: " km" }
+      - { name: "Range added, climate off", off: 0x36,            unit: " km" }
+      - { name: "Average efficiency",        off: 9,  type: u16, scale: 0.1 }
+      - { name: "Charge time estimate, DC",  off: 19, type: u16, unit: " min" }
+      - { name: "Charge time estimate, AC",  off: 29, type: u16, unit: " min" }
+      - { name: "Charge time to full",       off: 31, type: u16, unit: " min" }
+      - { name: "Range at charge limit, AC", off: 46, type: u16, unit: " km" }
+      - { name: "Range at charge limit, DC", off: 48, type: u16, unit: " km" }
+      - { name: "Charge limit, AC",          off: 50, scale: 0.5, unit: " %" }
+      - { name: "Charge limit, DC",          off: 51, scale: 0.5, unit: " %" }
+      - { name: "Battery conditioning mode",    off: 0x8d, enum: batt_cond_mode }
+      - { name: "Battery conditioning failure", off: 0xb6, enum: batt_cond_failure }
+    status: code
+    ref: "HEVService DATA_M_RESP as below, and [0x8d] into EV_BATTERYCONDITIONING (len >= 0x8e), [0xb6] into BMS_BATTCONDFAILPOPUP"
   - name: "HEV status"
     dir: from_micom
     hdr: "0c 88 ?? 8c"
@@ -242,3 +289,9 @@ messages:
 send:
   # Inferred statically, never seen sent; -hev-status-request sends it.
   - { name: hev-status-request, frame: "ff 88 0c 01 0c 01 00 01 76", status: inferred, ref: "HEVService requestInitHevStatus: func 0x0c01, empty payload; answered by 0x8c01" }
+
+enums:
+  # HEVManager.setBatteryConditioning's mode; "default" is what stock sends
+  # 120 ms after it (HEVService$5).
+  batt_cond_mode: { default: 0, "off": 1, "on": 2 }
+  batt_cond_failure: { range: 1, temperature_optimal: 2, heat_management: 3 }
