@@ -37,6 +37,8 @@ headers:
   # The micom's display node (backlight): micom firmware, in emulation.
   display_rx:    { hdr: "08 8c 01 88", dir: from_micom, status: code, ref: "EV6 micom firmware V002.208, micom-run" }
   display_tx:    { hdr: "8c 08 01 08", dir: to_micom, status: code, ref: "EV6 micom firmware V002.208, micom-run" }
+  # A node not otherwise captured: only ever seen reporting the gear.
+  gear_node:     { hdr: "50 c4 00 d0", dir: from_micom, status: captured, ref: "micomd capture, 2026-11-10, P/D/N/R shifts" }
 
 keys:
   frame: { hdr: keys, cmd: 0x01 }   # Func 0x8701
@@ -170,13 +172,54 @@ signals:
     label: "Open doors"
     bits: { always: 0x01, none: "none", names: { 1: "trunk", 2: "front right", 3: "driver", 4: "rear right", 5: "rear left" } }
 
+  # The gear, from a node (gear_node) not seen reporting anything else.
+  # Captured directly: every shift among P/D/N/R, 2026-11-10, each more
+  # than once. Not sequential (no obvious P=0,R=1,N=2,D=3 or similar); may
+  # be a bitmask or a stock enum we have not matched to its source.
+  - name: gear
+    hdr: gear_node
+    cmd: 0x4a
+    label: "Gear"
+    enum: { 0x00: "park", 0x05: "drive", 0x06: "neutral", 0x07: "reverse" }
+    unknown: "code %#02x"
+
+  # Out of Park: true (01) in D, N and R alike, false (00) only in Park;
+  # confirmed independent of gear (a D->N shift changed only cmd 0x4a, not
+  # this) and independent of the doors (a P->D shift with the doors already
+  # locked - no lock/unlock frame at all that transition - still flipped
+  # this). Three identical copies seen, each on its own cmd: the one below,
+  # and the two -repeat entries. One more copy on the body node
+  # (out-of-park-body). Firmware side (micom-findings.md): in emulation the
+  # micom sends 0x1b and 0x03 frames unprompted once link-up happens, no CAN
+  # input modelled - consistent with these being state broadcasts off a CAN
+  # signal the emulation does not drive, not computed from anything else on
+  # the wire; that doc does not record the payloads, so it neither confirms
+  # nor refutes the meaning here.
+  - { name: out-of-park,           hdr: system_rx, cmd: 0x03, label: "Out of park", flag: { on: 1, off: 0 }, unknown: "" }
+  - { name: out-of-park-repeat-1,  hdr: system_rx, cmd: 0x26, label: "Out of park", flag: { on: 1, off: 0 }, unknown: "", suffix: " (repeat)" }
+  - { name: out-of-park-repeat-2,  hdr: system_rx, cmd: 0x9a, label: "Out of park", flag: { on: 1, off: 0 }, unknown: "", suffix: " (repeat)" }
+  - { name: out-of-park-body,      hdr: body,      cmd: 0x10, label: "Out of park", flag: { on: 1, off: 0 }, unknown: "", suffix: " (body node)" }
+
+  # Reverse specifically (not just out-of-park): on exactly when the camera
+  # (rear-camera, code 01) and gear (0x4a = 0x07) are.
+  - { name: reverse-active, hdr: system_rx, cmd: 0x1b, label: "Reverse", flag: { on: 1, off: 0 }, unknown: "" }
+
+  # Fires 1-5s after out-of-park, opposite polarity (0 shortly after
+  # leaving Park, 1 shortly after returning to it); meaning not understood
+  # - a settle/debounce confirmation is a guess, not a fact.
+  - { name: shift-settled, hdr: system_rx, cmd: 0x29, label: "Flag 0x8129", enum: { 0x00: "0", 0x01: "1" }, unknown: "" }
+
   # The rear camera button: 09 when pressed on, 00 off, with cmd 52 (six
-  # bytes) following. Two presses seen, so the other values are unknown.
+  # bytes) following, its last byte 02 on / 00 off; other values unknown.
+  # 01 is also "on", from Reverse engaging the camera rather than the
+  # button (seen twice with system_rx's reverse-active (0x1b) and gear
+  # (0x4a = 0x07)); 01 and 09 read the same here, so this alone cannot tell
+  # which of the two turned it on.
   - name: rear-camera
     hdr: camera
     cmd: 0x51
     label: "Rear camera"
-    enum: { 0x00: "off", 0x09: "on" }
+    enum: { 0x00: "off", 0x01: "on", 0x09: "on" }
     unknown_line: "Rear camera mode: code %#02x"
 
 # Routine traffic Android sent at a steady rate (logcat MicomD, 2026-10-16),

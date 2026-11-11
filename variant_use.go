@@ -74,6 +74,9 @@ func (v *Variant) describeKey(p []byte) string {
 }
 
 // FrameName names the frames the variant knows by layout, "" for the rest.
+// Signal frames (signals:, e.g. door-driver-lock) describe fine via Describe
+// but were missing here: Describe tries v.describe (signals, then keys)
+// before v.decode, and this skipped straight to the decoders table.
 func (v *Variant) FrameName(f Frame) string {
 	if IsAliveRequest(f) {
 		return "CPU alive request"
@@ -81,12 +84,44 @@ func (v *Variant) FrameName(f Frame) string {
 	if n, ok := v.names[hdrCmd{f.Hdr, f.Cmd}]; ok {
 		return n
 	}
+	if s := v.signals[hdrCmd{f.Hdr, f.Cmd}]; s != nil {
+		return s.name
+	}
 	for _, d := range v.decoders[f.Cmd] {
 		if d.matches(f.Hdr) {
 			return d.name
 		}
 	}
 	return ""
+}
+
+// SentName is the name of the to_micom message f matches, by frame, as the
+// variant declared it with fields (a messages: entry); "" for the rest. A
+// frame that is only a headers: alias, or a literal identify.request, is not
+// one: this names what we send, the way FrameName names what the micom
+// sends, but the two tables are built separately (compileMessages: decoders
+// of from_micom messages, encoders of to_micom ones), so neither falls back
+// to the other.
+func (v *Variant) SentName(f Frame) string {
+	if m := v.sent[hdrCmd{f.Hdr, f.Cmd}]; m != nil {
+		return m.name
+	}
+	return ""
+}
+
+// DescribeSent is a one-line reading of f, a frame sent to the micom, for
+// the to_micom messages whose layout is declared with fields; "" for the
+// rest, including a length that does not match the declaration.
+func (v *Variant) DescribeSent(f Frame) string {
+	m := v.sent[hdrCmd{f.Hdr, f.Cmd}]
+	if m == nil || len(f.Payload) != m.length {
+		return ""
+	}
+	parts := make([]string, len(m.fields))
+	for i, fl := range m.fields {
+		parts[i] = fl.read(f.Payload).String()
+	}
+	return m.name + ": " + strings.Join(parts, " ")
 }
 
 // Decode reads the fields of a frame whose layout is known; nil for the rest.

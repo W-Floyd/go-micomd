@@ -109,6 +109,7 @@ Not yet backed by a capture:
 | cluster_tx | `8f 0d 01 0d` | to_micom | 🟢 captured | the ack profile frame; stock ClusterService |
 | display_rx | `08 8c 01 88` | from_micom | 🟡 code | EV6 micom firmware V002.208, micom-run |
 | display_tx | `8c 08 01 08` | to_micom | 🟡 code | EV6 micom firmware V002.208, micom-run |
+| gear_node | `50 c4 00 d0` | from_micom | 🟢 captured | micomd capture, 2026-11-10, P/D/N/R shifts |
 | hev | `0c 88 01 8c` | from_micom | 🟢 captured | logcat MicomD 2026-10-16 |
 | keys | `07 84 01 87` | from_micom | 🟢 captured |  |
 | poll_tx | `88 0c 01 0c` | to_micom | 🟢 captured |  |
@@ -1062,7 +1063,7 @@ packet-beta
 | Name | Header | Cmd | Kind | Label | State |
 | --- | --- | --- | --- | --- | --- |
 | climate-burst | `43 c2 00 c3` (climate_panel) | 0x1b | burst lines |  |  |
-| climate-driver-set | `43 c2 00 c3` (climate_panel) | 0x05, 0x07 | values number | Climate driver set point | driver_set_f |
+| climate-driver-set | `43 c2 00 c3` (climate_panel) | 0x05, 0x07 | number values | Climate driver set point | driver_set_f |
 | climate-passenger-set | `43 c2 00 c3` (climate_panel) | 0x09, 0x0b | values number | Climate passenger set point | passenger_set_f |
 | climate-airflow | `43 c2 00 c3` (climate_panel) | 0x0d | enum | Climate airflow | airflow |
 | climate-auto | `43 c2 00 c3` (climate_panel) | 0x0f | flag | Climate auto | auto |
@@ -1073,11 +1074,11 @@ packet-beta
 | climate-zones | `43 c2 00 c3` (climate_panel) | 0x27 | flag | Climate zones | zones_synced |
 | climate-heat | `43 c2 00 c3` (climate_panel) | 0x33 | flag | Climate heat |  |
 | climate-auto-level | `43 c2 00 c3` (climate_panel) | 0x4f | number values | Climate auto level |  |
-| climate-auto-level-inverse | `43 c2 00 c3` (climate_panel) | 0x50 | number values | Climate auto level (inverse) |  |
-| seat-heat-driver | `55 ca 00 d5` (seat_node) | 0x20 | values number | Seat heat, driver | driver_seat_heat |
+| climate-auto-level-inverse | `43 c2 00 c3` (climate_panel) | 0x50 | values number | Climate auto level (inverse) |  |
+| seat-heat-driver | `55 ca 00 d5` (seat_node) | 0x20 | number values | Seat heat, driver | driver_seat_heat |
 | seat-heat-passenger | `55 ca 00 d5` (seat_node) | 0x21 | number values | Seat heat, passenger | passenger_seat_heat |
-| seat-heat-driver-repeat | `44 c1 00 c4` (body) | 0x19 | number values | Seat heat, driver (repeat) | driver_seat_heat |
-| seat-heat-passenger-repeat | `44 c1 00 c4` (body) | 0x1b | values number | Seat heat, passenger (repeat) | passenger_seat_heat |
+| seat-heat-driver-repeat | `44 c1 00 c4` (body) | 0x19 | values number | Seat heat, driver (repeat) | driver_seat_heat |
+| seat-heat-passenger-repeat | `44 c1 00 c4` (body) | 0x1b | number values | Seat heat, passenger (repeat) | passenger_seat_heat |
 | window-driver-switch | `55 ca 00 d5` (seat_node) | 0x08 | enum | Window driver |  |
 | window-passenger-switch | `55 ca 00 d5` (seat_node) | 0x0b | enum | Window passenger |  |
 | window-driver-position | `55 ca 00 d5` (seat_node) | 0x06 | enum | Window driver |  |
@@ -1097,6 +1098,13 @@ packet-beta
 | trunk | `44 c1 00 c4` (body) | 0x06 | enum | Trunk |  |
 | hood | `44 c1 00 c4` (body) | 0x11 | enum | Hood |  |
 | open-doors | `01 8a 01 81` (system_rx) | 0x2f | bits | Open doors |  |
+| gear | `50 c4 00 d0` (gear_node) | 0x4a | enum | Gear |  |
+| out-of-park | `01 8a 01 81` (system_rx) | 0x03 | flag | Out of park |  |
+| out-of-park-repeat-1 | `01 8a 01 81` (system_rx) | 0x26 | flag | Out of park |  |
+| out-of-park-repeat-2 | `01 8a 01 81` (system_rx) | 0x9a | flag | Out of park |  |
+| out-of-park-body | `44 c1 00 c4` (body) | 0x10 | flag | Out of park |  |
+| reverse-active | `01 8a 01 81` (system_rx) | 0x1b | flag | Reverse |  |
+| shift-settled | `01 8a 01 81` (system_rx) | 0x29 | enum | Flag 0x8129 |  |
 | rear-camera | `01 c4 01 81` (camera) | 0x51 | enum | Rear camera |  |
 
 ## Keys

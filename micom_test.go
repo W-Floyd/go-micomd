@@ -182,6 +182,21 @@ func TestDescribeLive(t *testing.T) {
 		{"44c100c4", "22", "06c40c", "Odometer: Odometer=44340.4 km"},
 		{"43c200c3", "02", "5e", "Outdoor temperature: Outdoor temperature=12.222222 C Outdoor temperature (F)=54 F"},
 		{"43c200c3", "02", "00", "Outdoor temperature=-40 C Outdoor temperature (F)=-40 F"},
+		// Gear shifts, live on the EV6, 2026-11-10 (P/D/N/R, each more than
+		// once; see variants/kia-ev6-gen5w.yaml's comments for the full
+		// correlation — not yet written up in docs/messages.md).
+		{"50c400d0", "4a", "00", "Gear: park"},
+		{"50c400d0", "4a", "05", "Gear: drive"},
+		{"50c400d0", "4a", "06", "Gear: neutral"},
+		{"50c400d0", "4a", "07", "Gear: reverse"},
+		{"018a0181", "03", "01", "Out of park: on"},
+		{"018a0181", "03", "00", "Out of park: off"},
+		{"018a0181", "26", "01", "Out of park: on (repeat)"},
+		{"018a0181", "9a", "01", "Out of park: on (repeat)"},
+		{"44c100c4", "10", "00", "Out of park: off (body node)"},
+		{"018a0181", "1b", "01", "Reverse: on"},
+		{"018a0181", "1b", "00", "Reverse: off"},
+		{"01c40181", "51", "01", "Rear camera: on"},
 	} {
 		var f Frame
 		copy(f.Hdr[:], unhex(t, c.hdr))
@@ -193,6 +208,76 @@ func TestDescribeLive(t *testing.T) {
 	}
 	if Describe(Frame{Hdr: [4]byte{0x0d, 0x8f, 0x01, 0x8d}, Cmd: 0x2d}) != "" {
 		t.Error("unknown frame described")
+	}
+}
+
+// TestFrameNameKnowsSignals: FrameName used to check only v.names and
+// v.decoders, so a signals: frame (door locks, climate switches, ...)
+// described fine but came back "" from FrameName — live traffic surfaced
+// this at a gear change, 2026-11-10 (the door locks firing on Park->Drive).
+func TestFrameNameKnowsSignals(t *testing.T) {
+	for _, c := range []struct{ hdr, cmd, payload, name string }{
+		{"44c100c4", "00", "00", "door-front-right-lock"},
+		{"44c100c4", "02", "01", "door-driver-lock"},
+		{"43c200c3", "05", "03", "climate-driver-set"},
+		{"50c400d0", "4a", "05", "gear"},
+		{"018a0181", "03", "01", "out-of-park"},
+		{"018a0181", "26", "01", "out-of-park-repeat-1"},
+		{"018a0181", "9a", "01", "out-of-park-repeat-2"},
+		{"44c100c4", "10", "01", "out-of-park-body"},
+		{"018a0181", "1b", "01", "reverse-active"},
+		{"018a0181", "29", "01", "shift-settled"},
+	} {
+		var f Frame
+		copy(f.Hdr[:], unhex(t, c.hdr))
+		f.Cmd = unhex(t, c.cmd)[0]
+		f.Payload = unhex(t, c.payload)
+		if got := FrameName(f); got != c.name {
+			t.Errorf("%s %s: FrameName %q, want %q", c.hdr, c.cmd, got, c.name)
+		}
+		if Describe(f) == "" {
+			t.Errorf("%s %s: named but not described", c.hdr, c.cmd)
+		}
+	}
+}
+
+// TestDescribeSentLive mirrors TestDescribeLive for SentName/DescribeSent:
+// FrameName/Describe never name these frames (compileMessages builds the
+// decoders of from_micom messages, the encoders of to_micom ones), so this
+// is the other table, not more rows of that one.
+func TestDescribeSentLive(t *testing.T) {
+	for _, c := range []struct{ hdr, cmd, payload, name, want string }{
+		// captured[1]: the ack profile frame (ClusterService), idle (no route).
+		{"8f0d010d", "03", "ffffff0e03ffff03ff", "cluster-sub-info", "remaining_unit=n/a"},
+		// The EV6, live, 2026-11-10 (no active turn-by-turn guidance).
+		{"8f0d010d", "04", "08000000ffff00f0", "tbt-turn", "maneuver=no_route_guide"},
+		{"8f0d010d", "11", "00", "nav-operation", "status=released"},
+	} {
+		var f Frame
+		copy(f.Hdr[:], unhex(t, c.hdr))
+		f.Cmd = unhex(t, c.cmd)[0]
+		f.Payload = unhex(t, c.payload)
+		if got := SentName(f); got != c.name {
+			t.Errorf("%s %s: SentName %q, want %q", c.hdr, c.cmd, got, c.name)
+		}
+		if got := DescribeSent(f); !strings.Contains(got, c.want) {
+			t.Errorf("%s %s: %q lacks %q", c.hdr, c.cmd, got, c.want)
+		}
+	}
+	// status_tx (captured[2]'s header): a headers: alias, never a messages:
+	// entry, so the layout is not declared.
+	status := Frame{Hdr: [4]byte{0xc3, 0x4d, 0x00, 0x4d}, Cmd: 0x17}
+	if got := SentName(status); got != "" {
+		t.Errorf("status_tx named: %q", got)
+	}
+	if got := DescribeSent(status); got != "" {
+		t.Errorf("status_tx described: %q", got)
+	}
+	// A from_micom frame: SentName/DescribeSent never fall back to
+	// FrameName/Describe's table.
+	rx := Frame{Hdr: [4]byte{0x0d, 0x8f, 0x01, 0x8d}, Cmd: 0x46}
+	if got := SentName(rx); got != "" {
+		t.Errorf("from_micom frame named as sent: %q", got)
 	}
 }
 

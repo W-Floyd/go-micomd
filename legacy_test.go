@@ -21,7 +21,7 @@ func legacyCarDescribe(f Frame) string {
 		switch p[0] {
 		case 0:
 			return "Rear camera: off"
-		case 9:
+		case 1, 9:
 			return "Rear camera: on"
 		}
 		return fmt.Sprintf("Rear camera mode: code %#02x", p[0])
@@ -37,6 +37,38 @@ func legacyCarDescribe(f Frame) string {
 		}
 	case h == [4]byte{0x01, 0x8a, 0x01, 0x81} && f.Cmd == 0x2f && len(p) == 1:
 		return legacyDescribeOpen(p[0])
+	case h == [4]byte{0x01, 0x8a, 0x01, 0x81} && len(p) == 1 && p[0] <= 1:
+		// Out of Park (repeated on three cmds) and Reverse, 2026-11-10.
+		switch f.Cmd {
+		case 0x03, 0x26, 0x9a:
+			s := "Out of park: off"
+			if p[0] == 1 {
+				s = "Out of park: on"
+			}
+			if f.Cmd != 0x03 {
+				s += " (repeat)"
+			}
+			return s
+		case 0x1b:
+			if p[0] == 1 {
+				return "Reverse: on"
+			}
+			return "Reverse: off"
+		case 0x29:
+			return fmt.Sprintf("Flag 0x8129: %d", p[0])
+		}
+	case h == [4]byte{0x50, 0xc4, 0x00, 0xd0} && f.Cmd == 0x4a && len(p) == 1:
+		switch p[0] {
+		case 0x00:
+			return "Gear: park"
+		case 0x05:
+			return "Gear: drive"
+		case 0x06:
+			return "Gear: neutral"
+		case 0x07:
+			return "Gear: reverse"
+		}
+		return fmt.Sprintf("Gear: code %#02x", p[0])
 	case h == [4]byte{0x44, 0xc1, 0x00, 0xc4}:
 		if s := legacyDescribeDoor(f.Cmd, p); s != "" {
 			return s
@@ -49,6 +81,13 @@ func legacyCarDescribe(f Frame) string {
 			return "Seat heat, driver (repeat): " + legacySeatHeat(p)
 		case 0x1b:
 			return "Seat heat, passenger (repeat): " + legacySeatHeat(p)
+		case 0x10:
+			if len(p) == 1 && p[0] <= 1 {
+				if p[0] == 1 {
+					return "Out of park: on (body node)"
+				}
+				return "Out of park: off (body node)"
+			}
 		}
 	}
 	return ""

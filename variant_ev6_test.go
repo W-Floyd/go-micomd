@@ -90,7 +90,16 @@ func TestEV6VariantDescribesAsBefore(t *testing.T) {
 			t.Errorf("%v: legacy Decode %v, variant %v, Decode %v", f, a, b, c)
 			bad++
 		}
-		if a, b, c := legacyFrameName(f), v.FrameName(f), FrameName(f); (a != b || a != c) && !added {
+		// FrameName may gain coverage ahead of Describe/Decode (a signal frame
+		// described fine but had no name until FrameName learned to check
+		// v.signals too): only a name legacy already gave is a regression if
+		// it now differs or is lost. Safe to exempt all of legacyFrameName()
+		// == "" rather than only legacy's fully-blank cases (the broader
+		// "added" above): FrameName and Describe/Decode read the same
+		// v.signals/v.decoders lookup, so a real regression in what a frame
+		// means would always show up in the stricter Describe/Decode checks
+		// too, which keep the narrower "added".
+		if a, b, c := legacyFrameName(f), v.FrameName(f), FrameName(f); a != "" && (a != b || a != c) {
 			t.Errorf("%v: legacy FrameName %q, variant %q, FrameName %q", f, a, b, c)
 			bad++
 		}

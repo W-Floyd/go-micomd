@@ -40,6 +40,16 @@ func Func(f Frame) uint16 { return uint16(f.Hdr[3])<<8 | uint16(f.Cmd) }
 // default variant knows them.
 func FrameName(f Frame) string { return defaultVariant().FrameName(f) }
 
+// SentName names a frame we send to the micom, by the default variant's
+// declared to_micom messages; "" for the rest. See Variant.SentName: this is
+// not FrameName's table, and the two never fall back to each other.
+func SentName(f Frame) string { return defaultVariant().SentName(f) }
+
+// DescribeSent is a one-line reading of f, a frame sent to the micom, for
+// the to_micom messages whose layout the default variant declares with
+// fields; "" for the rest.
+func DescribeSent(f Frame) string { return defaultVariant().DescribeSent(f) }
+
 // Decode reads the fields of a frame whose layout the default variant knows;
 // nil for the rest. On the EV6 the layouts are Android's HEVService's (see
 // variants/hkmc-gen5w-ev.yaml).
