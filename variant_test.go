@@ -132,6 +132,9 @@ func TestLoadVariantRefuses(t *testing.T) {
 		{"requires nothing", tx(f0, ", requires: [{field: Navigation, in: []}]}"), "in lists the values"},
 		{"requires a str", tx(f0, ", requires: [{field: Language, in: [en]}]}"), "a str field cannot be required"},
 		{"requires, if an unknown field", tx(f0, ", requires: [{if: {b: 1}, field: Navigation, in: [1]}]}"), "if: b: no such field"},
+		{"reflects on from_micom", rx("{name: a, off: 0, reflects: {msg: M, field: a}}", ", min_length: 2}"), "reflects is for to_micom"},
+		{"reflects an unknown message", tx("{name: a, off: 0, reflects: {msg: Nope, field: a}}", "}"), `reflects "Nope": no from_micom message`},
+		{"reflects an unknown field", tx("{name: a, off: 0, reflects: {msg: \"Variant code\", field: Nope}}", "}"), `has no field "Nope"`},
 		{"requires, if a bad value", tx("{name: a, off: 0, max: 3}", ", requires: [{if: {a: 9}, field: Navigation, in: [1]}]}"), "if: a: 9 is above the maximum 3"},
 		{"requires fields that differ", head + "enums: {e: {x: 1}}\nmessages: [{name: A, dir: from_micom, hdr: system_rx, cmd: 0x41, length: 1, fields: [{name: X, off: 0}]}, " +
 			"{name: B, dir: from_micom, hdr: system_rx, cmd: 0x42, length: 1, fields: [{name: X, off: 0, enum: e}]}, " +

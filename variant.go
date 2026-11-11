@@ -46,10 +46,13 @@ type Variant struct {
 
 	signals  map[hdrCmd]*sigSpec
 	decoders map[byte][]*decoder // by command
-	names    map[hdrCmd]string
-	messages map[string]*msgSpec // to_micom, by name
-	sent     map[hdrCmd]*msgSpec // to_micom, by frame
-	required map[string]bool     // from_micom fields a to_micom message requires
+	// rxHeaders are the from_micom headers, by name: an encoded frame's
+	// open header bytes are taken from the first that fits (emulate.go).
+	rxHeaders [][4]byte
+	names     map[hdrCmd]string
+	messages  map[string]*msgSpec // to_micom, by name
+	sent      map[hdrCmd]*msgSpec // to_micom, by frame
+	required  map[string]bool     // from_micom fields a to_micom message requires
 	// dangerous frames (hdr+cmd) reset/rewrite/reconfigure the micom; sent
 	// only with -allow-dangerous. Value is the defining entry's name, for
 	// the refusal message. Built from messages/sends marked dangerous.
@@ -496,6 +499,9 @@ func compile(rv rawVariant) (*Variant, error) {
 		}
 		checkStatus(c, "headers["+n+"]", h.Status, false)
 		headers[n] = headerDef{b, h.Dir}
+		if h.Dir == "from_micom" {
+			v.rxHeaders = append(v.rxHeaders, b)
+		}
 	}
 	hdrOf := func(where, s string) ([4]byte, bool) {
 		if h, ok := headers[s]; ok {

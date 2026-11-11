@@ -52,6 +52,26 @@ func IsAliveRequest(f Frame) bool {
 	return f.Hdr == hdrAliveReq && f.Cmd == cmdAlive
 }
 
+// AliveRequest is the micom's CPU-alive request, as an emulated micom
+// (cmd/micom-fake) sends it.
+func AliveRequest() Frame { return Frame{Hdr: hdrAliveReq, Cmd: cmdAlive} }
+
+// IsAliveReply reports whether f is the SoC's answer to it.
+func IsAliveReply(f Frame) bool { return f.Hdr == hdrAliveReply && f.Cmd == cmdAlive }
+
+// IsHello reports whether f is stock micomd's link-up request (func 0x0101,
+// no payload, every 2 s, five times), which the micom answers with its boot
+// record (0x8101).
+func IsHello(f Frame) bool { return f.Hdr == hdrAliveReply && f.Cmd == 0x01 }
+
+// IsBootRecord reports whether f is the micom's answer to it.
+func IsBootRecord(f Frame) bool { return f.Hdr == hdrAliveReq && f.Cmd == 0x01 }
+
+// ReplyHeader is the header a request's answer comes back on: the two
+// peers swapped and the type's top bit set (88 0c 01 0c -> 0c 88 01 8c,
+// 8a 01 01 01 -> 01 8a 01 81), as every captured request/answer pair.
+func ReplyHeader(h [4]byte) [4]byte { return [4]byte{h[1], h[0], h[2], h[3] | 0x80} }
+
 // FromMicom is the header of the micom's cmd 0x02 frame, payload 57 00 NN. It
 // is HEVService's status-flag setter: id 0x57 is the climate power draw in
 // W (see Describe), not a countdown, as it was first read.

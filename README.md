@@ -41,6 +41,9 @@ A library first (`package micom`, importable by other modules, such as the
   ([docs/messages.md](docs/messages.md)). From the micom they are decoded;
   to it (the cluster's turn-by-turn guidance and compass) a client fills
   them in by name over `-input`, and micomd validates, encodes and sends.
+* `cmd/micom-fake`: the other end, an emulated micom for emulated head units
+  (replays captures, answers reads, reflects settings writes back as the
+  variant says): [docs/fake-micom.md](docs/fake-micom.md).
 
 Everything comes from captured traffic (logcat's `MicomD` lines) and a
 disassembly of the vendor binary, not from a specification: it says only what has

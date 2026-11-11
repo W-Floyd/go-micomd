@@ -144,6 +144,50 @@ messages:
       - { name: "Battery conditioning failure", off: 2, enum: batt_cond_failure }
     status: code
     ref: "HEVService item 0x79 BMS_BATTCONDFAILPOPUP (HEVFlag 0x73); never seen"
+  # VCU ready (HEVFlag VCU_RDY): in emulation stock's EV page shows no range
+  # until it is 1.
+  - name: "VCU ready"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x2c } ]
+    fields:
+      - { name: "VCU ready", off: 2, type: bool }
+    status: code
+    ref: "HEVService item 0x2c VCU_RDY (HEVFlag 45); never seen; stock under QEMU with micom-fake: the range appears once it is 1"
+  - name: "Winter mode"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x44 } ]
+    fields:
+      - { name: "Winter mode", off: 2 }   # values unknown
+    status: code
+    ref: "HEVService item 0x44 XEV_WINTERMODESTA; never seen"
+  # The AC charging current as the car holds it: stock shows 2 as its
+  # second choice, 3 as its third, anything else as its first.
+  - name: "AC charging current"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x51 } ]
+    fields:
+      - { name: "AC charging current", off: 2, enum: ac_current }
+    status: code
+    ref: "HEVService item 0x51 OBC_CHGINCURRMODSTA, getInCurrModeValue(v, true); never seen"
+  - name: "V2L discharge limit"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x50 } ]
+    fields:
+      - { name: "V2L discharge limit", off: 2 }   # raw: % or x0.5 % unknown
+    status: code
+    ref: "HEVService item 0x50 CHRG_V2XDISCHRGLIMSOCVAL_SYNC; never seen"
   - name: "Range at charge limit, AC"
     dir: from_micom
     hdr: "0c 88 ?? 8c"
@@ -270,7 +314,8 @@ messages:
     # EV6 capture: hour 12, minute bits 0, i.e. no timer ever set, so the
     # layout is unchecked against a real setting. The set side is
     # sendPacket(0x88, 0x0c, 0x0c06) with 7 bytes packed from 28 slots,
-    # LSB- or MSB-first by a field the decompile lost.
+    # LSB- or MSB-first by the CAN DB generation (boot record byte 120): a
+    # car's file has its own (kia-ev6-gen5w: ev-departures).
     ref: "HEVService; captured only at the default"
 
   # The on-board charger ready (OBC_SYSRDYSTA). Where it sits depends on the
@@ -295,3 +340,7 @@ enums:
   # 120 ms after it (HEVService$5).
   batt_cond_mode: { default: 0, "off": 1, "on": 2 }
   batt_cond_failure: { range: 1, temperature_optimal: 2, heat_management: 3 }
+  # setOBCCurrent / getInCurrModeValue: the EV settings' three choices, in
+  # the app's order (Maximum, Reduced, Minimum: the order is the app's list,
+  # the names the owner's manual's); default is the pulse's idle value.
+  ac_current: { default: 0, maximum: 1, reduced: 2, minimum: 3 }

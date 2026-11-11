@@ -67,6 +67,18 @@ type rawMsgField struct {
 	Size      int      `yaml:"size,omitempty"`
 	Encoding  string   `yaml:"encoding,omitempty"`
 	PadRight  *uint8   `yaml:"pad_right,omitempty"`
+	// Reflects (to_micom only): the from_micom field the micom reports this
+	// one's value back in once it has taken it (emulate.go).
+	Reflects *rawReflect `yaml:"reflects,omitempty"`
+}
+
+// rawReflect names a from_micom message and one of its fields. Unless lists
+// raw values that set nothing (a pulse's idle value); the field's invalid
+// marker never does.
+type rawReflect struct {
+	Msg    string   `yaml:"msg"`
+	Field  string   `yaml:"field"`
+	Unless []uint64 `yaml:"unless,omitempty"`
 }
 
 // rawRequire: when the frame's fields match If (all of them; empty: always),
@@ -454,6 +466,15 @@ func checkMessageRefs(c *checker, v *Variant) {
 			}
 		}
 		compileRequires(c, v, m, where+".requires")
+		for _, f := range m.fields {
+			if r := f.reflect; r != nil {
+				if d := v.decoderNamed(r.msg); d == nil {
+					c.errf(where+"."+f.name, "reflects %q: no from_micom message by that name", r.msg)
+				} else if d.field(r.field) == nil {
+					c.errf(where+"."+f.name, "reflects %q: %s has no field %q", r.msg, r.msg, r.field)
+				}
+			}
+		}
 		if m.owns == "" {
 			continue
 		}
@@ -560,6 +581,12 @@ func compileField(c *checker, where string, r rawMsgField, enums map[string]map[
 	w := where + "." + r.Name
 	n := len(c.errs)
 	f := &field{name: r.Name, unit: r.Unit, scale: 1, offset: r.Offset, enum: r.Enum, min: r.Min, max: r.Max}
+	if r.Reflects != nil {
+		if !toMicom {
+			c.errf(w, "reflects is for to_micom fields")
+		}
+		f.reflect = &reflectSpec{msg: r.Reflects.Msg, field: r.Reflects.Field, unless: r.Reflects.Unless}
+	}
 	switch {
 	case r.Name == "":
 		c.errf(w, "a field needs a name")

@@ -547,12 +547,183 @@ messages:
     cmd: 0x62
     length: 1
     fields:
-      - { name: mode, off: 0, enum: batt_cond_mode }
+      - { name: mode, off: 0, enum: batt_cond_mode, reflects: { msg: "Battery conditioning mode", field: "Battery conditioning mode", unless: [0] } }
     timeout: 120ms
     end:
       - { msg: batt-cond-mode, set: { mode: default } }
     status: code
     ref: "stock HEVManager.setBatteryConditioning -> HEVService: sendPacket(0x88, 0x0c, 0x0c62, [mode]), then HEVService$5 [0] after 120 ms"
+
+  # The EV schedules and charge settings, as stock packs them for CAN DB
+  # generation 2 (this car's boot record byte 120) and reads them back
+  # (gen > 0). All from HEVService; none seen on the wire but the readbacks
+  # at their defaults. reflects: is where the car reports a write back
+  # (micom-fake). The writes change what the car does unattended, so they
+  # are dangerous: -allow-dangerous on top of -allow-inferred.
+  # The rest of 0x8C55 (gen > 0), beside hkmc-gen5w-ev's "Departure
+  # timers" (bytes 3-4, matched first): the days and set 1's enable.
+  - name: "Departure days"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x55
+    min_length: 8
+    fields:
+      - { name: "Departure 1 Monday",    off: 5, bits: "1:0" }
+      - { name: "Departure 1 Tuesday",   off: 5, bits: "3:2" }
+      - { name: "Departure 1 Wednesday", off: 5, bits: "5:4" }
+      - { name: "Departure 1 Thursday",  off: 5, bits: "7:6" }
+      - { name: "Departure 1 enabled",   off: 6, bits: "1:0" }
+      - { name: "Departure 1 Friday",    off: 6, bits: "3:2" }
+      - { name: "Departure 1 Saturday",  off: 6, bits: "5:4" }
+      - { name: "Departure 1 Sunday",    off: 6, bits: "7:6" }
+      - { name: "Departure 2 Monday",    off: 7, bits: "1:0" }
+      - { name: "Departure 2 Tuesday",   off: 7, bits: "3:2" }
+      - { name: "Departure 2 Wednesday", off: 7, bits: "5:4" }
+      - { name: "Departure 2 Thursday",  off: 7, bits: "7:6" }
+    status: code
+    ref: "HEVService G3CAN_VCU_04_1_M (func 0x8c55, gen > 0); 0 in all 43k frames of a 2026-11 capture (nothing set)"
+  - name: "Schedule settings"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x53
+    min_length: 8
+    fields:
+      - { name: "Departure 2 enabled",  off: 0, bits: "1:0" }
+      - { name: "Departure 2 Friday",   off: 0, bits: "3:2" }
+      - { name: "Departure 2 Saturday", off: 0, bits: "5:4" }
+      - { name: "Departure 2 Sunday",   off: 0, bits: "7:6" }
+      - { name: "Off-peak start hour",        off: 1, bits: "4:0" }
+      - { name: "Off-peak start minute bits", off: 1, bits: "7:5" }
+      - { name: "Off-peak end hour",          off: 2, bits: "4:0" }
+      - { name: "Off-peak end minute bits",   off: 2, bits: "7:5" }
+      - { name: "Scheduled charging mode",    off: 5, bits: "1:0" }   # values unknown
+      - { name: "Scheduled climate",             off: 7, bits: "1:0" }
+      - { name: "Scheduled climate temperature", off: 7, bits: "7:2" }   # encoding unknown; 0x14 (20) at the default
+    status: code
+    ref: "HEVService G3CAN_VCU_04_2_M (func 0x8c53); seen 8 times as 00 14 10 02 00 40 00 50 (20:00-16:00, mode 0, climate off)"
+  - name: "Scheduled charge window"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x54
+    min_length: 8
+    fields:
+      - { name: "Scheduled climate defrost", off: 0, bits: "1:0" }
+      - { name: "Temperature unit",          off: 3, bits: "7:6" }
+      # The window the car computed (7 days, 31 hours, 63 minutes: none).
+      # Its end day and minute straddle bytes 5-7 and are left out.
+      - { name: "Scheduled charge start day",    off: 4, bits: "2:0" }
+      - { name: "Scheduled charge start hour",   off: 4, bits: "7:3" }
+      - { name: "Scheduled charge start minute", off: 5, bits: "5:0" }
+      - { name: "Scheduled charge end hour",     off: 6, bits: "5:1" }
+    status: code
+    ref: "HEVService G3CAN_VCU_04_3_M (func 0x8c54); seen 13 times as 00 01 00 40 ff ff ff 0f (no window)"
+
+  # setEconomicChargeTime: weekday then weekend window, and the charging
+  # mode. Stock shifts the weekend hours by 5, not 3, so only their low 3
+  # bits go; the car reads back one window. The EV app's off-peak dialog has
+  # one window and two modes (prioritize off-peak, charge only off-peak).
+  - name: ev-off-peak
+    dir: to_micom
+    hdr: poll_tx
+    cmd: 0x05
+    length: 5
+    fields:
+      - { name: start_hour,     off: 0, bits: "7:3", max: 23, reflects: { msg: "Schedule settings", field: "Off-peak start hour" } }
+      - { name: start_min_bits, off: 0, bits: "2:0",          reflects: { msg: "Schedule settings", field: "Off-peak start minute bits" } }
+      - { name: end_hour,       off: 1, bits: "7:3", max: 23, reflects: { msg: "Schedule settings", field: "Off-peak end hour" } }
+      - { name: end_min_bits,   off: 1, bits: "2:0",          reflects: { msg: "Schedule settings", field: "Off-peak end minute bits" } }
+      - { name: weekend_start_hour_low, off: 2, bits: "7:5", default: 0 }
+      - { name: weekend_start_min_bits, off: 2, bits: "2:0", default: 0 }
+      - { name: weekend_end_hour_low,   off: 3, bits: "7:5", default: 0 }
+      - { name: weekend_end_min_bits,   off: 3, bits: "2:0", default: 0 }
+      - { name: mode, off: 4, bits: "7:6", reflects: { msg: "Schedule settings", field: "Scheduled charging mode" } }
+    on_change: false
+    dangerous: "sets the car's off-peak charging window, which it acts on unattended"
+    status: code
+    ref: "stock HEVService.setEconomicChargeTime, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c05, 5 bytes)"
+  # setDepartTimeNClimateSet: stock's 28 slots, MSB first for generation 2;
+  # the slot names are the generation 0 readback's (0x8C0F).
+  - name: ev-departures
+    dir: to_micom
+    hdr: poll_tx
+    cmd: 0x06
+    length: 7
+    fields:
+      - { name: d1_hour,     off: 0, bits: "7:3", max: 23, reflects: { msg: "Departure timers", field: "Departure 1 hour" } }
+      - { name: d1_min_bits, off: 0, bits: "2:0",          reflects: { msg: "Departure timers", field: "Departure 1 minute bits" } }
+      - { name: d1_mon, off: 1, bits: "7", reflects: { msg: "Departure days", field: "Departure 1 Monday" } }
+      - { name: d1_tue, off: 1, bits: "6", reflects: { msg: "Departure days", field: "Departure 1 Tuesday" } }
+      - { name: d1_wed, off: 1, bits: "5", reflects: { msg: "Departure days", field: "Departure 1 Wednesday" } }
+      - { name: d1_thu, off: 1, bits: "4", reflects: { msg: "Departure days", field: "Departure 1 Thursday" } }
+      - { name: d1_fri, off: 1, bits: "3", reflects: { msg: "Departure days", field: "Departure 1 Friday" } }
+      - { name: d1_sat, off: 1, bits: "2", reflects: { msg: "Departure days", field: "Departure 1 Saturday" } }
+      - { name: d1_sun, off: 1, bits: "1", reflects: { msg: "Departure days", field: "Departure 1 Sunday" } }
+      - { name: d1_on,  off: 1, bits: "0", reflects: { msg: "Departure days", field: "Departure 1 enabled" } }
+      - { name: d2_hour,     off: 2, bits: "7:3", max: 23, reflects: { msg: "Departure timers", field: "Departure 2 hour" } }
+      - { name: d2_min_bits, off: 2, bits: "2:0",          reflects: { msg: "Departure timers", field: "Departure 2 minute bits" } }
+      - { name: d2_mon, off: 3, bits: "7", reflects: { msg: "Departure days", field: "Departure 2 Monday" } }
+      - { name: d2_tue, off: 3, bits: "6", reflects: { msg: "Departure days", field: "Departure 2 Tuesday" } }
+      - { name: d2_wed, off: 3, bits: "5", reflects: { msg: "Departure days", field: "Departure 2 Wednesday" } }
+      - { name: d2_thu, off: 3, bits: "4", reflects: { msg: "Departure days", field: "Departure 2 Thursday" } }
+      - { name: d2_fri, off: 3, bits: "3", reflects: { msg: "Schedule settings", field: "Departure 2 Friday" } }
+      - { name: d2_sat, off: 3, bits: "2", reflects: { msg: "Schedule settings", field: "Departure 2 Saturday" } }
+      - { name: d2_sun, off: 3, bits: "1", reflects: { msg: "Schedule settings", field: "Departure 2 Sunday" } }
+      - { name: d2_on,  off: 3, bits: "0", reflects: { msg: "Schedule settings", field: "Departure 2 enabled" } }
+      - { name: d1_climate,   off: 4, bits: "7",   reflects: { msg: "Schedule settings", field: "Scheduled climate" } }
+      - { name: d1_temp,      off: 4, bits: "6:1", reflects: { msg: "Schedule settings", field: "Scheduled climate temperature" } }
+      - { name: d1_temp_unit, off: 4, bits: "0",   reflects: { msg: "Scheduled charge window", field: "Temperature unit" } }
+      - { name: d1_defrost,   off: 5, bits: "7",   reflects: { msg: "Scheduled charge window", field: "Scheduled climate defrost" } }
+      - { name: d2_climate,   off: 5, bits: "6", default: 0 }
+      - { name: d2_temp,      off: 5, bits: "5:0", default: 0 }
+      - { name: d2_temp_unit, off: 6, bits: "7", default: 0 }
+      - { name: d2_defrost,   off: 6, bits: "6", default: 0 }
+    on_change: false
+    dangerous: "sets the car's departure timers and scheduled climate, which it acts on unattended"
+    status: code
+    ref: "stock HEVService.setDepartTimeNClimateSet, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c06, 7 bytes); readback G3CAN_VCU_04_1/2/3_M"
+  # setTargetSOCext: one limit at a time from the EV app, 0xff the others.
+  # With a limit the app sends winter mode 3 (00 00 c0 00 ff 8c ff for DC
+  # 70 %: stock under QEMU, micom-fake, 2026-11-11), read here as unchanged.
+  - name: ev-charge-limits
+    dir: to_micom
+    hdr: poll_tx
+    cmd: 0x18
+    length: 7
+    fields:
+      - { name: winter_mode, off: 2, bits: "7:6", invalid: 3, reflects: { msg: "Winter mode", field: "Winter mode" } }
+      - { name: ac_limit,    off: 4, scale: 0.5, unit: " %", invalid: 0xff, min: 50, max: 100, reflects: { msg: "Charge limit, AC", field: "Charge limit, AC" } }
+      - { name: dc_limit,    off: 5, scale: 0.5, unit: " %", invalid: 0xff, min: 50, max: 100, reflects: { msg: "Charge limit, DC", field: "Charge limit, DC" } }
+      - { name: route_limit, off: 6, scale: 0.5, unit: " %", invalid: 0xff }
+    on_change: false
+    dangerous: "sets the car's charge limits; one below the charge stops an AC charge"
+    status: code
+    ref: "stock HEVService.setTargetSOCext, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c18, 7 bytes); readback items 0x21/0x22/0x44"
+  - name: ev-charging-current
+    dir: to_micom
+    hdr: poll_tx
+    cmd: 0x5b
+    length: 1
+    fields:
+      - { name: current, off: 0, enum: ac_current, reflects: { msg: "AC charging current", field: "AC charging current", unless: [0] } }
+    timeout: 120ms
+    end:
+      - { msg: ev-charging-current, set: { current: default } }
+    dangerous: "sets the car's AC charging current"
+    status: code
+    ref: "stock HEVService.setOBCCurrent (flag 82 = 1): sendPacket(0x88, 0x0c, 0x0c5b, getInCurrModeValue(iccb, false)), 0 after 120 ms"
+  - name: ev-v2l-limit
+    dir: to_micom
+    hdr: poll_tx
+    cmd: 0x5a
+    length: 1
+    fields:
+      - { name: limit, off: 0, invalid: 0xff, reflects: { msg: "V2L discharge limit", field: "V2L discharge limit" } }
+    timeout: 120ms
+    end:
+      - { msg: ev-v2l-limit, set: { limit: null } }
+    dangerous: "sets the car's V2L discharge limit"
+    status: code
+    ref: "stock HEVService: sendPacket(0x88, 0x0c, 0x0c5a, limSoc), 0xff after 120 ms"
 
   # Power and ACC, from the micom firmware (CV_E.USA.S5W_M.V002.208) in
   # emulation and disassembly; not yet seen from a car. The ACC-off timeline

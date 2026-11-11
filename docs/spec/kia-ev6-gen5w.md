@@ -43,7 +43,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 17 |
-| 🟡 code | 51 |
+| 🟡 code | 63 |
 | 🟠 inferred | 3 |
 
 Not yet backed by a capture:
@@ -59,6 +59,10 @@ Not yet backed by a capture:
 | Charge limit, DC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x22 SOC_QC_CHG (TARGET_SOC_QUICK): x0.5 % from the set side's pct / 0.5; never seen |
 | Battery conditioning mode | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x63 EV_BATTERYCONDITIONING (HEVFlag 0x5e); never seen |
 | Battery conditioning failure | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x79 BMS_BATTCONDFAILPOPUP (HEVFlag 0x73); never seen |
+| VCU ready | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x2c VCU_RDY (HEVFlag 45); never seen; stock under QEMU with micom-fake: the range appears once it is 1 |
+| Winter mode | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x44 XEV_WINTERMODESTA; never seen |
+| AC charging current | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x51 OBC_CHGINCURRMODSTA, getInCurrModeValue(v, true); never seen |
+| V2L discharge limit | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x50 CHRG_V2XDISCHRGLIMSOCVAL_SYNC; never seen |
 | Range at charge limit, AC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x1f SOC_DTE_SC_CHG (DTE_SLOW_CHARGER_SOC); 406-414 seen |
 | Range at charge limit, DC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x20 SOC_DTE_QC_CHG (DTE_QUICK_CHARGER_SOC) |
 | Trip energy | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x5e XEV_BATPWRSUM_KWH: the battery energy used; x0.1 kWh is a fit (20 -> 360 while the pack's energy fell 33 kWh), medium confidence |
@@ -78,6 +82,14 @@ Not yet backed by a capture:
 | batt-cond-remain-time | `poll_tx` | 0x65 | 🟡 code | stock HEVService.setBattCondRemainTime: sendPacket(0x88, 0x0c, 0x0c65, [hi, lo]) |
 | batt-cond-ev-station | `poll_tx` | 0x68 | 🟡 code | stock HEVService.setBattCondEvStation: sendPacket(0x88, 0x0c, 0x0c68, [flag & 0xf, type & 0xf]), then HEVService\$6 [7, 7] after 120 ms; github.com/paytondevs/gen5w-preconditioning PreconditioningProfile |
 | batt-cond-mode | `poll_tx` | 0x62 | 🟡 code | stock HEVManager.setBatteryConditioning -> HEVService: sendPacket(0x88, 0x0c, 0x0c62, [mode]), then HEVService\$5 [0] after 120 ms |
+| Departure days | `0c 88 ?? 8c` | 0x55 | 🟡 code | HEVService G3CAN_VCU_04_1_M (func 0x8c55, gen > 0); 0 in all 43k frames of a 2026-11 capture (nothing set) |
+| Schedule settings | `0c 88 ?? 8c` | 0x53 | 🟡 code | HEVService G3CAN_VCU_04_2_M (func 0x8c53); seen 8 times as 00 14 10 02 00 40 00 50 (20:00-16:00, mode 0, climate off) |
+| Scheduled charge window | `0c 88 ?? 8c` | 0x54 | 🟡 code | HEVService G3CAN_VCU_04_3_M (func 0x8c54); seen 13 times as 00 01 00 40 ff ff ff 0f (no window) |
+| ev-off-peak | `poll_tx` | 0x05 | 🟡 code | stock HEVService.setEconomicChargeTime, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c05, 5 bytes) |
+| ev-departures | `poll_tx` | 0x06 | 🟡 code | stock HEVService.setDepartTimeNClimateSet, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c06, 7 bytes); readback G3CAN_VCU_04_1/2/3_M |
+| ev-charge-limits | `poll_tx` | 0x18 | 🟡 code | stock HEVService.setTargetSOCext, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c18, 7 bytes); readback items 0x21/0x22/0x44 |
+| ev-charging-current | `poll_tx` | 0x5b | 🟡 code | stock HEVService.setOBCCurrent (flag 82 = 1): sendPacket(0x88, 0x0c, 0x0c5b, getInCurrModeValue(iccb, false)), 0 after 120 ms |
+| ev-v2l-limit | `poll_tx` | 0x5a | 🟡 code | stock HEVService: sendPacket(0x88, 0x0c, 0x0c5a, limSoc), 0xff after 120 ms |
 | Power state | `system_rx` | 0x08 | 🟡 code | micom firmware FUN_0006ee40; micom-run ACC off to state 0 |
 | Power state (ACC on) | `system_rx` | 0x08 | 🟡 code | micom-run: ff 01 8a 01 81 08 00 03 01 05 fb on ACC on |
 | ACC edge | `system_rx` | 0x33 | 🟡 code | micom-run: 0x8133 [01] on ACC off, [02] on ACC on |
@@ -146,6 +158,7 @@ Not yet backed by a capture:
 
 | Enum | Values | Used by |
 | --- | --- | --- |
+| ac_current | **0** default<br>**1** maximum<br>**2** reduced<br>**3** minimum | AC charging current: AC charging current; ev-charging-current: current |
 | acc_edge | **1** off<br>**2** on | ACC edge: ACC |
 | adm | **0** off<br>**1** on | Variant code: ADM |
 | batt_cond_failure | **1** range<br>**2** temperature_optimal<br>**3** heat_management | Battery conditioning failure: Battery conditioning failure; HEV status (full): Battery conditioning failure |
@@ -464,6 +477,70 @@ packet-beta
 16-23: "Battery conditioning failure"
 ```
 
+#### VCU ready
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x2c VCU_RDY (HEVFlag 45); never seen; stock under QEMU with micom-fake: the range appears once it is 1
+
+| Field | At | Type |
+| --- | --- | --- |
+| VCU ready | byte 2 | bool |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCU ready"
+```
+
+#### Winter mode
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x44 XEV_WINTERMODESTA; never seen
+
+| Field | At |
+| --- | --- |
+| Winter mode | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "Winter mode"
+```
+
+#### AC charging current
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x51 OBC_CHGINCURRMODSTA, getInCurrModeValue(v, true); never seen
+
+| Field | At | Enum |
+| --- | --- | --- |
+| AC charging current | byte 2 | ac_current |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "AC charging current"
+```
+
+#### V2L discharge limit
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x50 CHRG_V2XDISCHRGLIMSOCVAL_SYNC; never seen
+
+| Field | At |
+| --- | --- |
+| V2L discharge limit | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "V2L discharge limit"
+```
+
 #### Range at charge limit, AC
 
 cmd `0x02`, length 3 · 🟡 code
@@ -634,6 +711,62 @@ cmd `0x4f`, length ≥ 4 · 🟢 captured
 | Field | At |
 | --- | --- |
 | Charger ready | byte 3 bits 1:0 |
+
+#### Departure days
+
+cmd `0x55`, length ≥ 8 · 🟡 code
+
+> HEVService G3CAN_VCU_04_1_M (func 0x8c55, gen > 0); 0 in all 43k frames of a 2026-11 capture (nothing set)
+
+| Field | At |
+| --- | --- |
+| Departure 1 Monday | byte 5 bits 1:0 |
+| Departure 1 Tuesday | byte 5 bits 3:2 |
+| Departure 1 Wednesday | byte 5 bits 5:4 |
+| Departure 1 Thursday | byte 5 bits 7:6 |
+| Departure 1 enabled | byte 6 bits 1:0 |
+| Departure 1 Friday | byte 6 bits 3:2 |
+| Departure 1 Saturday | byte 6 bits 5:4 |
+| Departure 1 Sunday | byte 6 bits 7:6 |
+| Departure 2 Monday | byte 7 bits 1:0 |
+| Departure 2 Tuesday | byte 7 bits 3:2 |
+| Departure 2 Wednesday | byte 7 bits 5:4 |
+| Departure 2 Thursday | byte 7 bits 7:6 |
+
+#### Schedule settings
+
+cmd `0x53`, length ≥ 8 · 🟡 code
+
+> HEVService G3CAN_VCU_04_2_M (func 0x8c53); seen 8 times as 00 14 10 02 00 40 00 50 (20:00-16:00, mode 0, climate off)
+
+| Field | At |
+| --- | --- |
+| Departure 2 enabled | byte 0 bits 1:0 |
+| Departure 2 Friday | byte 0 bits 3:2 |
+| Departure 2 Saturday | byte 0 bits 5:4 |
+| Departure 2 Sunday | byte 0 bits 7:6 |
+| Off-peak start hour | byte 1 bits 4:0 |
+| Off-peak start minute bits | byte 1 bits 7:5 |
+| Off-peak end hour | byte 2 bits 4:0 |
+| Off-peak end minute bits | byte 2 bits 7:5 |
+| Scheduled charging mode | byte 5 bits 1:0 |
+| Scheduled climate | byte 7 bits 1:0 |
+| Scheduled climate temperature | byte 7 bits 7:2 |
+
+#### Scheduled charge window
+
+cmd `0x54`, length ≥ 8 · 🟡 code
+
+> HEVService G3CAN_VCU_04_3_M (func 0x8c54); seen 13 times as 00 01 00 40 ff ff ff 0f (no window)
+
+| Field | At |
+| --- | --- |
+| Scheduled climate defrost | byte 0 bits 1:0 |
+| Temperature unit | byte 3 bits 7:6 |
+| Scheduled charge start day | byte 4 bits 2:0 |
+| Scheduled charge start hour | byte 4 bits 7:3 |
+| Scheduled charge start minute | byte 5 bits 5:0 |
+| Scheduled charge end hour | byte 6 bits 5:1 |
 
 ### system_rx
 
@@ -1396,6 +1529,104 @@ cmd `0x62`, length 1 · 🟡 code
 ```mermaid
 packet-beta
 0-7: "mode"
+```
+
+#### ev-off-peak
+
+cmd `0x05`, length 5 · 🟡 code
+
+> stock HEVService.setEconomicChargeTime, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c05, 5 bytes)
+
+| Field | At | Range |
+| --- | --- | --- |
+| start_hour | byte 0 bits 7:3 | ..23 |
+| start_min_bits | byte 0 bits 2:0 |  |
+| end_hour | byte 1 bits 7:3 | ..23 |
+| end_min_bits | byte 1 bits 2:0 |  |
+| weekend_start_hour_low | byte 2 bits 7:5 |  |
+| weekend_start_min_bits | byte 2 bits 2:0 |  |
+| weekend_end_hour_low | byte 3 bits 7:5 |  |
+| weekend_end_min_bits | byte 3 bits 2:0 |  |
+| mode | byte 4 bits 7:6 |  |
+
+#### ev-departures
+
+cmd `0x06`, length 7 · 🟡 code
+
+> stock HEVService.setDepartTimeNClimateSet, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c06, 7 bytes); readback G3CAN_VCU_04_1/2/3_M
+
+| Field | At | Range |
+| --- | --- | --- |
+| d1_hour | byte 0 bits 7:3 | ..23 |
+| d1_min_bits | byte 0 bits 2:0 |  |
+| d1_mon | byte 1 bits 7 |  |
+| d1_tue | byte 1 bits 6 |  |
+| d1_wed | byte 1 bits 5 |  |
+| d1_thu | byte 1 bits 4 |  |
+| d1_fri | byte 1 bits 3 |  |
+| d1_sat | byte 1 bits 2 |  |
+| d1_sun | byte 1 bits 1 |  |
+| d1_on | byte 1 bits 0 |  |
+| d2_hour | byte 2 bits 7:3 | ..23 |
+| d2_min_bits | byte 2 bits 2:0 |  |
+| d2_mon | byte 3 bits 7 |  |
+| d2_tue | byte 3 bits 6 |  |
+| d2_wed | byte 3 bits 5 |  |
+| d2_thu | byte 3 bits 4 |  |
+| d2_fri | byte 3 bits 3 |  |
+| d2_sat | byte 3 bits 2 |  |
+| d2_sun | byte 3 bits 1 |  |
+| d2_on | byte 3 bits 0 |  |
+| d1_climate | byte 4 bits 7 |  |
+| d1_temp | byte 4 bits 6:1 |  |
+| d1_temp_unit | byte 4 bits 0 |  |
+| d1_defrost | byte 5 bits 7 |  |
+| d2_climate | byte 5 bits 6 |  |
+| d2_temp | byte 5 bits 5:0 |  |
+| d2_temp_unit | byte 6 bits 7 |  |
+| d2_defrost | byte 6 bits 6 |  |
+
+#### ev-charge-limits
+
+cmd `0x18`, length 7 · 🟡 code
+
+> stock HEVService.setTargetSOCext, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c18, 7 bytes); readback items 0x21/0x22/0x44
+
+| Field | At | Scale | Unit | Range | Notes |
+| --- | --- | --- | --- | --- | --- |
+| winter_mode | byte 2 bits 7:6 |  |  |  | invalid 3 |
+| ac_limit | byte 4 | 0.5 | % | 50..100 | invalid 255 |
+| dc_limit | byte 5 | 0.5 | % | 50..100 | invalid 255 |
+| route_limit | byte 6 | 0.5 | % |  | invalid 255 |
+
+#### ev-charging-current
+
+cmd `0x5b`, length 1 · 🟡 code
+
+> stock HEVService.setOBCCurrent (flag 82 = 1): sendPacket(0x88, 0x0c, 0x0c5b, getInCurrModeValue(iccb, false)), 0 after 120 ms
+
+| Field | At | Enum |
+| --- | --- | --- |
+| current | byte 0 | ac_current |
+
+```mermaid
+packet-beta
+0-7: "current"
+```
+
+#### ev-v2l-limit
+
+cmd `0x5a`, length 1 · 🟡 code
+
+> stock HEVService: sendPacket(0x88, 0x0c, 0x0c5a, limSoc), 0xff after 120 ms
+
+| Field | At | Notes |
+| --- | --- | --- |
+| limit | byte 0 | invalid 255 |
+
+```mermaid
+packet-beta
+0-7: "limit"
 ```
 
 ### system_tx

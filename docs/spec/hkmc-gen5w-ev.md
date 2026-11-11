@@ -38,7 +38,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 3 |
-| 🟡 code | 18 |
+| 🟡 code | 22 |
 
 Not yet backed by a capture:
 
@@ -53,6 +53,10 @@ Not yet backed by a capture:
 | Charge limit, DC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x22 SOC_QC_CHG (TARGET_SOC_QUICK): x0.5 % from the set side's pct / 0.5; never seen |
 | Battery conditioning mode | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x63 EV_BATTERYCONDITIONING (HEVFlag 0x5e); never seen |
 | Battery conditioning failure | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x79 BMS_BATTCONDFAILPOPUP (HEVFlag 0x73); never seen |
+| VCU ready | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x2c VCU_RDY (HEVFlag 45); never seen; stock under QEMU with micom-fake: the range appears once it is 1 |
+| Winter mode | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x44 XEV_WINTERMODESTA; never seen |
+| AC charging current | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x51 OBC_CHGINCURRMODSTA, getInCurrModeValue(v, true); never seen |
+| V2L discharge limit | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x50 CHRG_V2XDISCHRGLIMSOCVAL_SYNC; never seen |
 | Range at charge limit, AC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x1f SOC_DTE_SC_CHG (DTE_SLOW_CHARGER_SOC); 406-414 seen |
 | Range at charge limit, DC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x20 SOC_DTE_QC_CHG (DTE_QUICK_CHARGER_SOC) |
 | Trip energy | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x5e XEV_BATPWRSUM_KWH: the battery energy used; x0.1 kWh is a fit (20 -> 360 while the pack's energy fell 33 kWh), medium confidence |
@@ -77,6 +81,7 @@ Not yet backed by a capture:
 
 | Enum | Values | Used by |
 | --- | --- | --- |
+| ac_current | **0** default<br>**1** maximum<br>**2** reduced<br>**3** minimum | AC charging current: AC charging current |
 | adm | **0** off<br>**1** on | Variant code: ADM |
 | batt_cond_failure | **1** range<br>**2** temperature_optimal<br>**3** heat_management | Battery conditioning failure: Battery conditioning failure; HEV status (full): Battery conditioning failure |
 | batt_cond_mode | **0** default<br>**1** off<br>**2** on | Battery conditioning mode: Battery conditioning mode; HEV status (full): Battery conditioning mode |
@@ -384,6 +389,70 @@ cmd `0x02`, length 3 · 🟡 code
 packet-beta
 0-15: "?"
 16-23: "Battery conditioning failure"
+```
+
+#### VCU ready
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x2c VCU_RDY (HEVFlag 45); never seen; stock under QEMU with micom-fake: the range appears once it is 1
+
+| Field | At | Type |
+| --- | --- | --- |
+| VCU ready | byte 2 | bool |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCU ready"
+```
+
+#### Winter mode
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x44 XEV_WINTERMODESTA; never seen
+
+| Field | At |
+| --- | --- |
+| Winter mode | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "Winter mode"
+```
+
+#### AC charging current
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x51 OBC_CHGINCURRMODSTA, getInCurrModeValue(v, true); never seen
+
+| Field | At | Enum |
+| --- | --- | --- |
+| AC charging current | byte 2 | ac_current |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "AC charging current"
+```
+
+#### V2L discharge limit
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x50 CHRG_V2XDISCHRGLIMSOCVAL_SYNC; never seen
+
+| Field | At |
+| --- | --- |
+| V2L discharge limit | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "V2L discharge limit"
 ```
 
 #### Range at charge limit, AC

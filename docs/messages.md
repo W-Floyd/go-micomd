@@ -248,6 +248,24 @@ requires:
   values are its values, the `if` fields are the message's and their
   values encode; `requires` on a from_micom message is refused.
 
+## Reflects
+
+A to_micom field may name where the car reports its value back:
+
+```yaml
+- { name: ac_limit, off: 4, scale: 0.5, invalid: 0xff, reflects: { msg: "Charge limit, AC", field: "Charge limit, AC" } }
+- { name: mode, off: 0, enum: batt_cond_mode, reflects: { msg: "Battery conditioning mode", field: "Battery conditioning mode", unless: [0] } }
+```
+
+- Only an emulated micom uses it (`cmd/micom-fake`, `Variant.Reflect`): a frame
+  sent to it rebuilds each named from_micom message from the payload it last
+  sent, with the field's raw code; messages that are one frame (header,
+  command, guards) build one payload. micomd never reads it.
+- The raw code is copied, so the two fields share an encoding (both x0.5 %, a
+  1-bit day into a 2-bit one). The invalid marker and the `unless` codes (a
+  pulse's idle value) set nothing.
+- Checked at load: to_micom fields only; the message and its field exist.
+
 ## Persistent frames
 
 Some frames make the micom write its EEPROM every time it gets one (EV6:
