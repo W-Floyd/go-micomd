@@ -104,7 +104,10 @@ frames (`-allow-inferred` adds the inferred ones). A variant that fails to load
 leaves the keepalive running. `-identify-request` asks the micom for its
 variant record once the link is up (retried, 5 times at most) and logs which
 variant it matches against the one running; a mismatch asks for a restart
-with `-variant`, as the variant is never switched live. See
+with `-variant`, as the variant is never switched live.
+`-hev-status-request` asks once for HEVService's bulk status (0x8c01), whose
+range with the climate on and off is otherwise sent only on change; the
+request is stock's, never tried on a car, so it is off by default. See
 [docs/variants.md](docs/variants.md).
 
 `-input /run/micomd-input.sock` takes one JSON object per line,

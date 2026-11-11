@@ -73,6 +73,12 @@ const (
 	bootModeWait  = 2 * time.Second
 )
 
+// -hev-status-request's: stock sends it once; the retries are ours.
+const (
+	hevStatusTries = 3
+	hevStatusWait  = 2 * time.Second
+)
+
 // askVariant sends req, the identify request, until the variant record
 // arrives (ask).
 func (d *Daemon) askVariant(ctx context.Context, req Frame, tries int, wait time.Duration) {

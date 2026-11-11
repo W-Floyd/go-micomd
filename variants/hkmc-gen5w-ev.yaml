@@ -7,7 +7,8 @@ title: "HKMC Gen5 Wide, EV/HEV layouts (HEVService)"
 abstract: true
 
 headers:
-  hev: { hdr: "0c 88 01 8c", dir: from_micom, status: captured, ref: "logcat MicomD 2026-10-16" }
+  hev:    { hdr: "0c 88 01 8c", dir: from_micom, status: captured, ref: "logcat MicomD 2026-10-16" }
+  hev_tx: { hdr: "88 0c 01 0c", dir: to_micom,   status: captured, ref: "the poll frame's; HEVService sendPacket(0x88, 0x0c, func)" }
 
 # Layouts are HEVService's handlers (func = hdr[3]<<8 | cmd, offsets as they
 # index the payload, integers big endian); units are the HEVFlag names'
@@ -55,6 +56,21 @@ messages:
       - { name: "Range added, climate off", off: 3,            unit: " km" }
     status: captured
     ref: "HEVService flag ADDED_DIST_DATC_OFF (0x26); seen live as 25 01 6b 07"
+
+  # 0x8c01, stock's bulk answer to hev-status-request: the same range and
+  # climate-off addition as above, so a value exists before the first
+  # change. Never captured: micomd sends the request only with
+  # -hev-status-request.
+  - name: "HEV status"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x01
+    min_length: 0x40
+    fields:
+      - { name: "Range, climate on",        off: 0x3c, type: u16, unit: " km" }
+      - { name: "Range added, climate off", off: 0x36,            unit: " km" }
+    status: code
+    ref: "HEVService DATA_M_RESP (func 0x8c01, len >= 0x40) into flag ADDED_DIST_DATC_OFF"
 
   - name: "EV power block"
     dir: from_micom
@@ -108,3 +124,7 @@ messages:
       - { name: "Charger ready bits", off: 3, bits: "7:6" }
     status: code
     ref: "HEVService"
+
+send:
+  # Inferred statically, never seen sent; -hev-status-request sends it.
+  - { name: hev-status-request, frame: "ff 88 0c 01 0c 01 00 01 76", status: inferred, ref: "HEVService requestInitHevStatus: func 0x0c01, empty payload; answered by 0x8c01" }

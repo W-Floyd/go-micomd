@@ -112,6 +112,7 @@ What a variant supplies:
 | key injection | no (as before: `-keyfunc`) | `-keys`; `-keyfunc` and `-keymap` override entry by entry |
 | control-socket sends | no (as before: `-allow`) | `-allow-variant` (captured); `-allow-inferred` adds inferred and code entries |
 | the 0x0117 variant-code request | never | `-identify-request` (alone, though inferred) |
+| the 0x0c01 HEV status request | never | `-hev-status-request` (alone, though inferred) |
 | to_micom messages (cluster TBT, compass, backlight, shutdown acks) | never | `-input SOCKET` (captured); `-allow-inferred` adds code and inferred ones; `-allow-persistent` those that write the micom's EEPROM ([messages.md](messages.md)) |
 
 The device unit's flags (`-keyfunc 0x8701 -keymap … -allow …`) work as
@@ -412,13 +413,20 @@ decoder is the safer reader of untrusted lines.
 - **micom-livi.** It reads frames with the default variant's
   `CarClimate.Apply` and `Decode` (speed, state of charge, remaining
   energy, range, outdoor temperature, odometer and illumination, by field
-  name). It has no `-variant` yet.
+  name; the range with the climate off as a sum of two). It has no
+  `-variant` yet.
 - **The 0x8101 boot record.** The micom sends it only in answer to
   boot-mode-request, which `-boot-mode-request` sends once the link is up.
   Its byte 4 (illumination) and 0x12 (dim mode) are decoded; the other 148
   bytes are not. Without the flag the illumination is known only after the
   micom's first 0x810d, sent on change. The request also clears the micom's
   boot-reason flags, as stock's does at every boot.
+- **The 0x8c01 HEV status.** HEVService's range with the climate on and
+  off (0x8c02 ids 0x2a and 0x25) comes only on change, so a fresh micomd
+  parked may see none for a long time. `-hev-status-request` sends stock's
+  requestInitHevStatus (0x0c01, empty) once the link is up; the bulk 0x8c01
+  answer carries both at 0x3c (u16) and 0x36. Neither frame has been seen
+  on a car: the request is derived from stock code, the reply's offsets too.
 - **Unknown cars.** On an unknown command line micomd runs the EV6, as before.
   Running the keepalive-only base instead is a behaviour change for its own
   PR.

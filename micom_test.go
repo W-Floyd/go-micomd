@@ -135,6 +135,8 @@ func TestDescribeLive(t *testing.T) {
 		{"0c88018c", "02", "5700f5", "Climate power draw=245 W"},
 		{"0c88018c", "02", "2a00f308", "Range, climate: Range, climate on=243 km Range added, climate off=8 km"},
 		{"0c88018c", "02", "25016b07", "Range, climate on=363 km Range added, climate off=7 km"},
+		// Synthetic: the bulk reply to hev-status-request was never captured.
+		{"0c88018c", "01", "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000f30000", "HEV status: Range, climate on=243 km Range added, climate off=10 km"},
 		{"0c88018c", "5c", "15ffffffffffffffffff01b1000000000000000000000400ff00000000ff", "Climate total=433 W"},
 		{"0c88018c", "5c", "15ffffffffffffffffff01b1000000000000000000000400ff00000000ff", "Climate power=255 W"},
 		{"0c88018c", "5c", "15ffffffffffffffffff01b1000000000000000000000400ff00000000ff", "AVN motor power=n/a"},

@@ -43,7 +43,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 13 |
-| 🟡 code | 33 |
+| 🟡 code | 34 |
 | 🟠 inferred | 3 |
 
 Not yet backed by a capture:
@@ -52,6 +52,7 @@ Not yet backed by a capture:
 | --- | --- | --- | --- | --- |
 | Variant code | `system_rx` | 0x17 | 🟡 code | micom firmware 0x0117 handler; 61 S5W_M micom builds in emulation (en/ko, country 01/00); EV6 V015.012 automotive-service SystemService.onVariantCode/sendVariantCodeSave, automotive VariantCoding tables |
 | Status flag | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService status-flag setter; seen live as 57 00 NN |
+| HEV status | `0c 88 ?? 8c` | 0x01 | 🟡 code | HEVService DATA_M_RESP (func 0x8c01, len >= 0x40) into flag ADDED_DIST_DATC_OFF |
 | EV power block | `0c 88 ?? 8c` | 0x5c | 🟡 code | HEVService setHEVStatusValue calls |
 | Departure timers | `0c 88 ?? 8c` | 0x55 | 🟡 code | HEVService; captured only at the default |
 | Charger state | `0c 88 ?? 8c` | 0x4f | 🟡 code | HEVService |
@@ -111,6 +112,7 @@ Not yet backed by a capture:
 | display_tx | `8c 08 01 08` | to_micom | 🟡 code | EV6 micom firmware V002.208, micom-run |
 | gear_node | `50 c4 00 d0` | from_micom | 🟢 captured | micomd capture, 2026-11-10, P/D/N/R shifts |
 | hev | `0c 88 01 8c` | from_micom | 🟢 captured | logcat MicomD 2026-10-16 |
+| hev_tx | `88 0c 01 0c` | to_micom | 🟢 captured | the poll frame's; HEVService sendPacket(0x88, 0x0c, func) |
 | keys | `07 84 01 87` | from_micom | 🟢 captured |  |
 | poll_tx | `88 0c 01 0c` | to_micom | 🟢 captured |  |
 | seat_node | `55 ca 00 d5` | from_micom | 🟢 captured | seat heat; the driver's door switches |
@@ -309,6 +311,17 @@ packet-beta
 8-23: "Range, climate on"
 24-31: "Range added, climate off"
 ```
+
+#### HEV status
+
+cmd `0x01`, length ≥ 64 · 🟡 code
+
+> HEVService DATA_M_RESP (func 0x8c01, len >= 0x40) into flag ADDED_DIST_DATC_OFF
+
+| Field | At | Type | Unit |
+| --- | --- | --- | --- |
+| Range, climate on | byte 60 | u16 | km |
+| Range added, climate off | byte 54 |  | km |
 
 #### EV power block
 
@@ -1190,6 +1203,7 @@ packet-beta
 | variant-code-save |  | `ff 8a 01 01 01 18 00 02 [00-ff] ..` | 🟠 inferred | jadx SystemService |
 | spi-sending-stop | `ff 8a 01 01 01 1e 00 01 6b` |  | 🟠 inferred | jadx SystemService |
 | vbus-off-on | `ff 8a 01 01 01 28 00 01 5d` |  | 🟠 inferred | jadx SystemService |
+| hev-status-request | `ff 88 0c 01 0c 01 00 01 76` |  | 🟠 inferred | HEVService requestInitHevStatus: func 0x0c01, empty payload; answered by 0x8c01 |
 | av-mute-set | `ff 85 02 01 02 0b 00 03 02 01 70` |  | 🟢 captured | stock micomd strace, source switch |
 | mode-media | `ff 85 02 01 02 01 00 03 0e 00 77` |  | 🟢 captured | stock micomd strace, source switch |
 | mode-radio | `ff 85 02 01 02 01 00 03 01 00 78` |  | 🟢 captured | stock micomd strace, source switch |

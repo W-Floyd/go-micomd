@@ -38,7 +38,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 2 |
-| 🟡 code | 5 |
+| 🟡 code | 6 |
 
 Not yet backed by a capture:
 
@@ -46,6 +46,7 @@ Not yet backed by a capture:
 | --- | --- | --- | --- | --- |
 | Variant code | `system_rx` | 0x17 | 🟡 code | micom firmware 0x0117 handler; 61 S5W_M micom builds in emulation (en/ko, country 01/00); EV6 V015.012 automotive-service SystemService.onVariantCode/sendVariantCodeSave, automotive VariantCoding tables |
 | Status flag | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService status-flag setter; seen live as 57 00 NN |
+| HEV status | `0c 88 ?? 8c` | 0x01 | 🟡 code | HEVService DATA_M_RESP (func 0x8c01, len >= 0x40) into flag ADDED_DIST_DATC_OFF |
 | EV power block | `0c 88 ?? 8c` | 0x5c | 🟡 code | HEVService setHEVStatusValue calls |
 | Departure timers | `0c 88 ?? 8c` | 0x55 | 🟡 code | HEVService; captured only at the default |
 | Charger state | `0c 88 ?? 8c` | 0x4f | 🟡 code | HEVService |
@@ -56,6 +57,7 @@ Not yet backed by a capture:
 | --- | --- | --- | --- | --- |
 | audio_tx | `85 02 01 02` | to_micom | 🟢 captured | stock micomd strace, source switch |
 | hev | `0c 88 01 8c` | from_micom | 🟢 captured | logcat MicomD 2026-10-16 |
+| hev_tx | `88 0c 01 0c` | to_micom | 🟢 captured | the poll frame's; HEVService sendPacket(0x88, 0x0c, func) |
 | system_rx | `01 8a 01 81` | from_micom | 🟢 captured | the CPU-alive request |
 | system_tx | `8a 01 01 01` | to_micom | 🟢 captured | the CPU-alive reply |
 
@@ -242,6 +244,17 @@ packet-beta
 24-31: "Range added, climate off"
 ```
 
+#### HEV status
+
+cmd `0x01`, length ≥ 64 · 🟡 code
+
+> HEVService DATA_M_RESP (func 0x8c01, len >= 0x40) into flag ADDED_DIST_DATC_OFF
+
+| Field | At | Type | Unit |
+| --- | --- | --- | --- |
+| Range, climate on | byte 60 | u16 | km |
+| Range added, climate off | byte 54 |  | km |
+
 #### EV power block
 
 cmd `0x5c`, length ≥ 29 · 🟡 code
@@ -319,4 +332,5 @@ cmd `0x4f`, length ≥ 4 · 🟡 code
 | variant-code-save |  | `ff 8a 01 01 01 18 00 02 [00-ff] ..` | 🟠 inferred | jadx SystemService |
 | spi-sending-stop | `ff 8a 01 01 01 1e 00 01 6b` |  | 🟠 inferred | jadx SystemService |
 | vbus-off-on | `ff 8a 01 01 01 28 00 01 5d` |  | 🟠 inferred | jadx SystemService |
+| hev-status-request | `ff 88 0c 01 0c 01 00 01 76` |  | 🟠 inferred | HEVService requestInitHevStatus: func 0x0c01, empty payload; answered by 0x8c01 |
 

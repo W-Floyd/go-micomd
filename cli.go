@@ -110,6 +110,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	allowDangerous := fs.Bool("allow-dangerous", false, "allow the variant's dangerous frames (those that reset, rewrite or reconfigure the micom: power config, factory reset, variant-code save, update/download reservations). Off, they are refused on every path")
 	identify := fs.Bool("identify-request", false, "ask the micom for its variant coding once the link is up, retried up to 5 times 3 s apart until it answers; the answer is logged against the variant running and reported by -query snapshot. The only frame it adds is the variant's identify request (inferred on HKMC: this flag alone allows it)")
 	bootMode := fs.Bool("boot-mode-request", false, "ask the micom for its boot record once the link is up, retried up to 4 times 2 s apart until it answers, as stock does at every boot: the record carries the state the micom otherwise sends only on change (the EV6's illumination). The only frame it adds is the variant's boot-mode-request send entry; the micom clears its boot-reason flags on it")
+	hevStatus := fs.Bool("hev-status-request", false, "ask the micom for its HEV status once the link is up, retried up to 3 times 2 s apart until it answers, as stock does at start: the bulk 0x8c01 reply carries the range with the climate on and off, otherwise sent only on change. The only frame it adds is the variant's hev-status-request send entry (inferred, never tried on a car: this flag alone allows it)")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
@@ -263,6 +264,16 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 			cfg.Allow = append(cfg.Allow, f)
 		}
 	}
+	var hevStatusFrame *Frame
+	var hevStatusReply atomic.Bool
+	if *hevStatus {
+		if f, ok := v.SendNamed(hevStatusRequest); !ok {
+			lg.Printf("-hev-status-request: variant %s has no %s send entry", v.Name, hevStatusRequest)
+		} else {
+			hevStatusFrame = &f
+			cfg.Allow = append(cfg.Allow, f)
+		}
+	}
 	if *dump {
 		cfg.OnFrame = func(f Frame) { io.WriteString(stdout, frameLine(v, f)) }
 	}
@@ -274,6 +285,17 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 			}
 			if v.FrameName(f) == bootRecordName {
 				bootRecord.Store(true)
+			}
+		}
+	}
+	if hevStatusFrame != nil {
+		prev := cfg.OnFrame
+		cfg.OnFrame = func(f Frame) {
+			if prev != nil {
+				prev(f)
+			}
+			if _, name := v.decode(f); name == hevStatusName {
+				hevStatusReply.Store(true)
 			}
 		}
 	}
@@ -377,6 +399,9 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	}
 	if bootModeFrame != nil {
 		go d.ask(ctx, *bootModeFrame, "-boot-mode-request", "its boot record", "boot record", bootRecord.Load, bootModeTries, bootModeWait)
+	}
+	if hevStatusFrame != nil {
+		go d.ask(ctx, *hevStatusFrame, "-hev-status-request", "its HEV status", "HEV status", hevStatusReply.Load, hevStatusTries, hevStatusWait)
 	}
 	if err := d.Run(ctx); err != nil && ctx.Err() == nil {
 		lg.Print(err)

@@ -300,6 +300,13 @@ const (
 	bootRecordName  = "Boot record"
 )
 
+// The send entry -hev-status-request sends, and the from_micom message that
+// is the micom's answer.
+const (
+	hevStatusRequest = "hev-status-request"
+	hevStatusName    = "HEV status"
+)
+
 // SendNamed is the whole-frame send entry called name, whatever its status.
 func (v *Variant) SendNamed(name string) (Frame, bool) {
 	for _, s := range v.sends {

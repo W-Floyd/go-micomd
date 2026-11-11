@@ -46,6 +46,7 @@ func TestLiviCar(t *testing.T) {
 		// The range plus what the climate off would add, from one frame.
 		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=2a00f308", map[string]any{"rangeClimateOffKm": 251.0}},
 		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=25016b07", map[string]any{"rangeClimateOffKm": 370.0}},
+		{"15:04:05.000 rx hdr=0c88018c cmd=01 payload=0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000f30000", map[string]any{"rangeClimateOffKm": 253.0}},
 		{"15:04:05.000 rx hdr=44c100c4 cmd=22 payload=06c40c", map[string]any{"odometerKm": 44340.4}},
 		{"15:04:05.000 rx hdr=43c200c3 cmd=02 payload=5e", map[string]any{"ambientC": 12.222222}},
 		{"15:04:05.000 rx hdr=018a0181 cmd=0d payload=00", map[string]any{"nightMode": true}},

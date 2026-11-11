@@ -209,13 +209,13 @@ func TestEV6VariantKeysAsBefore(t *testing.T) {
 	}
 }
 
-// The EV6 variant's send entries are exactly the unit's -allow: the frames
-// byte for byte and the volume pattern range for range; without
-// -allow-inferred only the captured ones.
+// The EV6 variant's send entries are exactly the unit's -allow, plus the
+// inferred requests added since: the frames byte for byte and the volume
+// pattern range for range; without -allow-inferred only the captured ones.
 func TestEV6VariantSendsAsService(t *testing.T) {
 	v := ev6(t)
 	var al allowList
-	for _, s := range serviceAllow {
+	for _, s := range append(serviceAllow, "ff880c010c01000176") { // hev-status-request
 		if err := al.Set(s); err != nil {
 			t.Fatal(err)
 		}
