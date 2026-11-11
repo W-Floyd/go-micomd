@@ -302,14 +302,17 @@ func renderSpec(rv rawVariant) string {
 			for _, c := range s.Cmd {
 				cmds = append(cmds, hex8(c))
 			}
-			kind := ""
-			for k, set := range map[string]bool{"flag": s.Flag != nil, "enum": s.Enum != nil, "number": s.Number != nil,
-				"fan": s.Fan != nil, "bits": s.Bits != nil, "burst": s.Burst != nil, "values": s.Values != nil, "lines": s.Lines != nil} {
-				if set {
-					kind += k + " "
+			var kind []string
+			for _, k := range []struct {
+				name string
+				set  bool
+			}{{"flag", s.Flag != nil}, {"enum", s.Enum != nil}, {"number", s.Number != nil}, {"fan", s.Fan != nil},
+				{"bits", s.Bits != nil}, {"burst", s.Burst != nil}, {"values", s.Values != nil}, {"lines", s.Lines != nil}} {
+				if k.set {
+					kind = append(kind, k.name)
 				}
 			}
-			t.add(s.Name, hdr(s.Hdr), strings.Join(cmds, ", "), strings.TrimSpace(kind), s.Label, s.State, badge(s.Status), s.Ref)
+			t.add(s.Name, hdr(s.Hdr), strings.Join(cmds, ", "), strings.Join(kind, " "), s.Label, s.State, badge(s.Status), s.Ref)
 		}
 		t.write(&b)
 	}
@@ -414,8 +417,8 @@ func confidence(rv rawVariant) string {
 			delete(count, s)
 		}
 	}
-	for s, n := range count {
-		t.add(badge(s), itoa(n))
+	for _, s := range sortedKeys(count) {
+		t.add(badge(s), itoa(count[s]))
 	}
 	t.write(&b)
 	if len(open) > 0 {

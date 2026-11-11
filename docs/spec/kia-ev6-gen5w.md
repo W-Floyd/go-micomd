@@ -1113,7 +1113,7 @@ packet-beta
 | --- | --- | --- | --- | --- | --- |
 | climate-burst | `43 c2 00 c3` (climate_panel) | 0x1b | burst lines |  |  |
 | climate-driver-set | `43 c2 00 c3` (climate_panel) | 0x05, 0x07 | number values | Climate driver set point | driver_set_f |
-| climate-passenger-set | `43 c2 00 c3` (climate_panel) | 0x09, 0x0b | values number | Climate passenger set point | passenger_set_f |
+| climate-passenger-set | `43 c2 00 c3` (climate_panel) | 0x09, 0x0b | number values | Climate passenger set point | passenger_set_f |
 | climate-airflow | `43 c2 00 c3` (climate_panel) | 0x0d | enum | Climate airflow | airflow |
 | climate-auto | `43 c2 00 c3` (climate_panel) | 0x0f | flag | Climate auto | auto |
 | climate-ac | `43 c2 00 c3` (climate_panel) | 0x11 | flag | Climate A/C | ac |
@@ -1123,10 +1123,10 @@ packet-beta
 | climate-zones | `43 c2 00 c3` (climate_panel) | 0x27 | flag | Climate zones | zones_synced |
 | climate-heat | `43 c2 00 c3` (climate_panel) | 0x33 | flag | Climate heat |  |
 | climate-auto-level | `43 c2 00 c3` (climate_panel) | 0x4f | number values | Climate auto level |  |
-| climate-auto-level-inverse | `43 c2 00 c3` (climate_panel) | 0x50 | values number | Climate auto level (inverse) |  |
+| climate-auto-level-inverse | `43 c2 00 c3` (climate_panel) | 0x50 | number values | Climate auto level (inverse) |  |
 | seat-heat-driver | `55 ca 00 d5` (seat_node) | 0x20 | number values | Seat heat, driver | driver_seat_heat |
 | seat-heat-passenger | `55 ca 00 d5` (seat_node) | 0x21 | number values | Seat heat, passenger | passenger_seat_heat |
-| seat-heat-driver-repeat | `44 c1 00 c4` (body) | 0x19 | values number | Seat heat, driver (repeat) | driver_seat_heat |
+| seat-heat-driver-repeat | `44 c1 00 c4` (body) | 0x19 | number values | Seat heat, driver (repeat) | driver_seat_heat |
 | seat-heat-passenger-repeat | `44 c1 00 c4` (body) | 0x1b | number values | Seat heat, passenger (repeat) | passenger_seat_heat |
 | window-driver-switch | `55 ca 00 d5` (seat_node) | 0x08 | enum | Window driver |  |
 | window-passenger-switch | `55 ca 00 d5` (seat_node) | 0x0b | enum | Window passenger |  |
