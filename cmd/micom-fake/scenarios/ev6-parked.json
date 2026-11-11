@@ -1,8 +1,10 @@
 [
-  {"msg": "Boot record (full)", "set": {"ACC": true, "IGN1": true, "IGN3": true, "CAN DB generation": 2}},
-  {"msg": "VCU ready", "set": {"VCU ready": true}},
-  {"msg": "Charge limit, AC", "set": {"Charge limit, AC": 80}},
-  {"msg": "Charge limit, DC", "set": {"Charge limit, DC": 90}},
-  {"msg": "AC charging current", "set": {"AC charging current": "maximum"}},
-  {"msg": "Battery conditioning mode", "set": {"Battery conditioning mode": "off"}}
+ { "msg": "Boot record (full)", "set": {  "ACC": true,  "IGN1": true,  "IGN3": true,  "CAN DB generation": 2,  "Driving regulation": false } },
+ { "msg": "VCU ready", "set": {  "VCU ready": true } },
+ { "msg": "Charge limit, AC", "set": {  "Charge limit, AC": 80 } },
+ { "msg": "Charge limit, DC", "set": {  "Charge limit, DC": 90 } },
+ { "msg": "AC charging current", "set": {  "AC charging current": "maximum" } },
+ { "msg": "Battery conditioning mode", "set": {  "Battery conditioning mode": "off" } },
+ { "msg": "Regulation inputs", "set": {  "In P": true,  "Parking brake lever": true,  "EPB state": 1 } },
+ { "frame": "ff 01 8a 01 81 03 00 02 00 f5" }
 ]

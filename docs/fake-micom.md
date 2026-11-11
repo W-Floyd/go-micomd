@@ -37,7 +37,12 @@ echo '{"msg": "Charge limit, AC", "set": {"Charge limit, AC": 70}}' | nc -U $CTL
 Seen with stock V015 under QEMU (2026-11): `onMicomReady` runs, the EV app and launcher show the
 capture's state of charge and range, the EV settings' charge limits, AC current and battery
 conditioning round-trip (writes `0C18 00 00 c0 00 ff 8c ff` for DC 70 %, `0C5B 02` then `00` for the
-second current, `0C62 02` then `00`).
+second current, `0C62 02` then `00`). The schedules round-trip too once the system time is real (GPS
+from go-hippod's `hippo-fake`; the EV page enables its departure and schedule tiles only then) and the
+driving regulation is off (`0x8103 [00]`, `Regulation inputs` in P; in North America the dialogs refuse
+under it): departure 1 12:00 AM Mon Wed `0C06 00 a1 ff 00 27 13 80`, off-peak 10 PM-6 AM charge only
+`0C05 b0 30 00 00 c0` (prioritize `.. 80`), each shown back by stock from the reflected readbacks.
+`scenarios/ev6-parked.json` sets the regulation off.
 
 ## Faked or missing
 
@@ -52,6 +57,8 @@ second current, `0C62 02` then `00`).
 ## Unknown
 
 - Whether the car accepts the writes as packed, and what it reports back (layouts from stock code only).
-- Scheduled charging mode values, the schedule temperature encoding, the departure 2-bit day values.
+- Scheduled charging mode 1; the schedule temperature beyond two points (19 = 75 °F, 20 = 76 °F with unit 1);
+  the departure 2-bit day values other than 0/1; the car's computed charge window (0x8C54), which the fake
+  does not compute.
 - Winter mode values; the V2L limit's encoding; utility mode's on value (not modelled: it changes the car's power state).
 - What stock does with fields of the boot record the variant leaves at 0.

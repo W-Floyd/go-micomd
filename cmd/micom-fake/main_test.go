@@ -47,8 +47,8 @@ func TestFakeAnswersAsTheVariant(t *testing.T) {
 			map[string]map[string]uint64{"Boot record (full)": {"CAN DB generation": 2, "IGN3": 1}}},
 		{"bulk read: filled from the items held", []string{"880c010c 01"},
 			map[string]map[string]uint64{"HEV status (full)": {"Charge limit, AC": 160, "Charge limit, DC": 180}}},
-		{"off-peak 22:30-06:00, mode 1", []string{"880c010c 05 b3 30 00 00 40"},
-			map[string]map[string]uint64{"Schedule settings": {"Off-peak start hour": 22, "Off-peak start minute bits": 3, "Off-peak end hour": 6, "Off-peak end minute bits": 0, "Scheduled charging mode": 1}}},
+		{"off-peak 22:30-06:00, charge only", []string{"880c010c 05 b3 30 00 00 c0"},
+			map[string]map[string]uint64{"Schedule settings": {"Off-peak start hour": 22, "Off-peak start minute bits": 3, "Off-peak end hour": 6, "Off-peak end minute bits": 0, "Scheduled charging mode": 3}}},
 		{"departure 1 07:30 Mon Wed on, climate 0x14", []string{"880c010c 06 3b a1 60 00 a8 00 00"},
 			map[string]map[string]uint64{
 				"Departure timers":  {"Departure 1 hour": 7, "Departure 1 minute bits": 3, "Departure 2 hour": 12},

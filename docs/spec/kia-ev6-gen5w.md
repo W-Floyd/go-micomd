@@ -179,6 +179,7 @@ Not yet backed by a capture:
 | period | **1** day<br>**2** night | backlight-period-level: period |
 | power_state | **0** rail_off<br>**1** power_off_request<br>**3** bus_sleep<br>**4** acc_off_hold<br>**5** acc_on<br>**6** stop<br>**7** standby | Power state: Power state; Power state (ACC on): Power state |
 | radio_region | **0** khz_9_100<br>**1** khz_10_200<br>**2** khz_9_50<br>**3** khz_10_100<br>**4** khz_9_200 | Variant code: Radio region |
+| sched_charge_mode | **0** off<br>**2** prioritize_off_peak<br>**3** off_peak_only | Schedule settings: Scheduled charging mode; ev-off-peak: mode |
 | shutdown_ack | **1** power_off_request<br>**2** rail_off | shutdown-ack: stage |
 | vehicle | **110** dn8<br>**189** neev<br>**204** cvev | Variant code: Vehicle |
 
@@ -739,19 +740,19 @@ cmd `0x53`, length ≥ 8 · 🟡 code
 
 > HEVService G3CAN_VCU_04_2_M (func 0x8c53); seen 8 times as 00 14 10 02 00 40 00 50 (20:00-16:00, mode 0, climate off)
 
-| Field | At |
-| --- | --- |
-| Departure 2 enabled | byte 0 bits 1:0 |
-| Departure 2 Friday | byte 0 bits 3:2 |
-| Departure 2 Saturday | byte 0 bits 5:4 |
-| Departure 2 Sunday | byte 0 bits 7:6 |
-| Off-peak start hour | byte 1 bits 4:0 |
-| Off-peak start minute bits | byte 1 bits 7:5 |
-| Off-peak end hour | byte 2 bits 4:0 |
-| Off-peak end minute bits | byte 2 bits 7:5 |
-| Scheduled charging mode | byte 5 bits 1:0 |
-| Scheduled climate | byte 7 bits 1:0 |
-| Scheduled climate temperature | byte 7 bits 7:2 |
+| Field | At | Enum |
+| --- | --- | --- |
+| Departure 2 enabled | byte 0 bits 1:0 |  |
+| Departure 2 Friday | byte 0 bits 3:2 |  |
+| Departure 2 Saturday | byte 0 bits 5:4 |  |
+| Departure 2 Sunday | byte 0 bits 7:6 |  |
+| Off-peak start hour | byte 1 bits 4:0 |  |
+| Off-peak start minute bits | byte 1 bits 7:5 |  |
+| Off-peak end hour | byte 2 bits 4:0 |  |
+| Off-peak end minute bits | byte 2 bits 7:5 |  |
+| Scheduled charging mode | byte 5 bits 1:0 | sched_charge_mode |
+| Scheduled climate | byte 7 bits 1:0 |  |
+| Scheduled climate temperature | byte 7 bits 7:2 |  |
 
 #### Scheduled charge window
 
@@ -1537,17 +1538,17 @@ cmd `0x05`, length 5 · 🟡 code
 
 > stock HEVService.setEconomicChargeTime, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c05, 5 bytes)
 
-| Field | At | Range |
-| --- | --- | --- |
-| start_hour | byte 0 bits 7:3 | ..23 |
-| start_min_bits | byte 0 bits 2:0 |  |
-| end_hour | byte 1 bits 7:3 | ..23 |
-| end_min_bits | byte 1 bits 2:0 |  |
-| weekend_start_hour_low | byte 2 bits 7:5 |  |
-| weekend_start_min_bits | byte 2 bits 2:0 |  |
-| weekend_end_hour_low | byte 3 bits 7:5 |  |
-| weekend_end_min_bits | byte 3 bits 2:0 |  |
-| mode | byte 4 bits 7:6 |  |
+| Field | At | Enum | Range |
+| --- | --- | --- | --- |
+| start_hour | byte 0 bits 7:3 |  | ..23 |
+| start_min_bits | byte 0 bits 2:0 |  |  |
+| end_hour | byte 1 bits 7:3 |  | ..23 |
+| end_min_bits | byte 1 bits 2:0 |  |  |
+| weekend_start_hour_low | byte 2 bits 7:5 |  |  |
+| weekend_start_min_bits | byte 2 bits 2:0 |  |  |
+| weekend_end_hour_low | byte 3 bits 7:5 |  |  |
+| weekend_end_min_bits | byte 3 bits 2:0 |  |  |
+| mode | byte 4 bits 7:6 | sched_charge_mode |  |
 
 #### ev-departures
 

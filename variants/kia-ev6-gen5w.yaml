@@ -596,7 +596,7 @@ messages:
       - { name: "Off-peak start minute bits", off: 1, bits: "7:5" }
       - { name: "Off-peak end hour",          off: 2, bits: "4:0" }
       - { name: "Off-peak end minute bits",   off: 2, bits: "7:5" }
-      - { name: "Scheduled charging mode",    off: 5, bits: "1:0" }   # values unknown
+      - { name: "Scheduled charging mode",    off: 5, bits: "1:0", enum: sched_charge_mode }
       - { name: "Scheduled climate",             off: 7, bits: "1:0" }
       - { name: "Scheduled climate temperature", off: 7, bits: "7:2" }   # encoding unknown; 0x14 (20) at the default
     status: code
@@ -621,7 +621,9 @@ messages:
   # setEconomicChargeTime: weekday then weekend window, and the charging
   # mode. Stock shifts the weekend hours by 5, not 3, so only their low 3
   # bits go; the car reads back one window. The EV app's off-peak dialog has
-  # one window and two modes (prioritize off-peak, charge only off-peak).
+  # one window and two modes. Stock under QEMU (micom-fake, 2026-11-11):
+  # b0 30 00 00 c0 for 10:00 PM-6:00 AM charge only, ... 80 for prioritize,
+  # ff ff 00 00 00 (nothing set) at start; the weekend bytes stay 0.
   - name: ev-off-peak
     dir: to_micom
     hdr: poll_tx
@@ -636,13 +638,18 @@ messages:
       - { name: weekend_start_min_bits, off: 2, bits: "2:0", default: 0 }
       - { name: weekend_end_hour_low,   off: 3, bits: "7:5", default: 0 }
       - { name: weekend_end_min_bits,   off: 3, bits: "2:0", default: 0 }
-      - { name: mode, off: 4, bits: "7:6", reflects: { msg: "Schedule settings", field: "Scheduled charging mode" } }
+      - { name: mode, off: 4, bits: "7:6", enum: sched_charge_mode, reflects: { msg: "Schedule settings", field: "Scheduled charging mode" } }
     on_change: false
     dangerous: "sets the car's off-peak charging window, which it acts on unattended"
     status: code
     ref: "stock HEVService.setEconomicChargeTime, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c05, 5 bytes)"
   # setDepartTimeNClimateSet: stock's 28 slots, MSB first for generation 2;
-  # the slot names are the generation 0 readback's (0x8C0F).
+  # the slot names are the generation 0 readback's (0x8C0F). Stock under
+  # QEMU (micom-fake, 2026-11-11), each field as laid out here: 00 a1 ff 00
+  # 27 13 80 for departure 1 12:00 AM Mon Wed on; 00 a1 9b 05 27 14 00 with
+  # departure 2 7:30 PM Sat on; a9 94 at [4..5] for climate on, 76 °F,
+  # defrost (19 at 75 °F: temp = °F - 56 with unit 1, two points only);
+  # ff 00 ff 00 .. (hour 31, minute 7) when nothing is set.
   - name: ev-departures
     dir: to_micom
     hdr: poll_tx
@@ -1255,6 +1262,9 @@ messages:
 
 # The power and backlight tables of the micom firmware.
 enums:
+  # The off-peak mode: 0 with nothing scheduled (stock's start-up write), 2
+  # prioritize off-peak, 3 charge only off-peak (stock under QEMU); 1 unseen.
+  sched_charge_mode: { "off": 0, prioritize_off_peak: 2, off_peak_only: 3 }
   power_state: { rail_off: 0, power_off_request: 1, bus_sleep: 3, acc_off_hold: 4, acc_on: 5, stop: 6, standby: 7 }
   acc_edge: { "off": 1, "on": 2 }
   shutdown_ack: { power_off_request: 1, rail_off: 2 }
