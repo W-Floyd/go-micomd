@@ -5,7 +5,8 @@
 // odometerKm and nightMode (the micom's illumination), each when it changes
 // (carFields, liviCar).
 // With -input it also reads LIVI's route guidance (GET /navigation) and shows
-// it on the instrument cluster through micomd's -input socket (nav.go).
+// it on the instrument cluster through micomd's -input socket (nav.go), with
+// -gpsd the compass and, while there is a fix, the unit's position.
 //
 //	micom-livi [-tap /run/micomd.sock] [-url http://127.0.0.1:4000/telemetry] [-every 250ms] [-capacity-kwh N]
 //
@@ -49,7 +50,7 @@ func main() {
 	navEvery := flag.Duration("nav-every", 500*time.Millisecond, "how often to read LIVI's route guidance")
 	units := flag.String("units", "imperial", "the cluster's distances: imperial (mi, ft) or metric (km, m)")
 	clock24 := flag.Bool("clock24", false, "show the arrival time on the cluster as 24 h, not 12 h")
-	gpsd := flag.String("gpsd", "", "gpsd's host:port: the cluster's compass from its track, with -input; empty for none")
+	gpsd := flag.String("gpsd", "", "gpsd's host:port: the cluster's compass from its track and its position from the fix, with -input; empty for none")
 	minSpeed := flag.Float64("heading-min-speed", 0, "m/s: take the track as the heading only at this speed or above, for a plain GNSS track; 0 takes every track (hippod's is the gyro-held DR bearing)")
 	hold := flag.Duration("heading-hold", 10*time.Minute, "with -heading-min-speed, how long the last heading stays on the compass below it")
 	releaseAfter := flag.Duration("release-after", 0, "give the cluster's navigation pane back once LIVI has been unreadable this long; 0 keeps it until micom-livi stops")
@@ -90,8 +91,9 @@ func main() {
 		b.releaseAfter, b.night, b.observe = *releaseAfter, car.night.get, observe
 		if *gpsd != "" {
 			h := &heading{minSpeed: *minSpeed, hold: *hold}
-			b.heading = h.compass
-			go followGpsd(*gpsd, h, lg.Printf)
+			pos := &position{}
+			b.heading, b.position = h.compass, pos.arcsec
+			go followGpsd(*gpsd, h, pos, lg.Printf)
 		}
 		go func() {
 			runNav(ctx, *navURL, *input, *navEvery, navOptions{imperial: *units == "imperial", clock24: *clock24, loc: time.Local}, b, lg.Printf)

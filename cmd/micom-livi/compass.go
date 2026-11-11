@@ -56,18 +56,76 @@ func (h *heading) compass(now time.Time) *float64 {
 	return &d
 }
 
+// position is the unit's GPS fix for the cluster (micomd's cluster-position),
+// from gpsd's reports: none without a fix, or once gpsd goes quiet, as stock
+// sends nothing without one.
+type position struct {
+	mu       sync.Mutex
+	lat, lon float64
+	at       time.Time // of the last report with a fix; zero after one without
+}
+
+// tpv takes one gpsd TPV report: its mode, and its latitude and longitude
+// when it has them.
+func (p *position) tpv(mode int, lat, lon *float64, now time.Time) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if mode < 2 || lat == nil || lon == nil {
+		p.at = time.Time{}
+		return
+	}
+	p.lat, p.lon, p.at = *lat, *lon, now
+}
+
+// arcsec is the fix as stock's arc-seconds, ok false for none.
+func (p *position) arcsec(now time.Time) (lat, lon int, ok bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.at.IsZero() || now.Sub(p.at) > tpvStale {
+		return 0, 0, false
+	}
+	return stockArcsec(p.lat), stockArcsec(p.lon), true
+}
+
+// stockArcsec is degrees in whole arc-seconds as stock packs them: the
+// degrees, minutes and seconds of the magnitude, each truncated, with only
+// the degrees taking the sign (-1.5 is -1° + 30', -1800).
+func stockArcsec(deg float64) int {
+	a := math.Abs(deg)
+	d := math.Floor(a)
+	m := math.Floor((a - d) * 60)
+	sec := math.Trunc(((a-d)*60 - m) * 60)
+	if deg < 0 {
+		d = -d
+	}
+	return int(d)*3600 + int(m)*60 + int(sec)
+}
+
 // compassStep rounds degrees to the cluster's 48 steps (stock round(deg /
 // 7.5)), 360 being 0.
 func compassStep(deg float64) float64 {
 	return float64((int(math.Round(math.Mod(deg, 360)/7.5))%48+48)%48) * 7.5
 }
 
-// followGpsd watches gpsd at addr into h, reconnecting (1 s, doubling to 30 s);
-// logf hears each new problem once.
-func followGpsd(addr string, h *heading, logf func(string, ...any)) {
+// tpvReport is the part of a gpsd TPV report micom-livi reads.
+type tpvReport struct {
+	Class string   `json:"class"`
+	Mode  int      `json:"mode"`
+	Track *float64 `json:"track"`
+	Speed *float64 `json:"speed"`
+	Lat   *float64 `json:"lat"`
+	Lon   *float64 `json:"lon"`
+}
+
+// followGpsd watches gpsd at addr into h and p, reconnecting (1 s, doubling to
+// 30 s); logf hears each new problem once.
+func followGpsd(addr string, h *heading, p *position, logf func(string, ...any)) {
 	wait, said := time.Second, ""
 	for {
-		connected, err := watchGpsd(addr, h)
+		connected, err := watchGpsd(addr, func(r tpvReport, now time.Time) {
+			h.tpv(r.Mode, r.Track, r.Speed, now)
+			p.tpv(r.Mode, r.Lat, r.Lon, now)
+		})
 		if s := fmt.Sprint(err); s != said {
 			logf("gpsd %s: %v", addr, err)
 			said = s
@@ -82,7 +140,7 @@ func followGpsd(addr string, h *heading, logf func(string, ...any)) {
 
 // watchGpsd reads gpsd's reports until the connection fails; connected says
 // whether it got as far as one.
-func watchGpsd(addr string, h *heading) (connected bool, err error) {
+func watchGpsd(addr string, take func(tpvReport, time.Time)) (connected bool, err error) {
 	c, err := net.DialTimeout("tcp", addr, 5*time.Second)
 	if err != nil {
 		return false, err
@@ -100,14 +158,9 @@ func watchGpsd(addr string, h *heading) (connected bool, err error) {
 			}
 			return true, fmt.Errorf("closed")
 		}
-		var r struct {
-			Class string   `json:"class"`
-			Mode  int      `json:"mode"`
-			Track *float64 `json:"track"`
-			Speed *float64 `json:"speed"`
-		}
+		var r tpvReport
 		if json.Unmarshal(sc.Bytes(), &r) == nil && r.Class == "TPV" {
-			h.tpv(r.Mode, r.Track, r.Speed, time.Now())
+			take(r, time.Now())
 		}
 	}
 }

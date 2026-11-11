@@ -229,6 +229,9 @@ type bridge struct {
 	releaseAfter time.Duration
 	// heading, when set, is the compass in degrees (nil for none).
 	heading func(time.Time) *float64
+	// position, when set, is the unit's fix in stock's arc-seconds, for the
+	// cluster (cluster-position); ok false for none, and then nothing is sent.
+	position func(time.Time) (lat, lon int, ok bool)
 	// night, when set, is the cluster's day or night look, nil while unknown.
 	night func() *bool
 	// observe, when set, hears each read of LIVI's guidance, nil when it
@@ -331,6 +334,11 @@ func (b *bridge) step(n *navigation, now time.Time, o navOptions) []string {
 				mode = "night"
 			}
 			out = b.emit(out, map[string]any{"msg": "cluster-day-night", "mode": mode}, now, false)
+		}
+	}
+	if b.position != nil {
+		if lat, lon, ok := b.position(now); ok {
+			out = b.emit(out, map[string]any{"msg": "cluster-position", "lat_arcsec": lat, "lon_arcsec": lon}, now, true)
 		}
 	}
 	var compass *float64

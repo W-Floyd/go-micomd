@@ -26,7 +26,6 @@ func unhex(t *testing.T, s string) []byte {
 var captured = []string{
 	"ff 88 0c 01 0c 5c 00 01 2b",
 	"ff 8f 0d 01 0d 03 00 0a ff ff ff 0e 03 ff ff 03 ff 76",
-	"ff c3 4d 00 4d 17 00 09 08 d5 fc db 05 ff 81 2b 88",
 	"ff 88 0c 01 0c 09 00 06 04 a0 01 10 80 4c",
 	"ff c2 43 00 43 33 00 0c 02 02 14 01 10 0a 01 1a 10 00 02 04",
 	"ff 0c 88 01 8c 02 00 04 57 00 54 f3",
@@ -54,9 +53,8 @@ func TestProfilesMatchCapture(t *testing.T) {
 	want := map[string]string{
 		"poll":      captured[0],
 		"ack":       captured[1],
-		"status":    captured[2],
-		"clock-sec": captured[3],
-		"clock":     captured[4],
+		"clock-sec": captured[2],
+		"clock":     captured[3],
 		// Not captured: ack with the compass as 3f, from stock code.
 		"tbt-sub-info": "ff 8f 0d 01 0d 03 00 0a ff ff ff 3f 03 ff ff 03 ff 47",
 	}
@@ -75,14 +73,14 @@ func TestProfilesMatchCapture(t *testing.T) {
 	for _, p := range code {
 		names = append(names, p.Name)
 	}
-	if !slices.Equal(names, []string{"poll", "tbt-sub-info", "status"}) {
+	if !slices.Equal(names, []string{"poll", "tbt-sub-info"}) {
 		t.Errorf("code profile %v", names)
 	}
 }
 
 func TestDecoderResyncs(t *testing.T) {
-	good := unhex(t, captured[5])
-	bad := append([]byte(nil), unhex(t, captured[6])...)
+	good := unhex(t, captured[4])
+	bad := append([]byte(nil), unhex(t, captured[5])...)
 	bad[len(bad)-1] ^= 0x01 // corrupt the checksum
 	stream := append(append(append([]byte{0x00, 0x13, 0xff}, bad...), []byte{0x7a}...), good...)
 	var d Decoder
@@ -256,6 +254,9 @@ func TestDescribeSentLive(t *testing.T) {
 		// The EV6, live, 2026-11-10 (no active turn-by-turn guidance).
 		{"8f0d010d", "04", "08000000ffff00f0", "tbt-turn", "maneuver=no_route_guide"},
 		{"8f0d010d", "11", "00", "nav-operation", "status=released"},
+		// Synthetic: 0,0 and 1 degree north, 1 degree west.
+		{"c34d004d", "17", "07ffffff07ffffff", "cluster-position", "lat_arcsec=0"},
+		{"c34d004d", "17", "08057e3f07fa81bf", "cluster-position", "lon_arcsec=-3600"},
 	} {
 		var f Frame
 		copy(f.Hdr[:], unhex(t, c.hdr))
@@ -267,15 +268,6 @@ func TestDescribeSentLive(t *testing.T) {
 		if got := DescribeSent(f); !strings.Contains(got, c.want) {
 			t.Errorf("%s %s: %q lacks %q", c.hdr, c.cmd, got, c.want)
 		}
-	}
-	// status_tx (captured[2]'s header): a headers: alias, never a messages:
-	// entry, so the layout is not declared.
-	status := Frame{Hdr: [4]byte{0xc3, 0x4d, 0x00, 0x4d}, Cmd: 0x17}
-	if got := SentName(status); got != "" {
-		t.Errorf("status_tx named: %q", got)
-	}
-	if got := DescribeSent(status); got != "" {
-		t.Errorf("status_tx described: %q", got)
 	}
 	// A from_micom frame: SentName/DescribeSent never fall back to
 	// FrameName/Describe's table.
@@ -543,7 +535,7 @@ func TestRunSendsAndReceives(t *testing.T) {
 
 	// The micom end: read what the daemon sends, send a countdown frame.
 	go func() {
-		b.Write(unhex(t, captured[5]))
+		b.Write(unhex(t, captured[4]))
 	}()
 	var dec Decoder
 	buf := make([]byte, 256)

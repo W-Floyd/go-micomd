@@ -239,6 +239,7 @@ func TestBridgeLinesAreTakenByMicomd(t *testing.T) {
 		return ptr(352.5)
 	}
 	bc.night = func() *bool { return ptr(true) }
+	bc.position = func(time.Time) (int, int, bool) { return 3600, -3600, true }
 	var lines []string
 	for i, js := range []string{
 		`{"active":false}`,

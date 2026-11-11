@@ -43,7 +43,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 13 |
-| 🟡 code | 34 |
+| 🟡 code | 35 |
 | 🟠 inferred | 3 |
 
 Not yet backed by a capture:
@@ -62,6 +62,7 @@ Not yet backed by a capture:
 | nav-operation | `cluster_tx` | 0x11 | 🟡 code | stock ClusterService\$NaviCluster.sendOperationStatus (1 byte), Navigation\$Func OPERATION_STATUS 0x11; GPM claimCluster/onStatus; DiPO u.java claim and release |
 | tbt-alive | `cluster_tx` | 0x0e | 🟡 code | stock ClusterService\$NaviCluster.sendAlive (mIsAlive 1/0), Navigation\$Func ALIVE 0x0e |
 | cluster-day-night | `cluster_tx` | 0x0f | 🟡 code | stock ClusterService\$NaviCluster.sendDayNight (mIsNight 1/0), Navigation\$Func DAY_NIGHT_STATUS 0x0f |
+| cluster-position | `status_tx` | 0x17 | 🟡 code | stock ClusterLocationManager.sendLocationInfo / ClusterService.updatePositionInfo (IL HU_CurPosition), every 1 s with IGN on; the captured frames decode to the unit's position then |
 | batt-cond-route-distance | `poll_tx` | 0x66 | 🟡 code | stock HEVService.setBattCondRouteDis: sendPacket(0x88, 0x0c, 0x0c66, [hi, lo]) |
 | batt-cond-remain-time | `poll_tx` | 0x65 | 🟡 code | stock HEVService.setBattCondRemainTime: sendPacket(0x88, 0x0c, 0x0c65, [hi, lo]) |
 | batt-cond-ev-station | `poll_tx` | 0x68 | 🟡 code | stock HEVService.setBattCondEvStation: sendPacket(0x88, 0x0c, 0x0c68, [flag & 0xf, type & 0xf]), then HEVService\$6 [7, 7] after 120 ms; github.com/paytondevs/gen5w-preconditioning PreconditioningProfile |
@@ -921,6 +922,27 @@ packet-beta
 0-7: "mode"
 ```
 
+### status_tx
+
+`c3 4d 00 4d`
+
+#### cluster-position
+
+cmd `0x17`, length 8 · 🟡 code
+
+> stock ClusterLocationManager.sendLocationInfo / ClusterService.updatePositionInfo (IL HU_CurPosition), every 1 s with IGN on; the captured frames decode to the unit's position then
+
+| Field | At | Type | Scale | Offset | Range |
+| --- | --- | --- | --- | --- | --- |
+| lat_arcsec | byte 0 | u32 | 0.01 | -1.34217727e+06 | -324000..324000 |
+| lon_arcsec | byte 4 | u32 | 0.01 | -1.34217727e+06 | -648000..648000 |
+
+```mermaid
+packet-beta
+0-31: "lat_arcsec"
+32-63: "lon_arcsec"
+```
+
 ### poll_tx
 
 `88 0c 01 0c`
@@ -1189,7 +1211,6 @@ packet-beta
 | poll | 1s | `ff 88 0c 01 0c 5c 00 01 2b` |  |  |  | 🟢 captured | logcat MicomD 2026-10-16; strace 2026-11-07 identical |
 | ack | 600ms | `ff 8f 0d 01 0d 03 00 0a ff ff ff 0e 03 ff ff 03 ff 76` |  |  |  | 🟢 captured | logcat MicomD 2026-10-16 |
 | tbt-sub-info | 600ms | `ff 8f 0d 01 0d 03 00 0a ff ff ff 3f 03 ff ff 03 ff 47` |  | code | ack | 🟡 code | stock GpmNaviTBTManager / ClusterService\$NaviCluster TBTSubInfo packer (hmg_nemesis projection-tbt, stock automotive-service smali) |
-| status | 1s | `ff c3 4d 00 4d 17 00 09 08 d5 fc db 05 ff 81 2b 88` |  |  |  | 🟢 captured | logcat MicomD 2026-10-16 |
 | clock-sec | 1s |  | ff 88 0c 01 0c 09 00 06 04 a0 {minute} {second} 80 .. | clock |  | 🟢 captured | logcat MicomD 2026-10-16 20:01:16-17; stock micomd strace 2026-11-07 |
 | clock | 1s |  | ff c2 43 00 43 33 00 0c 02 02 {hour} {minute} {second} {month} 01 {year2} {day} 00 02 .. | clock |  | 🟢 captured | logcat MicomD 2026-10-16 20:01; strace 2026-11-07 matches the unit's clock |
 

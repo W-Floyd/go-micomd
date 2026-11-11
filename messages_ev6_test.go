@@ -96,6 +96,11 @@ func TestEV6Messages(t *testing.T) {
 			"ff 88 0c 01 0c 68 00 03 02 03 1c", "ff 88 0c 01 0c 68 00 03 07 07 1d",
 			"ff 88 0c 01 0c 66 00 03 00 09 1a",
 		}},
+		// 1 degree north and west, as stock's arc-seconds.
+		{"cluster position", []string{
+			`{"msg":"cluster-position","lat_arcsec":3600,"lon_arcsec":-3600}`,
+			`{"msg":"cluster-position","lat_arcsec":324001,"lon_arcsec":0} => above the maximum 324000`,
+		}, []string{"ff c3 4d 00 4d 17 00 09 08 05 7e 3f 07 fa 81 bf ad"}},
 		{"battery conditioning stop", []string{
 			`{"msg":"batt-cond-route-distance","km":2047}`, `{"msg":"batt-cond-remain-time","minutes":1023}`,
 			`{"msg":"batt-cond-ev-station","flag":0,"type":0}`,
@@ -168,8 +173,8 @@ func TestEV6Messages(t *testing.T) {
 	}{
 		{InputGates{}, nil},
 		{InputGates{Persistent: true}, nil},
-		{InputGates{Inferred: true}, []string{"backlight", "batt-cond-ev-station", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-sub-info", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
-		{InputGates{Inferred: true, Persistent: true}, []string{"backlight", "backlight-dim-mode", "backlight-manual-level", "backlight-period-level", "batt-cond-ev-station", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-sub-info", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
+		{InputGates{Inferred: true}, []string{"backlight", "batt-cond-ev-station", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-position", "cluster-sub-info", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
+		{InputGates{Inferred: true, Persistent: true}, []string{"backlight", "backlight-dim-mode", "backlight-manual-level", "backlight-period-level", "batt-cond-ev-station", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-position", "cluster-sub-info", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
 	} {
 		e := newInputEngine(v, tc.g, func(Frame) error { return nil }, func([]string, bool) {}, time.Now, t.Logf)
 		if ok, _ := e.enabled(); !slices.Equal(ok, tc.want) {

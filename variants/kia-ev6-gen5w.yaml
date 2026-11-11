@@ -224,8 +224,9 @@ signals:
 
 # Routine traffic Android sent at a steady rate (logcat MicomD, 2026-10-16),
 # sent as seen: what each means, and which the micom needs, is not known. The
-# ack and status payloads are not constant: a strace of 2026-11-07 has ack
-# byte 3 = 1d and status 08 c6 b0 73 06 32 ab 37, so they carry state.
+# ack payload is not constant: a strace of 2026-11-07 has ack byte 3 = 1d, so
+# it carries state. The 1 s status frame Android sent beside them is the
+# cluster's position (cluster-position, below): not routine, never replayed.
 profile:
   - name: poll        # answered by the 31-byte EV power block
     every: 1s
@@ -251,11 +252,6 @@ profile:
     replaces: ack
     status: code
     ref: "stock GpmNaviTBTManager / ClusterService$NaviCluster TBTSubInfo packer (hmg_nemesis projection-tbt, stock automotive-service smali)"
-  - name: status
-    every: 1s
-    frame: "ff c3 4d 00 4d 17 00 09 08 d5 fc db 05 ff 81 2b 88"
-    status: captured
-    ref: "logcat MicomD 2026-10-16"
   # The two frames whose payload follows the wall clock: only with -clock,
   # as a wrong time may be stored by the car.
   # clock-sec is ?? a0 MM SS 80: the 2026-11-07 strace has 02 a0 14 32 80
@@ -424,6 +420,26 @@ messages:
       - { name: mode, off: 0, enum: day_night }
     status: code
     ref: "stock ClusterService$NaviCluster.sendDayNight (mIsNight 1/0), Navigation$Func DAY_NIGHT_STATUS 0x0f"
+
+  # HU_CurPosition, cluster IL 0x17: the unit's GPS position, latitude then
+  # longitude, each 0x7ffffff + 100 x arc-seconds, big endian. Stock sends it
+  # every 1 s with IGN on, from the last GPS fix, and nothing while it has
+  # none; so here only while a client feeds it (micom-livi -gpsd). Stock
+  # splits degrees, minutes and seconds and negates only the degrees, so a
+  # southern or western coordinate is off by twice its minutes and seconds:
+  # what the cluster expects, the fault or the true value, is not known.
+  - name: cluster-position
+    dir: to_micom
+    hdr: status_tx
+    cmd: 0x17
+    length: 8
+    fields:
+      - { name: lat_arcsec, off: 0, type: u32, scale: 0.01, offset: -1342177.27, min: -324000, max: 324000 }
+      - { name: lon_arcsec, off: 4, type: u32, scale: 0.01, offset: -1342177.27, min: -648000, max: 648000 }
+    every: 1s
+    timeout: 5s
+    status: code
+    ref: "stock ClusterLocationManager.sendLocationInfo / ClusterService.updatePositionInfo (IL HU_CurPosition), every 1 s with IGN on; the captured frames decode to the unit's position then"
 
   # Battery conditioning: what stock's navigation tells the car when it
   # routes to a fast charger, so the BMS warms the pack. Stock sends the
