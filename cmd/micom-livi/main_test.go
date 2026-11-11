@@ -32,9 +32,12 @@ func TestParseTapLine(t *testing.T) {
 
 func ptr[T any](v T) *T { return &v }
 
-// The speed, state of charge and remaining energy reach LIVI in its units,
-// read through the default variant's messages; other fields do not.
+// The car's fields reach LIVI in its units, read through the default
+// variant's messages and signals; other fields do not. One reader takes the
+// lines in order: once the light sensor has spoken, the illumination is
+// left out.
 func TestLiviCar(t *testing.T) {
+	var rd reader
 	for _, tc := range []struct {
 		line string
 		want map[string]any
@@ -46,7 +49,9 @@ func TestLiviCar(t *testing.T) {
 		// The range plus what the climate off would add, from one frame.
 		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=2a00f308", map[string]any{"rangeClimateOffKm": 251.0}},
 		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=25016b07", map[string]any{"rangeClimateOffKm": 370.0}},
-		{"15:04:05.000 rx hdr=0c88018c cmd=01 payload=0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000f30000", map[string]any{"rangeClimateOffKm": 253.0}},
+		{"15:04:05.000 rx hdr=0c88018c cmd=01 payload=0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000f30000", map[string]any{"rangeClimateOffKm": 253.0,
+			"chargeLimitAcPct": 0.0, "chargeLimitDcPct": 0.0, "chargeTimeAcMin": 0.0, "chargeTimeDcMin": 0.0, "chargeTimeToFullMin": 0.0,
+			"efficiencyAvg": 0.0, "rangeAtChargeLimitAcKm": 0.0, "rangeAtChargeLimitDcKm": 0.0}},
 		{"15:04:05.000 rx hdr=44c100c4 cmd=22 payload=06c40c", map[string]any{"odometerKm": 44340.4}},
 		{"15:04:05.000 rx hdr=43c200c3 cmd=02 payload=5e", map[string]any{"ambientC": 12.222222}},
 		{"15:04:05.000 rx hdr=018a0181 cmd=0d payload=00", map[string]any{"nightMode": true}},
@@ -54,15 +59,45 @@ func TestLiviCar(t *testing.T) {
 		{"15:04:05.000 rx hdr=018a0181 cmd=0d payload=05", map[string]any{"nightMode": false}},
 		// The boot record seeds it.
 		{"15:04:05.000 rx hdr=018a0181 cmd=01 payload=0100000000010eca020519222e06544b4b1500", map[string]any{"nightMode": true}},
-		{"15:04:05.000 rx hdr=0d8f018d cmd=46 payload=02", nil},     // cruise: not a LIVI field
-		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=5700f5", nil}, // climate power draw
-		{"15:04:05.000 rx hdr=0d8f018d cmd=47 payload=9b", nil},     // too short to decode
+		{"15:04:05.000 rx hdr=0d8f018d cmd=46 payload=02", nil}, // cruise: not a LIVI field
+		{"15:04:05.000 rx hdr=0d8f018d cmd=47 payload=9b", nil}, // too short to decode
+		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=5700f5", map[string]any{"climatePowerW": 245.0}},
+		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=140028", map[string]any{"chargeTimeToFullMin": 40.0}},
+		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=1300dc", map[string]any{"chargeTimeAcMin": 220.0}},
+		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=2100a0", map[string]any{"chargeLimitAcPct": 80.0}},
+		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=1f019e", map[string]any{"rangeAtChargeLimitAcKm": 414.0}},
+		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=5e0168", map[string]any{"tripEnergyKwh": 36.0}},
+		{"15:04:05.000 rx hdr=0c88018c cmd=4f payload=2d3a200100000000", map[string]any{"chargerReady": true}},
+		{"15:04:05.000 rx hdr=0c88018c cmd=5c payload=15ffffffffffffffffff01b1000000000000000000000400ff00000000ff", map[string]any{"batteryHeaterW": 0.0, "lowVoltageLoad": 4.0}},
+		{"15:04:05.000 rx hdr=44c100c4 cmd=14 payload=57", map[string]any{"auxBatteryPct": 87.0}},
+		{"15:04:05.000 rx hdr=50c400d0 cmd=4a payload=07", map[string]any{"gear": "R"}},
+		{"15:04:05.000 rx hdr=50c400d0 cmd=4a payload=09", nil}, // a gear not known
+		{"15:04:05.000 rx hdr=018a0181 cmd=1b payload=01", map[string]any{"reverse": true}},
+		{"15:04:05.000 rx hdr=44c100c4 cmd=03 payload=01", map[string]any{"doorDriverOpen": true}},
+		{"15:04:05.000 rx hdr=44c100c4 cmd=00 payload=00", map[string]any{"doorPassengerLocked": true}},
+		{"15:04:05.000 rx hdr=44c100c4 cmd=11 payload=00", map[string]any{"hoodOpen": false}},
+		{"15:04:05.000 rx hdr=44c100c4 cmd=49 payload=02", map[string]any{"chargePortOpen": false}},
+		{"15:04:05.000 rx hdr=018a0181 cmd=03 payload=01", map[string]any{"drivingRegulation": true}},
+		{"15:04:05.000 rx hdr=018a0181 cmd=9a payload=00", map[string]any{"drivingRegulationB": false}},
+		{"15:04:05.000 rx hdr=018a0181 cmd=29 payload=01", map[string]any{"parkingBrake": true}},
+		{"15:04:05.000 rx hdr=018a0181 cmd=0a payload=01", map[string]any{"ignition": true}},
+		{"15:04:05.000 rx hdr=44c100c4 cmd=1d payload=07", map[string]any{"rearLeftSeatHeating": 2}},
+		{"15:04:05.000 rx hdr=44c100c4 cmd=1f payload=02", map[string]any{"rearRightSeatHeating": 0}},
+		{"15:04:05.000 rx hdr=44c100c4 cmd=0d payload=01", map[string]any{"steeringWheelHeating": 1}},
+		{"15:04:05.000 rx hdr=43c200c3 cmd=16 payload=01", map[string]any{"climateKey": true}},
+		// The whole boot record seeds the state the frames send on change.
+		{"15:04:05.000 rx hdr=018a0181 cmd=01 payload=08000100010000ca020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000001000000000000000000000000000000000000", map[string]any{"nightMode": false, "ignition": true, "vehicleReady": false,
+			"drivingRegulation": true, "drivingRegulationB": false, "parkingBrake": true, "reverse": false}},
+		// The light sensor, then the illumination no more.
+		{"15:04:05.000 rx hdr=018a0181 cmd=95 payload=02", map[string]any{"nightMode": true}},
+		{"15:04:05.000 rx hdr=018a0181 cmd=0d payload=01", nil},
+		{"15:04:05.000 rx hdr=018a0181 cmd=95 payload=01", map[string]any{"nightMode": false}},
 	} {
 		f, ok := parseTapLine(tc.line)
 		if !ok {
 			t.Fatalf("%q does not parse", tc.line)
 		}
-		if got := liviCar(micom.Decode(f)); !reflect.DeepEqual(got, tc.want) {
+		if got := rd.read(f); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%q: %v, want %v", tc.line, got, tc.want)
 		}
 	}
@@ -127,6 +162,9 @@ func TestLiviClimate(t *testing.T) {
 			map[string]any{"source": "car", "fanLevel": 7, "fanAuto": false, "on": true}},
 		{"fan off", micom.CarClimate{FanLevel: ptr(0), FanAuto: ptr(false)},
 			map[string]any{"source": "car", "fanLevel": 0, "fanAuto": false, "on": false}},
+		{"the car's own on/off over the fan's, rear defrost",
+			micom.CarClimate{FanLevel: ptr(0), FanAuto: ptr(false), On: ptr(true), RearDefrost: ptr(true)},
+			map[string]any{"source": "car", "fanLevel": 0, "fanAuto": false, "on": true, "rearWindowHeating": 1}},
 		{"airflow feet and defrost", micom.CarClimate{Airflow: ptr(byte(4))},
 			map[string]any{"source": "car", "ventsAuto": false, "ventMiddle": false, "ventLower": true, "ventUpper": true}},
 		{"airflow auto", micom.CarClimate{Airflow: ptr(byte(8))},

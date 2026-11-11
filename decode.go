@@ -55,6 +55,10 @@ func DescribeSent(f Frame) string { return defaultVariant().DescribeSent(f) }
 // variants/hkmc-gen5w-ev.yaml).
 func Decode(f Frame) []Field { return defaultVariant().Decode(f) }
 
+// Signal reads a state frame of the default variant (a door, the gear, a
+// switch); false for the rest.
+func Signal(f Frame) (SignalReading, bool) { return defaultVariant().Signal(f) }
+
 // Describe is a one-line reading of f for the frames whose layout the
 // default variant knows, "" for the rest.
 func Describe(f Frame) string { return defaultVariant().Describe(f) }

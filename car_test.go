@@ -2,6 +2,7 @@ package micom
 
 import (
 	"encoding/hex"
+	"strings"
 	"testing"
 )
 
@@ -114,8 +115,13 @@ func TestCarDescribe(t *testing.T) {
 		{"43c200c3", 0x15, "0100", ""},
 		{"0c88018c", 0x4f, "01", ""},
 	} {
-		if got := carDescribe(capture(t, tc.hdr, tc.cmd, tc.payload)); got != tc.want {
+		f := capture(t, tc.hdr, tc.cmd, tc.payload)
+		if got := carDescribe(f); got != tc.want {
 			t.Errorf("%s/%02x %s: %q, want %q", tc.hdr, tc.cmd, tc.payload, got, tc.want)
+		}
+		// Signal reads the value the line shows, and nothing a line lacks.
+		if r, ok := Signal(f); ok && (tc.want == "" || !strings.Contains(tc.want, ": "+r.Text)) || !ok && tc.want != "" && tc.hdr != "07840187" && !strings.HasPrefix(tc.want, "Climate update") {
+			t.Errorf("%s/%02x %s: Signal %+v %v, line %q", tc.hdr, tc.cmd, tc.payload, r, ok, tc.want)
 		}
 	}
 }

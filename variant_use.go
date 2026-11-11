@@ -99,6 +99,40 @@ func (v *Variant) FrameName(f Frame) string {
 	return ""
 }
 
+// SignalReading is a state frame (a variant's signal) as its variant reads
+// it.
+type SignalReading struct {
+	// Name is the signal's, Text its value's ("open", "drive", "heat level 2").
+	Name, Text string
+	Raw        byte
+	// Number is a number signal's value, or the state of its special value;
+	// nil for other kinds and for a special value without one.
+	Number *int
+}
+
+// Signal reads f if it is one of the variant's signals with a value it
+// knows; false for the rest, and for a burst's brackets.
+func (v *Variant) Signal(f Frame) (SignalReading, bool) {
+	s := v.signals[hdrCmd{f.Hdr, f.Cmd}]
+	if s == nil || s.kind == kindBurst || len(f.Payload) == 0 || s.length != 0 && len(f.Payload) != s.length {
+		return SignalReading{}, false
+	}
+	b := f.Payload[0]
+	text, ok := s.text(b)
+	if !ok {
+		return SignalReading{}, false
+	}
+	r := SignalReading{Name: s.name, Text: text, Raw: b}
+	if s.kind == kindNumber {
+		if vs, ok := s.values[b]; ok {
+			r.Number = vs.State
+		} else if n, ok := s.number(b); ok {
+			r.Number = &n
+		}
+	}
+	return r, true
+}
+
 // SentName is the name of the to_micom message f matches, by frame, as the
 // variant declared it with fields (a messages: entry); "" for the rest. A
 // frame that is only a headers: alias, or a literal identify.request, is not

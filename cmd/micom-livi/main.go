@@ -1,9 +1,9 @@
 // Command micom-livi feeds the car's state, as micomd decodes it, into LIVI's
-// telemetry: it reads micomd's tap socket and posts the climate (panel and seat
-// heat) to LIVI's telemetry endpoint as the car's ("source": "car"), and
-// speedKph, fuelPct, batteryLevelKwh, rangeKm, rangeClimateOffKm, ambientC,
-// odometerKm and nightMode (the micom's illumination), each when it changes
-// (carFields, liviCar).
+// telemetry: it reads micomd's tap socket and posts the climate (panel, seat
+// heat, rear defrost) to LIVI's telemetry endpoint as the car's ("source":
+// "car"), and the rest of what the car reports (carFields, carSignals: speed,
+// charge, range, gear, doors, charging times and limits, driving
+// regulation, day or night...), each when it changes.
 // With -input it also reads LIVI's route guidance (GET /navigation) and shows
 // it on the instrument cluster through micomd's -input socket (nav.go), with
 // -gpsd the compass and, while there is a fix, the unit's position.
@@ -156,6 +156,7 @@ func follow(path string, settle time.Duration, p *poster, car *carState) error {
 		state   micom.CarClimate
 		inBurst bool
 		timer   <-chan time.Time
+		rd      reader
 	)
 	for {
 		select {
@@ -168,7 +169,7 @@ func follow(path string, settle time.Duration, p *poster, car *carState) error {
 				continue
 			}
 			fields := micom.Decode(f)
-			for k, v := range liviCar(fields) {
+			for k, v := range rd.read(f) {
 				p.set(k, v)
 				switch k {
 				case "nightMode":
@@ -202,15 +203,127 @@ func follow(path string, settle time.Duration, p *poster, car *carState) error {
 }
 
 // carFields are the decoded fields LIVI takes, by the variant's names, and
-// the telemetry field each becomes: the variant gives them in LIVI's units.
+// the telemetry field each becomes: the variant gives them in LIVI's units
+// (minutes, km, %, kWh, W), or the car's where a name says it has no unit.
+// The boot record's fields seed what the frames send only on change.
 var carFields = map[string]string{
-	"Vehicle speed":            "speedKph",
-	"State of charge":          "fuelPct",
-	"Battery remaining energy": "batteryLevelKwh",
-	"Range":                    "rangeKm",
-	"Outdoor temperature":      "ambientC",
-	"Odometer":                 "odometerKm",
-	"Illumination":             "nightMode", // 0 is night, any other value day
+	"Vehicle speed":                   "speedKph",
+	"State of charge":                 "fuelPct",
+	"Battery remaining energy":        "batteryLevelKwh",
+	"Range":                           "rangeKm",
+	"Outdoor temperature":             "ambientC",
+	"Odometer":                        "odometerKm",
+	"Illumination":                    "nightMode", // 0 is night, any other value day
+	"12 V battery charge (body)":      "auxBatteryPct",
+	"Charger ready":                   "chargerReady",
+	"Charge time to full":             "chargeTimeToFullMin",
+	"Charge time estimate, DC":        "chargeTimeDcMin",
+	"Charge time estimate, AC":        "chargeTimeAcMin",
+	"Charge time estimate, DC custom": "chargeTimeDcCustomMin",
+	"Charge limit, AC":                "chargeLimitAcPct",
+	"Charge limit, DC":                "chargeLimitDcPct",
+	"Range at charge limit, AC":       "rangeAtChargeLimitAcKm",
+	"Range at charge limit, DC":       "rangeAtChargeLimitDcKm",
+	"Trip energy":                     "tripEnergyKwh",
+	// Per kWh in the cluster's distance unit (km or mi), the scale a guess.
+	"Average efficiency": "efficiencyAvg",
+	// The climate's draw, W, as HEVService's item (the power block's
+	// "Climate power" is the same signal, polled: one source, no flapping).
+	"Climate power draw": "climatePowerW",
+	"Battery heater":     "batteryHeaterW",
+	// The power block's others, in the car's units (not known).
+	"AVN motor power":      "motorPower",
+	"PTC heater":           "ptcHeaterPower",
+	"LDC load":             "lowVoltageLoad",
+	"IGN1":                 "ignition",
+	"Vehicle ready":        "vehicleReady",
+	"Driving regulation":   "drivingRegulation",
+	"Driving regulation B": "drivingRegulationB",
+	"Parking brake":        "parkingBrake",
+	"Reverse":              "reverse",
+}
+
+// carBools are the carFields LIVI takes as true or false.
+var carBools = map[string]bool{
+	"chargerReady": true, "ignition": true, "vehicleReady": true, "drivingRegulation": true,
+	"drivingRegulationB": true, "parkingBrake": true, "reverse": true,
+}
+
+// carSignals are the variant's state frames LIVI takes, by signal name, and
+// the telemetry field each becomes. A switch is true when on (open, locked,
+// pressed), the gear P, R, N or D, a heat level a number.
+var carSignals = map[string]string{
+	"gear":                  "gear",
+	"reverse-active":        "reverse",
+	"door-driver-open":      "doorDriverOpen",
+	"door-front-right-open": "doorPassengerOpen",
+	"door-rear-left-open":   "doorRearLeftOpen",
+	"door-rear-right-open":  "doorRearRightOpen",
+	"door-driver-lock":      "doorDriverLocked",
+	"door-front-right-lock": "doorPassengerLocked",
+	"door-rear-left-lock":   "doorRearLeftLocked",
+	"door-rear-right-lock":  "doorRearRightLocked",
+	"trunk":                 "trunkOpen",
+	"hood":                  "hoodOpen",
+	"charge-port":           "chargePortOpen",
+	"driving-regulation":    "drivingRegulation",
+	"driving-regulation-b":  "drivingRegulationB",
+	"parking-brake":         "parkingBrake",
+	"light-sensor":          "nightMode",
+	"climate-key":           "climateKey",
+	"steering-wheel-heat":   "steeringWheelHeating",
+	"seat-heat-rear-left":   "rearLeftSeatHeating",
+	"seat-heat-rear-right":  "rearRightSeatHeating",
+}
+
+var gears = map[string]string{"park": "P", "reverse": "R", "neutral": "N", "drive": "D"}
+
+// reader turns a frame into LIVI's telemetry fields. Its nightMode follows
+// the micom's illumination until the two-way light sensor reports, then the
+// sensor alone, as stock does on a car that has one.
+type reader struct{ sensor bool }
+
+func (r *reader) read(f micom.Frame) map[string]any {
+	out := liviCar(micom.Decode(f))
+	if s, ok := micom.Signal(f); ok {
+		key, ok := carSignals[s.Name]
+		if ok {
+			var v any
+			switch {
+			case key == "gear":
+				v, ok = gears[s.Text]
+			case key == "nightMode":
+				v, r.sensor = s.Text == "night", true
+			case s.Number != nil:
+				v = *s.Number
+			default:
+				switch s.Text {
+				case "on", "open", "locked", "pressed":
+					v = true
+				case "off", "closed", "unlocked", "released":
+					v = false
+				default:
+					ok = false
+				}
+			}
+			if ok {
+				if out == nil {
+					out = map[string]any{}
+				}
+				out[key] = v
+				if key == "nightMode" {
+					return out
+				}
+			}
+		}
+	}
+	if _, ok := out["nightMode"]; ok && r.sensor {
+		delete(out, "nightMode")
+		if len(out) == 0 {
+			return nil
+		}
+	}
+	return out
 }
 
 // liviCar is what of a frame's decoded fields LIVI takes, as its telemetry
@@ -237,6 +350,8 @@ func liviCar(fs []micom.Field) map[string]any {
 		switch {
 		case key == "nightMode":
 			v = f.Value == 0
+		case carBools[key]:
+			v = f.Value != 0
 		case f.Float != nil:
 			v = *f.Float
 		}
@@ -328,6 +443,13 @@ func liviClimate(c micom.CarClimate) map[string]any {
 	if c.FanLevel != nil {
 		out["fanLevel"] = min(*c.FanLevel, 7)
 		out["on"] = *c.FanLevel != 0 || (c.FanAuto != nil && *c.FanAuto)
+	}
+	flag("on", c.On) // the car's own on or off, over the fan's
+	if c.RearDefrost != nil {
+		out["rearWindowHeating"] = 0
+		if *c.RearDefrost {
+			out["rearWindowHeating"] = 1
+		}
 	}
 	if c.Airflow != nil {
 		a := *c.Airflow
