@@ -172,6 +172,11 @@ func TestDescribeLive(t *testing.T) {
 		// Synthetic: a whole boot record, woken to charge, in D at night.
 		{"018a0181", "01", "08000100010000ca020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000001000000000000000000000000000000000001", "Boot record (full): Boot mode=8 Reset reason=0 Driving regulation=1 Illumination=day ACC=1 IGN1=1 Vehicle ready=0 IGN3=1 Reverse=0 Parking brake=1 Dim mode=auto CAN DB generation=2 Light sensor fitted=1 Driving regulation B=1"},
 		{"018a0181", "89", "000002ff", "Regulation inputs: In P=0 Parking brake lever=0 EPB state=2"},
+		// Synthetic: the start-up reads' replies.
+		{"43c200c3", "00", "0000100000000000000000000000000100000500000000000000000000000000000000000000000000000000000000000000000000000000000000", "Climate snapshot: Snapshot climate on (OpSts)=1 Snapshot driver set point (C raw)=16 Snapshot fan (raw)=5"},
+		{"0b8e018b", "c7", "c70100", "B-CAN validity: B-CAN valid=1 MM-CAN=0"},
+		{"44c100c4", "0c", "00000001000000000000000000000000000000570000000000000000000000000000000000", "Body snapshot: Snapshot driver door open=1 Snapshot driver door lock=0 Snapshot 12 V charge=87 %"},
+		{"11920191", "11", "fa0201000000000000", "Units (USM): Distance unit code=2 Temperature unit code=1"},
 		{"018a0181", "45", "0a", "Rheostat level=10"},
 		{"018a0181", "9b", "0000000000000058", "12 V battery charge=88 %"},
 		{"44c100c4", "14", "57", "12 V battery charge (body)=87 %"},

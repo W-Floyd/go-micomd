@@ -88,6 +88,11 @@ func TestLiviCar(t *testing.T) {
 		// The whole boot record seeds the state the frames send on change.
 		{"15:04:05.000 rx hdr=018a0181 cmd=01 payload=08000100010000ca020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000001000000000000000000000000000000000000", map[string]any{"nightMode": false, "ignition": true, "vehicleReady": false,
 			"drivingRegulation": true, "drivingRegulationB": false, "parkingBrake": true, "reverse": false}},
+		// The start-up snapshots, split into their single-signal frames.
+		{"15:04:05.000 rx hdr=43c200c3 cmd=00 payload=005e10000f000f000f0001000000010100000500000000000000000000000000000000000000000000000000000000000000000000000000000000", map[string]any{"ambientC": 12.222222}},
+		{"15:04:05.000 rx hdr=44c100c4 cmd=0c payload=0100000100000000000000000001000000000057000000000000000000000000000006c40c", map[string]any{"doorPassengerLocked": false, "doorPassengerOpen": false,
+			"doorDriverLocked": true, "doorDriverOpen": true, "doorRearLeftLocked": true, "doorRearLeftOpen": false, "trunkOpen": false,
+			"doorRearRightLocked": true, "doorRearRightOpen": false, "hoodOpen": false, "auxBatteryPct": 87.0, "odometerKm": 44340.4, "steeringWheelHeating": 0}},
 		// The light sensor, then the illumination no more.
 		{"15:04:05.000 rx hdr=018a0181 cmd=95 payload=02", map[string]any{"nightMode": true}},
 		{"15:04:05.000 rx hdr=018a0181 cmd=0d payload=01", nil},
@@ -97,7 +102,17 @@ func TestLiviCar(t *testing.T) {
 		if !ok {
 			t.Fatalf("%q does not parse", tc.line)
 		}
-		if got := rd.read(f); !reflect.DeepEqual(got, tc.want) {
+		var got map[string]any
+		parts, _ := unbundle(f)
+		for _, part := range parts {
+			for k, v := range rd.read(part) {
+				if got == nil {
+					got = map[string]any{}
+				}
+				got[k] = v
+			}
+		}
+		if !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%q: %v, want %v", tc.line, got, tc.want)
 		}
 	}

@@ -110,6 +110,9 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	allowDangerous := fs.Bool("allow-dangerous", false, "allow the variant's dangerous frames (those that reset, rewrite or reconfigure the micom: power config, factory reset, variant-code save, update/download reservations). Off, they are refused on every path")
 	identify := fs.Bool("identify-request", false, "ask the micom for its variant coding once the link is up, retried up to 5 times 3 s apart until it answers; the answer is logged against the variant running and reported by -query snapshot. The only frame it adds is the variant's identify request (inferred on HKMC: this flag alone allows it)")
 	bootMode := fs.Bool("boot-mode-request", false, "ask the micom for its boot record once the link is up, retried up to 4 times 2 s apart until it answers, as stock does at every boot: the record carries the state the micom otherwise sends only on change (the EV6's illumination). The only frame it adds is the variant's boot-mode-request send entry; the micom clears its boot-reason flags on it")
+	climateStatus := fs.Bool("climate-status-request", false, "ask the climate for its whole state once the link is up (stock's All_Datc_Req), retried once 1.5 s later as stock does: the reply carries the panel's state, otherwise sent only on change. The only frame it adds is the variant's climate-status-request send entry (inferred, never tried on a car: this flag alone allows it)")
+	bodyStatus := fs.Bool("body-status-request", false, "ask the body for its whole state once the link is up: stock's B-CAN validity check, every 1 s up to 5 times until valid, then its All_B_CAN_Req; the reply carries the doors, locks and 12 V charge, otherwise sent only on change. The only frames it adds are the variant's bcan-valid-request and body-status-request send entries (inferred, never tried on a car: this flag alone allows them)")
+	usmUnits := fs.Bool("usm-units-request", false, "ask the micom for the car's unit settings once the link is up (stock's read-all of the units group), retried up to 3 times 2 s apart. The only frame it adds is the variant's usm-units-request send entry (inferred, never tried on a car: this flag alone allows it)")
 	hevStatus := fs.Bool("hev-status-request", false, "ask the micom for its HEV status once the link is up, retried up to 3 times 2 s apart until it answers, as stock does at start: the bulk 0x8c01 reply carries the range with the climate on and off, otherwise sent only on change. The only frame it adds is the variant's hev-status-request send entry (inferred, never tried on a car: this flag alone allows it)")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -274,8 +277,62 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 			cfg.Allow = append(cfg.Allow, f)
 		}
 	}
+	// Stock's other start-up reads, each its own opt-in. A chain's reads go
+	// in order, each once the one before was answered.
+	var chains [][]*startupRead
+	read := func(flag, send, reply, what string, tries int, wait time.Duration, answers func(Frame) bool) *startupRead {
+		f, ok := v.SendNamed(send)
+		if !ok {
+			lg.Printf("%s: variant %s has no %s send entry", flag, v.Name, send)
+			return nil
+		}
+		cfg.Allow = append(cfg.Allow, f)
+		if answers == nil {
+			answers = func(f Frame) bool { _, name := v.decode(f); return name == reply }
+		}
+		return &startupRead{flag: flag, frame: f, what: what, reply: reply, tries: tries, wait: wait, answers: answers}
+	}
+	if *climateStatus {
+		if r := read("-climate-status-request", climateStatusRequest, climateSnapshotName, "the climate's state", 2, 1500*time.Millisecond, nil); r != nil {
+			chains = append(chains, []*startupRead{r})
+		}
+	}
+	if *bodyStatus {
+		valid := read("-body-status-request", bcanValidRequest, "B-CAN valid", "B-CAN's validity", 5, time.Second, func(f Frame) bool {
+			for _, fl := range v.Decode(f) {
+				if fl.Name == "B-CAN valid" && fl.Valid && fl.Value != 0 {
+					return true
+				}
+			}
+			return false
+		})
+		body := read("-body-status-request", bodyStatusRequest, bodySnapshotName, "the body's state", 2, 2*time.Second, nil)
+		if valid != nil && body != nil {
+			chains = append(chains, []*startupRead{valid, body})
+		}
+	}
+	if *usmUnits {
+		if r := read("-usm-units-request", usmUnitsRequest, usmUnitsName, "the unit settings", 3, 2*time.Second, nil); r != nil {
+			chains = append(chains, []*startupRead{r})
+		}
+	}
 	if *dump {
 		cfg.OnFrame = func(f Frame) { io.WriteString(stdout, frameLine(v, f)) }
+	}
+	if len(chains) > 0 {
+		prev := cfg.OnFrame
+		cfg.OnFrame = func(f Frame) {
+			if prev != nil {
+				prev(f)
+			}
+			for _, c := range chains {
+				for _, r := range c {
+					if r.answers(f) {
+						r.answered.Store(true)
+					}
+				}
+			}
+		}
 	}
 	if bootModeFrame != nil {
 		prev := cfg.OnFrame
@@ -283,7 +340,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 			if prev != nil {
 				prev(f)
 			}
-			if v.FrameName(f) == bootRecordName {
+			if _, name := v.decode(f); strings.HasPrefix(name, bootRecordName) {
 				bootRecord.Store(true)
 			}
 		}
@@ -402,6 +459,16 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	}
 	if hevStatusFrame != nil {
 		go d.ask(ctx, *hevStatusFrame, "-hev-status-request", "its HEV status", "HEV status", hevStatusReply.Load, hevStatusTries, hevStatusWait)
+	}
+	for _, c := range chains {
+		go func() {
+			for _, r := range c {
+				d.ask(ctx, r.frame, r.flag, r.what, r.reply, r.answered.Load, r.tries, r.wait)
+				if !r.answered.Load() {
+					return
+				}
+			}
+		}()
 	}
 	if err := d.Run(ctx); err != nil && ctx.Err() == nil {
 		lg.Print(err)

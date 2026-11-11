@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -78,6 +79,17 @@ const (
 	hevStatusTries = 3
 	hevStatusWait  = 2 * time.Second
 )
+
+// startupRead is one of stock's start-up reads: a request, sent with its
+// own flag, until a frame answers it.
+type startupRead struct {
+	flag, what, reply string
+	frame             Frame
+	tries             int
+	wait              time.Duration
+	answers           func(Frame) bool
+	answered          atomic.Bool
+}
 
 // askVariant sends req, the identify request, until the variant record
 // arrives (ask).

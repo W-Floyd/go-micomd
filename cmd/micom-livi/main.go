@@ -31,6 +31,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -168,32 +169,38 @@ func follow(path string, settle time.Duration, p *poster, car *carState) error {
 			if !ok {
 				continue
 			}
-			fields := micom.Decode(f)
-			for k, v := range rd.read(f) {
-				p.set(k, v)
-				switch k {
-				case "nightMode":
-					car.night.set(v.(bool))
-				case "fuelPct":
-					car.soc.set(v.(float64))
+			parts, whole := unbundle(f)
+			for _, f := range parts {
+				for k, v := range rd.read(f) {
+					p.set(k, v)
+					switch k {
+					case "nightMode":
+						car.night.set(v.(bool))
+					case "fuelPct":
+						car.soc.set(v.(float64))
+					}
+				}
+				for _, fl := range micom.Decode(f) {
+					if fl.Name == "Battery conditioning" && fl.Valid {
+						car.cond.set(fl.Value != 0)
+						p.set("batteryConditioning", fl.Value != 0)
+					}
+				}
+				switch state.Apply(f) {
+				case micom.ClimateBegin:
+					inBurst, timer = true, nil
+				case micom.ClimateEnd:
+					inBurst, timer = false, nil
+					p.climate(liviClimate(state))
+				case micom.ClimateChanged:
+					if !inBurst && !whole {
+						timer = time.After(settle)
+					}
 				}
 			}
-			for _, fl := range fields {
-				if fl.Name == "Battery conditioning" && fl.Valid {
-					car.cond.set(fl.Value != 0)
-					p.set("batteryConditioning", fl.Value != 0)
-				}
-			}
-			switch state.Apply(f) {
-			case micom.ClimateBegin:
-				inBurst, timer = true, nil
-			case micom.ClimateEnd:
-				inBurst, timer = false, nil
+			if whole {
+				timer = nil
 				p.climate(liviClimate(state))
-			case micom.ClimateChanged:
-				if !inBurst {
-					timer = time.After(settle)
-				}
 			}
 		case <-timer:
 			timer = nil
@@ -367,6 +374,38 @@ func liviCar(fs []micom.Field) map[string]any {
 		out["rangeClimateOffKm"] = float64(*on + *added)
 	}
 	return out
+}
+
+// snapshots are the start-up reads' replies (micomd's -climate-status-request
+// and -body-status-request) by name: each byte at an offset is the payload
+// of the single-signal frame of that command, on the header, which the car
+// otherwise sends only on change. The body's odometer is 3 bytes.
+var snapshots = map[string]struct {
+	hdr  [4]byte
+	cmds map[int]byte
+}{
+	"Climate snapshot": {[4]byte{0x43, 0xc2, 0x00, 0xc3}, map[int]byte{
+		1: 0x02, 2: 0x05, 4: 0x07, 6: 0x09, 8: 0x0b, 10: 0x0d, 12: 0x0f, 14: 0x11, 15: 0x12,
+		18: 0x15, 19: 0x27, 23: 0x19, 28: 0x1e, 48: 0x33}},
+	"Body snapshot": {[4]byte{0x44, 0xc1, 0x00, 0xc4}, map[int]byte{
+		0: 0x00, 1: 0x01, 2: 0x02, 3: 0x03, 4: 0x04, 5: 0x05, 6: 0x06, 7: 0x07, 8: 0x08,
+		12: 0x0d, 13: 0x0e, 15: 0x10, 16: 0x11, 19: 0x14}},
+}
+
+// unbundle is f, or a snapshot's single-signal frames, the climate's in a
+// whole (to post at once, as a burst's end would).
+func unbundle(f micom.Frame) (parts []micom.Frame, whole bool) {
+	s, ok := snapshots[micom.FrameName(f)]
+	if !ok || f.Hdr != s.hdr || micom.Decode(f) == nil {
+		return []micom.Frame{f}, false
+	}
+	for _, off := range slices.Sorted(maps.Keys(s.cmds)) {
+		parts = append(parts, micom.Frame{Hdr: s.hdr, Cmd: s.cmds[off], Payload: []byte{f.Payload[off]}})
+	}
+	if f.Hdr == snapshots["Body snapshot"].hdr {
+		parts = append(parts, micom.Frame{Hdr: s.hdr, Cmd: 0x22, Payload: slices.Clone(f.Payload[34:37])})
+	}
+	return parts, true
 }
 
 // parseTapLine reads a received frame off one line of micomd's tap:

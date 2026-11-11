@@ -43,7 +43,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 17 |
-| 🟡 code | 43 |
+| 🟡 code | 47 |
 | 🟠 inferred | 3 |
 
 Not yet backed by a capture:
@@ -91,6 +91,10 @@ Not yet backed by a capture:
 | Rheostat | `display_rx` | 0x10 | 🟡 code | micom-run: 0x0810 [00] answered 14 |
 | Display 0x8813 | `display_rx` | 0x13 | 🟡 code | micom-run: 0x0813 [00] answered 32 |
 | Current brightness | `display_rx` | 0x1b | 🟡 code | stock current brightness request 0x081B and its reply; micom firmware 0x081B handler |
+| Climate snapshot | `climate_panel` | 0x00 | 🟡 code | stock DATCService All_Datc_Resp; never captured (nothing sent All_Datc_Req) |
+| B-CAN validity | `tele_rx` | 0xc7 | 🟡 code | stock BCMService BCAN_VALID (0x8bc7) |
+| Body snapshot | `body` | 0x0c | 🟡 code | stock BCMService ALL_BCM_Resp (0xc40c); never captured |
+| Units (USM) | `usm_rx` | 0x11 | 🟡 code | stock USMService Unit_SET (0x9111) |
 | backlight | `display_tx` | 0x02 | 🟡 code | micom-run: ff 8c 08 01 08 02 00 02 01 73 on, ... 00 72 off; eMIOS0 ch 6 PWM |
 | shutdown-ack | `system_tx` | 0x09 | 🟡 code | micom-run: 0x0109 [01] ff 8a 01 01 01 09 00 02 01 7e, [02] ... 02 7d; status bits b8, b12 |
 | backlight-dim-mode | `display_tx` | 0x01 | 🟡 code | stock MON_SET_DIMMING_MODE_C (0 auto, 1 daylight, 2 night, 3 manual); micom firmware 0x0801 handler; micom-run EEPROM trace |
@@ -111,6 +115,7 @@ Not yet backed by a capture:
 | --- | --- | --- | --- | --- |
 | audio_tx | `85 02 01 02` | to_micom | 🟢 captured | stock micomd strace, source switch |
 | body | `44 c1 00 c4` | from_micom | 🟢 captured | doors; repeats seat heat and windows |
+| body_tx | `c1 44 00 44` | to_micom | 🟡 code | stock BCMService sendPacket(0xc1, 0x44, 0, 0x44, ordinal) |
 | camera | `01 c4 01 81` | from_micom | 🟢 captured |  |
 | climate_panel | `43 c2 00 c3` | from_micom | 🟢 captured |  |
 | clock_tx | `c2 43 00 43` | to_micom | 🟢 captured |  |
@@ -128,6 +133,10 @@ Not yet backed by a capture:
 | status_tx | `c3 4d 00 4d` | to_micom | 🟢 captured |  |
 | system_rx | `01 8a 01 81` | from_micom | 🟢 captured | the CPU-alive request |
 | system_tx | `8a 01 01 01` | to_micom | 🟢 captured | the CPU-alive reply |
+| tele_rx | `0b 8e 01 8b` | from_micom | 🟢 captured | stock BCMService 0x8bc3/0x8bc7; 0x8bc3 seen unasked |
+| tele_tx | `8e 0b 01 0b` | to_micom | 🟡 code | stock BCMService CAN validity requests (sendPacket(0x8e, 0x0b, func 0x0bxx)) |
+| usm_rx | `11 92 01 91` | from_micom | 🟢 captured | stock USMService; deltas seen at IGN on |
+| usm_tx | `92 11 01 11` | to_micom | 🟡 code | stock USMService sendPacket(0x92, 0x11, func 0x11xx) |
 
 ## Enums
 
@@ -1038,6 +1047,107 @@ packet-beta
 16-23: "OBD pack remaining"
 ```
 
+### climate_panel
+
+`43 c2 00 c3`
+
+#### Climate snapshot
+
+cmd `0x00`, length ≥ 59 · 🟡 code
+
+> stock DATCService All_Datc_Resp; never captured (nothing sent All_Datc_Req)
+
+| Field | At |
+| --- | --- |
+| Snapshot climate on (OpSts) | byte 15 |
+| Snapshot driver set point (C raw) | byte 2 |
+| Snapshot fan (raw) | byte 18 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "Snapshot driver set point (C raw)"
+24-119: "?"
+120-127: "Snapshot climate on (OpSts)"
+128-143: "?"
+144-151: "Snapshot fan (raw)"
+```
+
+### tele_rx
+
+`0b 8e 01 8b`: stock BCMService 0x8bc3/0x8bc7; 0x8bc3 seen unasked
+
+#### B-CAN validity
+
+cmd `0xc7`, length ≥ 3 · 🟡 code
+
+> stock BCMService BCAN_VALID (0x8bc7)
+
+| Field | At | Type |
+| --- | --- | --- |
+| B-CAN valid | byte 1 | bool |
+| MM-CAN | byte 2 | bool |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-15: "B-CAN valid"
+16-23: "MM-CAN"
+```
+
+### body
+
+`44 c1 00 c4`: doors; repeats seat heat and windows
+
+#### Body snapshot
+
+cmd `0x0c`, length ≥ 37 · 🟡 code
+
+> stock BCMService ALL_BCM_Resp (0xc40c); never captured
+
+| Field | At | Unit |
+| --- | --- | --- |
+| Snapshot driver door open | byte 3 |  |
+| Snapshot driver door lock | byte 2 |  |
+| Snapshot 12 V charge | byte 19 | % |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "Snapshot driver door lock"
+24-31: "Snapshot driver door open"
+32-151: "?"
+152-159: "Snapshot 12 V charge"
+```
+
+### usm_rx
+
+`11 92 01 91`: stock USMService; deltas seen at IGN on
+
+#### Units (USM)
+
+cmd `0x11`, length ≥ 8 · 🟡 code
+
+> stock USMService Unit_SET (0x9111)
+
+| Field | At |
+| --- | --- |
+| Distance unit code | byte 1 |
+| Temperature unit code | byte 2 |
+| Efficiency unit code (km) | byte 3 |
+| Efficiency unit code (mi) | byte 4 |
+| Tire pressure unit code | byte 5 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-15: "Distance unit code"
+16-23: "Temperature unit code"
+24-31: "Efficiency unit code (km)"
+32-39: "Efficiency unit code (mi)"
+40-47: "Tire pressure unit code"
+```
+
 ## Messages to micom
 
 ### cluster_tx
@@ -1461,6 +1571,10 @@ packet-beta
 | av-mute-release | `ff 85 02 01 02 38 00 03 02 00 42` |  | 🟢 captured | stock micomd strace, source switch |
 | main-volume |  | `ff 85 02 01 02 03 00 02 [00-23] ..` | 🟢 captured | stock micomd strace, source switch: levels 22-31 |
 | boot-mode-request | `ff 8a 01 01 01 01 00 01 74` |  | 🟠 inferred | SystemService; the micom answers 0x8101 with its last mode, mute and volume |
+| climate-status-request | `ff c2 43 00 43 00 00 02 01 3e` |  | 🟠 inferred | DATCService All_Datc_Req (TE_TX_IL 0x00, [01]) 500 ms after IGN1 on, once more 1.5 s later; answered by All_Datc_Resp (0x00) |
+| bcan-valid-request | `ff 8e 0b 01 0b c7 00 02 c7 72` |  | 🟠 inferred | BCMService B-CAN validity request (0x0bc7 [c7]) at micom ready, every 1 s until 0x8bc7 [1] = 1 |
+| body-status-request | `ff c1 44 00 44 05 00 01 3a` |  | 🟠 inferred | BCMService All_B_CAN_Req (TE_TX_IL 0x05, empty) once B-CAN is valid; answered by ALL_BCM_Resp (0xc40c) |
+| usm-units-request | `ff 92 11 01 11 11 00 03 fa fa 7e` |  | 🟠 inferred | USMService read-all (0x1111 Unit_SET_C_REQ [fa fa]) 2 s after IGN on; answered by 0x9111 with [0] = fa |
 | mode-usb | `ff 85 02 01 02 01 00 03 09 00 70` |  | 🟠 inferred | MicomAudioService audio mode USB |
 | mode-music | `ff 85 02 01 02 01 00 03 12 00 6b` |  | 🟠 inferred | MicomAudioService audio mode MUSIC |
 | av-mute-release-0b | `ff 85 02 01 02 0b 00 03 02 00 71` |  | 🟠 inferred | 0x020B mute control: AV, RELEASE |

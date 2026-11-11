@@ -209,7 +209,12 @@ func TestEV6VariantKeysAsBefore(t *testing.T) {
 func TestEV6VariantSendsAsService(t *testing.T) {
 	v := ev6(t)
 	var al allowList
-	for _, s := range append(serviceAllow, "ff880c010c01000176") { // hev-status-request
+	added := []string{
+		"ff880c010c01000176",                           // hev-status-request
+		"ffc2430043000002013e", "ff8e0b010bc70002c772", // climate-status-request, bcan-valid-request
+		"ffc14400440500013a", "ff92110111110003fafa7e", // body-status-request, usm-units-request
+	}
+	for _, s := range append(serviceAllow, added...) {
 		if err := al.Set(s); err != nil {
 			t.Fatal(err)
 		}

@@ -42,6 +42,14 @@ headers:
   display_tx:    { hdr: "8c 08 01 08", dir: to_micom, status: code, ref: "EV6 micom firmware V002.208, micom-run" }
   # A node not otherwise captured: only ever seen reporting the gear.
   gear_node:     { hdr: "50 c4 00 d0", dir: from_micom, status: captured, ref: "micomd capture, 2026-11-10, P/D/N/R shifts" }
+  # Stock's start-up reads, never sent by micomd unless asked (the
+  # -*-status-request flags): the body's B-CAN validity check (BCMService on
+  # rcvId 0x8e), its bulk request, and the settings' (USMService).
+  tele_tx:       { hdr: "8e 0b 01 0b", dir: to_micom,   status: code, ref: "stock BCMService CAN validity requests (sendPacket(0x8e, 0x0b, func 0x0bxx))" }
+  tele_rx:       { hdr: "0b 8e 01 8b", dir: from_micom, status: captured, ref: "stock BCMService 0x8bc3/0x8bc7; 0x8bc3 seen unasked" }
+  body_tx:       { hdr: "c1 44 00 44", dir: to_micom,   status: code, ref: "stock BCMService sendPacket(0xc1, 0x44, 0, 0x44, ordinal)" }
+  usm_tx:        { hdr: "92 11 01 11", dir: to_micom,   status: code, ref: "stock USMService sendPacket(0x92, 0x11, func 0x11xx)" }
+  usm_rx:        { hdr: "11 92 01 91", dir: from_micom, status: captured, ref: "stock USMService; deltas seen at IGN on" }
 
 keys:
   frame: { hdr: keys, cmd: 0x01 }   # Func 0x8701
@@ -329,6 +337,13 @@ send:
     note: "levels 0-35: the maximum is unknown, 35 is the cap (the I2S card's control)"
   # Inferred statically, never seen sent.
   - { name: boot-mode-request,  frame: "ff 8a 01 01 01 01 00 01 74", status: inferred, ref: "SystemService; the micom answers 0x8101 with its last mode, mute and volume" }
+  # Stock's start-up reads (status only; each sent by its own micomd flag):
+  # the climate's All_Datc_Req, the body's B-CAN validity check then its
+  # All_B_CAN_Req, and the settings' read-all of the units group.
+  - { name: climate-status-request, frame: "ff c2 43 00 43 00 00 02 01 3e", status: inferred, ref: "DATCService All_Datc_Req (TE_TX_IL 0x00, [01]) 500 ms after IGN1 on, once more 1.5 s later; answered by All_Datc_Resp (0x00)" }
+  - { name: bcan-valid-request,     frame: "ff 8e 0b 01 0b c7 00 02 c7 72", status: inferred, ref: "BCMService B-CAN validity request (0x0bc7 [c7]) at micom ready, every 1 s until 0x8bc7 [1] = 1" }
+  - { name: body-status-request,    frame: "ff c1 44 00 44 05 00 01 3a",    status: inferred, ref: "BCMService All_B_CAN_Req (TE_TX_IL 0x05, empty) once B-CAN is valid; answered by ALL_BCM_Resp (0xc40c)" }
+  - { name: usm-units-request,      frame: "ff 92 11 01 11 11 00 03 fa fa 7e", status: inferred, ref: "USMService read-all (0x1111 Unit_SET_C_REQ [fa fa]) 2 s after IGN on; answered by 0x9111 with [0] = fa" }
   - { name: mode-usb,           frame: "ff 85 02 01 02 01 00 03 09 00 70", status: inferred, ref: "MicomAudioService audio mode USB" }
   - { name: mode-music,         frame: "ff 85 02 01 02 01 00 03 12 00 6b", status: inferred, ref: "MicomAudioService audio mode MUSIC" }
   - { name: av-mute-release-0b, frame: "ff 85 02 01 02 0b 00 03 02 00 71", status: inferred, ref: "0x020B mute control: AV, RELEASE" }
@@ -919,6 +934,64 @@ messages:
       - { name: "Charger ready", off: 3, bits: "1:0" }
     status: captured
     ref: "HEVService OBC ready (CAN DB generation >= 2); boot record byte 120 = 02 and 0x8c4f byte 3 = 01 in every 2026-11 capture"
+
+  # Replies to the start-up reads. Each snapshot byte is the value its
+  # single-signal frame carries (micom-livi splits them back into those).
+  # All_Datc_Resp: 59-90 bytes, byte i the TE_RX_IL signal stock maps there.
+  - name: "Climate snapshot"
+    dir: from_micom
+    hdr: climate_panel
+    cmd: 0x00
+    min_length: 59
+    fields:
+      - { name: "Snapshot climate on (OpSts)", off: 15 }
+      - { name: "Snapshot driver set point (C raw)", off: 2 }
+      - { name: "Snapshot fan (raw)", off: 18 }
+    status: code
+    ref: "stock DATCService All_Datc_Resp; never captured (nothing sent All_Datc_Req)"
+  # 0x8bc7: [0] echo, [1] 1 when B-CAN is valid, [2] 1 MM-CAN, 0 B-CAN.
+  - name: "B-CAN validity"
+    dir: from_micom
+    hdr: tele_rx
+    cmd: 0xc7
+    min_length: 3
+    fields:
+      - { name: "B-CAN valid", off: 1, type: bool }
+      - { name: "MM-CAN",      off: 2, type: bool }
+    status: code
+    ref: "stock BCMService BCAN_VALID (0x8bc7)"
+  # ALL_BCM_Resp: up to 100 bytes; bytes 0-8 the doors (lock, open, as
+  # body 0x00-0x08), 12 steering wheel heat, 13 rear defrost, 15 P
+  # position, 16 hood, 19 the 12 V charge, 34-36 the odometer.
+  - name: "Body snapshot"
+    dir: from_micom
+    hdr: body
+    cmd: 0x0c
+    min_length: 37
+    fields:
+      - { name: "Snapshot driver door open", off: 3 }
+      - { name: "Snapshot driver door lock", off: 2 }
+      - { name: "Snapshot 12 V charge", off: 19, unit: " %" }
+    status: code
+    ref: "stock BCMService ALL_BCM_Resp (0xc40c); never captured"
+  # Unit_SET as a whole (byte 0 fa): the distance/speed, temperature,
+  # efficiency (km, mile), tire pressure, torque and turbo units. A delta
+  # (byte 0 the field's index) carries that field alone, the rest stale.
+  # The codes are not known.
+  - name: "Units (USM)"
+    dir: from_micom
+    hdr: usm_rx
+    cmd: 0x11
+    min_length: 8
+    when: [ { off: 0, eq: 0xfa } ]
+    fields:
+      - { name: "Distance unit code",      off: 1 }
+      - { name: "Temperature unit code",   off: 2 }
+      - { name: "Efficiency unit code (km)", off: 3 }
+      - { name: "Efficiency unit code (mi)", off: 4 }
+      - { name: "Tire pressure unit code", off: 5 }
+    status: code
+    ref: "stock USMService Unit_SET (0x9111)"
 
   # The backlight. Off from power-up until the first on; on is refused while
   # the supply is low. The micom writes a config byte to EEPROM on every

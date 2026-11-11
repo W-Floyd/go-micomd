@@ -345,6 +345,17 @@ const (
 	hevStatusName    = "HEV status"
 )
 
+// The other start-up reads' send entries and answers.
+const (
+	climateStatusRequest = "climate-status-request"
+	climateSnapshotName  = "Climate snapshot"
+	bcanValidRequest     = "bcan-valid-request"
+	bodyStatusRequest    = "body-status-request"
+	bodySnapshotName     = "Body snapshot"
+	usmUnitsRequest      = "usm-units-request"
+	usmUnitsName         = "Units (USM)"
+)
+
 // SendNamed is the whole-frame send entry called name, whatever its status.
 func (v *Variant) SendNamed(name string) (Frame, bool) {
 	for _, s := range v.sends {
