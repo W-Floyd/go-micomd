@@ -338,9 +338,18 @@ func (f *fake) load(r io.Reader) error {
 		f.mu.Lock()
 		f.hold(fr)
 		f.mu.Unlock()
-		if !micom.IsBootRecord(fr) {
-			f.scene = append(f.scene, periodic{fr, every})
+		if micom.IsBootRecord(fr) {
+			continue
 		}
+		// A scenario entry takes the place of the capture's frame of its kind.
+		k, i := kindOf(f.v, fr), 0
+		for _, p := range f.scene {
+			if kindOf(f.v, p.f) != k {
+				f.scene[i] = p
+				i++
+			}
+		}
+		f.scene = append(f.scene[:i], periodic{fr, every})
 	}
 	return nil
 }
