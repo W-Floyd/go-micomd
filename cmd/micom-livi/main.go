@@ -69,6 +69,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	car := &carState{}
+	p := newPoster(*url, *every, lg.Printf)
 	navDone, pcDone := make(chan struct{}), make(chan struct{})
 	var observe func(*navigation)
 	if *input != "" && *precondition {
@@ -77,7 +78,7 @@ func main() {
 				minPowerW: *pcMinKw * 1000, maxTime: *pcMaxTime, minDistM: 200, minSoC: *pcMinSoC,
 				minArrival: *pcMinArrival, capacityWh: *capacity * 1000, maxStarts: 3,
 			}},
-			input: *input, soc: car.soc.get, cond: car.cond.get, logf: lg.Printf,
+			input: *input, soc: car.soc.get, cond: car.cond.get, logf: lg.Printf, post: p.set,
 		}
 		go func() {
 			r.run(ctx)
@@ -103,7 +104,6 @@ func main() {
 	} else {
 		close(navDone)
 	}
-	p := newPoster(*url, *every, lg.Printf)
 	if *capacity > 0 {
 		p.set("batteryCapacityKwh", *capacity)
 	}

@@ -10,17 +10,19 @@ import (
 	"time"
 )
 
+// preconditionPrefs are LIVI's battery preconditioning settings: mode
+// "auto" or "off", the user's request to precondition now, and the power a
+// route's charger must be above (nil: -precondition-min-kw).
+type preconditionPrefs struct {
+	Mode        string   `json:"mode"`
+	Manual      bool     `json:"manual"`
+	ManualUntil *int64   `json:"manualUntil"`
+	MinKw       *float64 `json:"minKw"`
+}
+
 // chargingStop is LIVI's next stop of the route when it is a charger, as
 // Android Auto's guidance gives it: power in W, distances in m, times in s,
 // energies in Wh.
-// preconditionPrefs are LIVI's battery preconditioning settings: mode
-// "auto" or "off", and the user's request to precondition now.
-type preconditionPrefs struct {
-	Mode        string `json:"mode"`
-	Manual      bool   `json:"manual"`
-	ManualUntil *int64 `json:"manualUntil"`
-}
-
 type chargingStop struct {
 	PowerW      int64  `json:"powerW"`
 	DistanceM   *int64 `json:"distanceM"`
@@ -93,9 +95,13 @@ func (p *precond) want(n *navigation, soc *float64) (bool, string) {
 		return false, "the next stop is not a charger"
 	}
 	cs := n.ChargingStop
+	minPowerW := r.minPowerW
+	if n.Precondition != nil && n.Precondition.MinKw != nil && *n.Precondition.MinKw > 0 {
+		minPowerW = *n.Precondition.MinKw * 1000
+	}
 	switch {
-	case float64(cs.PowerW) <= r.minPowerW:
-		return false, fmt.Sprintf("the charger is %d kW, not above %g", cs.PowerW/1000, r.minPowerW/1000)
+	case float64(cs.PowerW) <= minPowerW:
+		return false, fmt.Sprintf("the charger is %d kW, not above %g", cs.PowerW/1000, minPowerW/1000)
 	case cs.TimeS == nil || cs.DistanceM == nil:
 		return false, "no time or distance to the charger"
 	case time.Duration(*cs.TimeS)*time.Second > r.maxTime:
@@ -145,6 +151,19 @@ func (p *precond) step(n *navigation, soc *float64, now time.Time) precondOp {
 	return opNone
 }
 
+// state is what LIVI shows after a step for n: "running", "off" in LIVI's
+// settings, or "armed" (waiting for a fast charger on the route, or a
+// request). p.why says why it is not running.
+func (p *precond) state(n *navigation) string {
+	switch {
+	case p.running:
+		return "running"
+	case n != nil && n.Precondition != nil && n.Precondition.Mode == "off":
+		return "off"
+	}
+	return "armed"
+}
+
 // routeFor is the route to tell the car for n: the next charger's, or with
 // none (asked for in LIVI) Launchpad's 9 km and 18 min, which the BMS takes.
 func routeFor(n *navigation) []string {
@@ -184,9 +203,12 @@ type precondRunner struct {
 	soc   func() *float64
 	cond  func() *bool // the car's own conditioning status, nil unknown
 	logf  func(string, ...any)
+	// post tells LIVI's telemetry preconditionState (precond.state) and
+	// preconditionWhy, on change.
+	post func(key string, v any)
 
-	mu  sync.Mutex
-	nav *navigation
+	mu   sync.Mutex
+	nav  *navigation
 	seen bool
 }
 
@@ -201,6 +223,7 @@ func (r *precondRunner) run(ctx context.Context) {
 		conn    net.Conn
 		rd      *bufio.Reader
 		said    string
+		posted  [2]string // state, why
 		carSaid *bool
 		askedAt time.Time // the last start
 		warned  bool      // that the car has not followed it
@@ -271,6 +294,11 @@ func (r *precondRunner) run(ctx context.Context) {
 		}
 		op := r.p.step(n, r.soc(), time.Now())
 		exec(op, n)
+		if st := [2]string{r.p.state(n), r.p.why}; r.post != nil && st != posted {
+			r.post("preconditionState", st[0])
+			r.post("preconditionWhy", st[1])
+			posted = st
+		}
 		if !r.p.running && r.p.why != said {
 			r.logf("battery conditioning: not asked: %s", r.p.why)
 			said = r.p.why
