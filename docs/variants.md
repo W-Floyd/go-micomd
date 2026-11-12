@@ -70,11 +70,13 @@ inferred, but needs no `-allow-inferred`). The reply's fields named by
 bootloader passes as `vehicle_info` and `country_info`) are matched like the
 command line, and logged against the variant running: `the micom reports
 vehicle_info=0xcc …, variant X; running Y: restart with -variant X` on a
-mismatch. The variant is not switched live: the profile's senders, the
+mismatch. A named car is not switched live: the profile's senders, the
 allowlist, the virtual keyboard's keys and the input's messages are all made
 from it at start, and a variant changed under them would change what is
-sent with nobody reviewing it. `micomd -query SOCKET snapshot` shows the
-record and that verdict.
+sent with nobody reviewing it. A family is the exception (below): the
+record picks one of its own embedded cars, and micomd starts over on it as
+if it had been named. `micomd -query SOCKET snapshot` shows the record and
+that verdict.
 
 ## Choosing the variant
 
@@ -88,6 +90,17 @@ record and that verdict.
     `vehicle_info`.
 - `-variant NAME`: an embedded variant. If the command line matches another,
   micomd logs a warning.
+- `-variant FAMILY`: an abstract variant (`hkmc-gen5w`): the car is known
+  to be one of its descendants, not which.
+  - A command line that matches a descendant chooses it.
+  - Otherwise micomd runs the family, sends the identify request as
+    `-identify-request` would, and once the record matches a descendant,
+    rebuilds everything on that car: profile, allowlist, keys, sockets and
+    input. The link stays open throughout, so the alive answers never stop
+    and only a frame split across the switch can be lost. The flags apply to
+    the car as if it had been named.
+  - A record that matches no descendant, or none at all, leaves the family
+    running: its keepalive and decoding, and nothing it does not declare.
 - `-variant-file PATH`: a file on disk, for development or an unlisted car. It
   may `extends:` an embedded variant. It is logged as unreviewed.
 - `-list-variants`, `-show-variant` (the resolved variant, parents merged in)

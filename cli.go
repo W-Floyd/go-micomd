@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -104,7 +105,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	query := fs.String("query", "", "ask the micomd serving this -ctl socket a read-only question given as the argument, instead of running one: snapshot (a table of what it has received, and its variant) or mark (start counting changed bytes afresh); never sends a frame")
 	jsonOut := fs.Bool("json", false, "with -query snapshot, print the raw JSON")
 	watch := fs.Duration("watch", 0, "with -query snapshot, repeat it this often until stopped")
-	variantName := fs.String("variant", "auto", "the car: an embedded variant's name (-list-variants), or auto for the one the kernel command line matches, else "+DefaultVariantName)
+	variantName := fs.String("variant", "auto", "the car: an embedded variant's name (-list-variants), or auto for the one the kernel command line matches, else "+DefaultVariantName+". An abstract one is a family: the car is the descendant the kernel command line, else the micom's variant record (asked for, as -identify-request), matches")
 	variantFile := fs.String("variant-file", "", "read the car's variant from this file instead (it may extend an embedded one)")
 	listVariants := fs.Bool("list-variants", false, "list the embedded variants and exit")
 	variantCheck := fs.Bool("variant-check", false, "check the variant files given as arguments, or the chosen variant, and exit")
@@ -239,251 +240,303 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 			defer rec.Close()
 		}
 	}
-	profile := v.Profile()
-	if *codeProfile {
-		profile = v.CodeProfile()
-	}
-	if *clock {
-		profile = append(profile, v.ClockProfile()...)
-		lg.Printf("sending the clock frames from this machine's clock: %s", time.Now().Format(time.RFC3339))
-	}
-	cfg := Config{Port: port, Variant: v, Choice: choice, Recorder: rec, Profile: profile, Logf: lg.Printf, NoAlive: *noAlive, Allow: allow.frames, AllowPatterns: allow.patterns, AllowDangerous: *allowDangerous}
-	if *allowVariant {
-		frames, patterns := v.Sends(*allowInferred, *allowDangerous)
-		cfg.Allow = append(cfg.Allow, frames...)
-		cfg.AllowPatterns = append(cfg.AllowPatterns, patterns...)
-	}
-	var identifyFrame *Frame
-	if *identify {
-		// The flag is the opt-in for this one frame, inferred or not, so a
-		// service can ask without -allow-inferred's other frames.
-		if f, err := v.IdentifyRequest(true); err != nil {
-			lg.Printf("-identify-request: %v", err)
-		} else {
-			identifyFrame = &f
-			cfg.Allow = append(cfg.Allow, f)
-		}
-	}
-	var bootModeFrame *Frame
-	var bootRecord atomic.Bool
-	if *bootMode {
-		if f, ok := v.SendNamed(bootModeRequest); !ok {
-			lg.Printf("-boot-mode-request: variant %s has no %s send entry", v.Name, bootModeRequest)
-		} else {
-			bootModeFrame = &f
-			cfg.Allow = append(cfg.Allow, f)
-		}
-	}
-	var hevStatusFrame *Frame
-	var hevStatusReply atomic.Bool
-	if *hevStatus {
-		if f, ok := v.SendNamed(hevStatusRequest); !ok {
-			lg.Printf("-hev-status-request: variant %s has no %s send entry", v.Name, hevStatusRequest)
-		} else {
-			hevStatusFrame = &f
-			cfg.Allow = append(cfg.Allow, f)
-		}
-	}
-	// Stock's other start-up reads, each its own opt-in. A chain's reads go
-	// in order, each once the one before was answered.
-	var chains [][]*startupRead
-	read := func(flag, send, reply, what string, tries int, wait time.Duration, answers func(Frame) bool) *startupRead {
-		f, ok := v.SendNamed(send)
-		if !ok {
-			lg.Printf("%s: variant %s has no %s send entry", flag, v.Name, send)
-			return nil
-		}
-		cfg.Allow = append(cfg.Allow, f)
-		if answers == nil {
-			answers = func(f Frame) bool { _, name := v.decode(f); return name == reply }
-		}
-		return &startupRead{flag: flag, frame: f, what: what, reply: reply, tries: tries, wait: wait, answers: answers}
-	}
-	if *climateStatus {
-		if r := read("-climate-status-request", climateStatusRequest, climateSnapshotName, "the climate's state", 2, 1500*time.Millisecond, nil); r != nil {
-			chains = append(chains, []*startupRead{r})
-		}
-	}
-	if *bodyStatus {
-		valid := read("-body-status-request", bcanValidRequest, "B-CAN valid", "B-CAN's validity", 5, time.Second, func(f Frame) bool {
-			for _, fl := range v.Decode(f) {
-				if fl.Name == "B-CAN valid" && fl.Valid && fl.Value != 0 {
-					return true
-				}
-			}
-			return false
-		})
-		body := read("-body-status-request", bodyStatusRequest, bodySnapshotName, "the body's state", 2, 2*time.Second, nil)
-		if valid != nil && body != nil {
-			chains = append(chains, []*startupRead{valid, body})
-		}
-	}
-	if *usmUnits {
-		if r := read("-usm-units-request", usmUnitsRequest, usmUnitsName, "the unit settings", 3, 2*time.Second, nil); r != nil {
-			chains = append(chains, []*startupRead{r})
-		}
-	}
-	if *dump {
-		cfg.OnFrame = func(f Frame) { io.WriteString(stdout, frameLine(v, f)) }
-	}
-	if len(chains) > 0 {
-		prev := cfg.OnFrame
-		cfg.OnFrame = func(f Frame) {
-			if prev != nil {
-				prev(f)
-			}
-			for _, c := range chains {
-				for _, r := range c {
-					if r.answers(f) {
-						r.answered.Store(true)
-					}
-				}
-			}
-		}
-	}
-	if bootModeFrame != nil {
-		prev := cfg.OnFrame
-		cfg.OnFrame = func(f Frame) {
-			if prev != nil {
-				prev(f)
-			}
-			if _, name := v.decode(f); strings.HasPrefix(name, bootRecordName) {
-				bootRecord.Store(true)
-			}
-		}
-	}
-	if hevStatusFrame != nil {
-		prev := cfg.OnFrame
-		cfg.OnFrame = func(f Frame) {
-			if prev != nil {
-				prev(f)
-			}
-			if _, name := v.decode(f); name == hevStatusName {
-				hevStatusReply.Store(true)
-			}
-		}
-	}
-	// The micom's variant record, whoever asked for it, is logged against the
-	// variant running, once per distinct verdict.
-	{
-		prev, said := cfg.OnFrame, ""
-		cfg.OnFrame = func(f Frame) {
-			if prev != nil {
-				prev(f)
-			}
-			if id, ok := v.ReplyIdentity(f); ok {
-				if _, msg := recordVerdict(choice.Name, id); msg != said {
-					lg.Print(msg)
-					said = msg
-				}
-			}
-		}
-	}
-	var tap *Tap
-	if *tapPath != "" {
-		var err error
-		tap, err = ListenTap(*tapPath)
-		if err != nil {
-			lg.Print(err)
-			return 1
-		}
-		defer tap.Close()
-		prev := cfg.OnFrame
-		cfg.OnFrame = func(f Frame) {
-			if prev != nil {
-				prev(f)
-			}
-			tap.Send(time.Now().Format("15:04:05.000 ") + frameLine(v, f))
-		}
-	}
-	if *keyFunc != 0 || *keys {
-		fn, km, keyList, err := keySetup(v, uint16(*keyFunc), *keyMap, *keys)
-		switch {
-		case err != nil:
-			lg.Print(err)
-			return 2
-		case fn == 0:
-			lg.Printf("-keys: variant %s has no key frame; give -keyfunc", v.Name)
-		default:
-			ui, err := OpenUinput("micom keys", keyList)
-			if err != nil {
-				lg.Print(err)
-				return 1
-			}
-			defer ui.Close()
-			cfg.OnFrame = injectKeys(cfg.OnFrame, ui, km, fn, lg.Printf)
-		}
-	}
-	d := New(cfg)
-	if tap != nil {
-		// A new client gets the last frame of each kind, at the time it came.
-		tap.SetReplay(func() []string {
-			var lines []string
-			for _, f := range d.Latest() {
-				lines = append(lines, f.At.Format("15:04:05.000 ")+frameLine(v, f.Frame))
-			}
-			return lines
-		})
-	}
-
 	ctx := env.ctx
 	if ctx == nil {
 		var stop context.CancelFunc
 		ctx, stop = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 	}
-	if *ctlPath != "" {
-		go func() {
-			if err := ServeControl(ctx, d, *ctlPath); err != nil {
-				lg.Printf("control socket: %v", err)
-			}
-		}()
+	sp := newSharedPort(port)
+	defer port.Close()
+	family := ""
+	if choice.Source == "flag" {
+		// Named a family, not narrowed by the command line: the micom's
+		// variant record names the car.
+		family = choice.Family
 	}
-	if *inputPath != "" {
-		go func() {
-			if err := ServeInput(ctx, d, *inputPath, InputGates{Inferred: *allowInferred, Persistent: *allowPersistent, Dangerous: *allowDangerous}); err != nil {
-				lg.Printf("input socket: %v", err)
+	// serve runs a daemon on v until ctx ends or, given a family, until the
+	// micom's variant record names a car of it: next, which the caller
+	// serves next on the same open port, seeded with that record.
+	serve := func(v *Variant, choice VariantChoice, family string, seed *Frame) (next string, record *Frame, code int) {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		port := sp.view()
+		defer port.Close()
+		// The sockets are gone before a successor serves them again.
+		var servers sync.WaitGroup
+		defer func() { cancel(); servers.Wait() }()
+		profile := v.Profile()
+		if *codeProfile {
+			profile = v.CodeProfile()
+		}
+		if *clock {
+			profile = append(profile, v.ClockProfile()...)
+			lg.Printf("sending the clock frames from this machine's clock: %s", time.Now().Format(time.RFC3339))
+		}
+		cfg := Config{Port: port, Variant: v, Choice: choice, Recorder: rec, Profile: profile, Logf: lg.Printf, NoAlive: *noAlive, Allow: allow.frames, AllowPatterns: allow.patterns, AllowDangerous: *allowDangerous}
+		if *allowVariant {
+			frames, patterns := v.Sends(*allowInferred, *allowDangerous)
+			cfg.Allow = append(cfg.Allow, frames...)
+			cfg.AllowPatterns = append(cfg.AllowPatterns, patterns...)
+		}
+		var identifyFrame *Frame
+		if *identify || family != "" {
+			// The flag is the opt-in for this one frame, inferred or not, so a
+			// service can ask without -allow-inferred's other frames.
+			if f, err := v.IdentifyRequest(true); err != nil {
+				lg.Printf("-identify-request: %v", err)
+			} else {
+				identifyFrame = &f
+				cfg.Allow = append(cfg.Allow, f)
 			}
-		}()
-	}
-	if *every > 0 {
-		go func() {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(*every):
-					lg.Print(d.Stats())
+		}
+		var bootModeFrame *Frame
+		var bootRecord atomic.Bool
+		if *bootMode {
+			if f, ok := v.SendNamed(bootModeRequest); !ok {
+				lg.Printf("-boot-mode-request: variant %s has no %s send entry", v.Name, bootModeRequest)
+			} else {
+				bootModeFrame = &f
+				cfg.Allow = append(cfg.Allow, f)
+			}
+		}
+		var hevStatusFrame *Frame
+		var hevStatusReply atomic.Bool
+		if *hevStatus {
+			if f, ok := v.SendNamed(hevStatusRequest); !ok {
+				lg.Printf("-hev-status-request: variant %s has no %s send entry", v.Name, hevStatusRequest)
+			} else {
+				hevStatusFrame = &f
+				cfg.Allow = append(cfg.Allow, f)
+			}
+		}
+		// Stock's other start-up reads, each its own opt-in. A chain's reads go
+		// in order, each once the one before was answered.
+		var chains [][]*startupRead
+		read := func(flag, send, reply, what string, tries int, wait time.Duration, answers func(Frame) bool) *startupRead {
+			f, ok := v.SendNamed(send)
+			if !ok {
+				lg.Printf("%s: variant %s has no %s send entry", flag, v.Name, send)
+				return nil
+			}
+			cfg.Allow = append(cfg.Allow, f)
+			if answers == nil {
+				answers = func(f Frame) bool { _, name := v.decode(f); return name == reply }
+			}
+			return &startupRead{flag: flag, frame: f, what: what, reply: reply, tries: tries, wait: wait, answers: answers}
+		}
+		if *climateStatus {
+			if r := read("-climate-status-request", climateStatusRequest, climateSnapshotName, "the climate's state", 2, 1500*time.Millisecond, nil); r != nil {
+				chains = append(chains, []*startupRead{r})
+			}
+		}
+		if *bodyStatus {
+			valid := read("-body-status-request", bcanValidRequest, "B-CAN valid", "B-CAN's validity", 5, time.Second, func(f Frame) bool {
+				for _, fl := range v.Decode(f) {
+					if fl.Name == "B-CAN valid" && fl.Valid && fl.Value != 0 {
+						return true
+					}
+				}
+				return false
+			})
+			body := read("-body-status-request", bodyStatusRequest, bodySnapshotName, "the body's state", 2, 2*time.Second, nil)
+			if valid != nil && body != nil {
+				chains = append(chains, []*startupRead{valid, body})
+			}
+		}
+		if *usmUnits {
+			if r := read("-usm-units-request", usmUnitsRequest, usmUnitsName, "the unit settings", 3, 2*time.Second, nil); r != nil {
+				chains = append(chains, []*startupRead{r})
+			}
+		}
+		if *dump {
+			cfg.OnFrame = func(f Frame) { io.WriteString(stdout, frameLine(v, f)) }
+		}
+		if len(chains) > 0 {
+			prev := cfg.OnFrame
+			cfg.OnFrame = func(f Frame) {
+				if prev != nil {
+					prev(f)
+				}
+				for _, c := range chains {
+					for _, r := range c {
+						if r.answers(f) {
+							r.answered.Store(true)
+						}
+					}
 				}
 			}
-		}()
-	}
-	if identifyFrame != nil {
-		go d.askVariant(ctx, *identifyFrame, identifyTries, identifyWait)
-	}
-	if bootModeFrame != nil {
-		// not ask: a micom reset since a SoC last sent this sends nothing
-		// until it arrives (booting straight into another system)
-		go d.request(ctx, *bootModeFrame, "-boot-mode-request", "its boot record", "boot record", bootRecord.Load, bootModeTries, bootModeWait)
-	}
-	if hevStatusFrame != nil {
-		go d.ask(ctx, *hevStatusFrame, "-hev-status-request", "its HEV status", "HEV status", hevStatusReply.Load, hevStatusTries, hevStatusWait)
-	}
-	for _, c := range chains {
-		go func() {
-			for _, r := range c {
-				d.ask(ctx, r.frame, r.flag, r.what, r.reply, r.answered.Load, r.tries, r.wait)
-				if !r.answered.Load() {
-					return
+		}
+		if bootModeFrame != nil {
+			prev := cfg.OnFrame
+			cfg.OnFrame = func(f Frame) {
+				if prev != nil {
+					prev(f)
+				}
+				if _, name := v.decode(f); strings.HasPrefix(name, bootRecordName) {
+					bootRecord.Store(true)
 				}
 			}
-		}()
+		}
+		if hevStatusFrame != nil {
+			prev := cfg.OnFrame
+			cfg.OnFrame = func(f Frame) {
+				if prev != nil {
+					prev(f)
+				}
+				if _, name := v.decode(f); name == hevStatusName {
+					hevStatusReply.Store(true)
+				}
+			}
+		}
+		// The micom's variant record, whoever asked for it, is logged against the
+		// variant running, once per distinct verdict.
+		{
+			prev, said := cfg.OnFrame, ""
+			cfg.OnFrame = func(f Frame) {
+				if prev != nil {
+					prev(f)
+				}
+				if id, ok := v.ReplyIdentity(f); ok {
+					if m, _ := MatchVariant(id); family != "" && m != "" && m != v.Name && descends(m, family) {
+						if next == "" {
+							next, record = m, &f
+							cancel()
+						}
+						return
+					}
+					if _, msg := recordVerdict(choice.Name, id); msg != said {
+						lg.Print(msg)
+						said = msg
+					}
+				}
+			}
+		}
+		var tap *Tap
+		if *tapPath != "" {
+			var err error
+			tap, err = ListenTap(*tapPath)
+			if err != nil {
+				lg.Print(err)
+				return "", nil, 1
+			}
+			defer tap.Close()
+			prev := cfg.OnFrame
+			cfg.OnFrame = func(f Frame) {
+				if prev != nil {
+					prev(f)
+				}
+				tap.Send(time.Now().Format("15:04:05.000 ") + frameLine(v, f))
+			}
+		}
+		if *keyFunc != 0 || *keys {
+			fn, km, keyList, err := keySetup(v, uint16(*keyFunc), *keyMap, *keys)
+			switch {
+			case err != nil:
+				lg.Print(err)
+				return "", nil, 2
+			case fn == 0:
+				lg.Printf("-keys: variant %s has no key frame; give -keyfunc", v.Name)
+			default:
+				ui, err := OpenUinput("micom keys", keyList)
+				if err != nil {
+					lg.Print(err)
+					return "", nil, 1
+				}
+				defer ui.Close()
+				cfg.OnFrame = injectKeys(cfg.OnFrame, ui, km, fn, lg.Printf)
+			}
+		}
+		d := New(cfg)
+		if tap != nil {
+			// A new client gets the last frame of each kind, at the time it came.
+			tap.SetReplay(func() []string {
+				var lines []string
+				for _, f := range d.Latest() {
+					lines = append(lines, f.At.Format("15:04:05.000 ")+frameLine(v, f.Frame))
+				}
+				return lines
+			})
+		}
+
+		if *ctlPath != "" {
+			servers.Add(1)
+			go func() {
+				defer servers.Done()
+				if err := ServeControl(ctx, d, *ctlPath); err != nil {
+					lg.Printf("control socket: %v", err)
+				}
+			}()
+		}
+		if *inputPath != "" {
+			servers.Add(1)
+			go func() {
+				defer servers.Done()
+				if err := ServeInput(ctx, d, *inputPath, InputGates{Inferred: *allowInferred, Persistent: *allowPersistent, Dangerous: *allowDangerous}); err != nil {
+					lg.Printf("input socket: %v", err)
+				}
+			}()
+		}
+		if *every > 0 {
+			go func() {
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(*every):
+						lg.Print(d.Stats())
+					}
+				}
+			}()
+		}
+		if identifyFrame != nil {
+			go d.askVariant(ctx, *identifyFrame, identifyTries, identifyWait)
+		}
+		if bootModeFrame != nil {
+			// not ask: a micom reset since a SoC last sent this sends nothing
+			// until it arrives (booting straight into another system)
+			go d.request(ctx, *bootModeFrame, "-boot-mode-request", "its boot record", "boot record", bootRecord.Load, bootModeTries, bootModeWait)
+		}
+		if hevStatusFrame != nil {
+			go d.ask(ctx, *hevStatusFrame, "-hev-status-request", "its HEV status", "HEV status", hevStatusReply.Load, hevStatusTries, hevStatusWait)
+		}
+		for _, c := range chains {
+			go func() {
+				for _, r := range c {
+					d.ask(ctx, r.frame, r.flag, r.what, r.reply, r.answered.Load, r.tries, r.wait)
+					if !r.answered.Load() {
+						return
+					}
+				}
+			}()
+		}
+		if seed != nil {
+			// The record that chose v, which the micom does not repeat.
+			d.telem.add(*seed, d.cfg.Now())
+		}
+		if err := d.Run(ctx); err != nil && ctx.Err() == nil {
+			lg.Print(err)
+			return "", nil, 1
+		}
+		return next, record, 0
 	}
-	if err := d.Run(ctx); err != nil && ctx.Err() == nil {
-		lg.Print(err)
-		return 1
+	var seed *Frame
+	for {
+		next, record, code := serve(v, choice, family, seed)
+		if next == "" {
+			return code
+		}
+		seed = record
+		lg.Printf("the micom's variant record matches %s, of %s: switching to it", next, family)
+		nv, err := LoadVariant(next)
+		if err != nil {
+			lg.Printf("%v; staying on %s", err, v.Name)
+		} else {
+			v = nv
+			choice.Name, choice.Source = nv.Name, "record"
+		}
+		family = ""
 	}
-	return 0
 }
 
 // chooseVariant is the car: the file, else the named variant, else (auto)
@@ -519,9 +572,15 @@ func chooseVariant(name, file string, cmdline func() (string, error), logf func(
 		logf("no variant matches %v: running as %s", ch.Cmdline, DefaultVariantName)
 	}
 	switch {
+	case !auto && isFamily(name) && ch.Matched != "" && descends(ch.Matched, name):
+		// A family: the command line names the car within it.
+		ch.Source, ch.Family, name = "cmdline", name, ch.Matched
+		logf("variant %s, of %s, from the kernel command line", name, ch.Family)
 	case !auto:
 		ch.Source = "flag"
-		if ch.Matched != "" && ch.Matched != name {
+		if isFamily(name) {
+			ch.Family = name
+		} else if ch.Matched != "" && ch.Matched != name {
 			logf("variant %s chosen, but the kernel command line matches %s", name, ch.Matched)
 		}
 	case ch.Matched != "":
@@ -532,6 +591,13 @@ func chooseVariant(name, file string, cmdline func() (string, error), logf func(
 	ch.Name = name
 	v, err := LoadVariant(name)
 	return v, ch, err
+}
+
+// isFamily is whether name is an embedded abstract variant: a family whose
+// car is found at run time.
+func isFamily(name string) bool {
+	rv, err := embeddedRaw(name)
+	return err == nil && rv.Abstract
 }
 
 // runQuery prints the answer to req from the daemon at path: a snapshot as a

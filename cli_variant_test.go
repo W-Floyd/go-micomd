@@ -113,19 +113,28 @@ func TestMainKeepsAliveWhateverTheVariant(t *testing.T) {
 
 // -identify-request alone (no -allow-inferred) asks the micom once the link
 // is up; its record is logged against the variant running, and -query
-// reports the choice and the record from another process.
+// reports the choice and the record from another process. A family asks
+// unbidden and moves to the car its record names, on the same link.
 func TestMainIdentifyAndQuery(t *testing.T) {
-	const record = "cc 01 00 00 00 00 00 65 6e 00 00 00 00" // the EV6's codes
+	const (
+		ev6     = "cc 01 00 00 00 00 00 65 6e 00 00 00 00" // the EV6's codes
+		unknown = "12 01 00 00 00 00 00 65 6e 00 00 00 00"
+	)
 	for _, tc := range []struct {
-		name   string
-		args   []string
-		log    string
-		header string // the table's variant line
+		name    string
+		args    []string
+		record  string
+		log     string
+		header  string // the table's variant line
+		verdict string // the table's record line
+		car     string // the record's match, and whose profile runs: "" the family's
 	}{
-		{"auto, as the micom says", nil, "variant kia-ev6-gen5w, as running",
-			"variant kia-ev6-gen5w (default: no variant matches (no identity keys))"},
-		{"named, the micom says another", []string{"-variant", "hkmc-gen5w"}, "running hkmc-gen5w: restart with -variant kia-ev6-gen5w",
-			"variant hkmc-gen5w (-variant)"},
+		{"auto, as the micom says", nil, ev6, "variant kia-ev6-gen5w, as running",
+			"variant kia-ev6-gen5w (default: no variant matches (no identity keys))", "variant kia-ev6-gen5w, as running", DefaultVariantName},
+		{"a family, narrowed by the record", []string{"-variant", "hkmc-gen5w"}, ev6, "the micom's variant record matches kia-ev6-gen5w, of hkmc-gen5w: switching to it",
+			"variant kia-ev6-gen5w (the micom's variant record, of -variant hkmc-gen5w)", "variant kia-ev6-gen5w, as running", DefaultVariantName},
+		{"a family, the record names no car", []string{"-variant", "hkmc-gen5w"}, unknown, "which no variant matches; running hkmc-gen5w",
+			"variant hkmc-gen5w (-variant, a family: until the micom's variant record names the car)", "which no variant matches; running hkmc-gen5w", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			a, b := net.Pipe()
@@ -142,7 +151,7 @@ func TestMainIdentifyAndQuery(t *testing.T) {
 			go func() {
 				done <- run(append([]string{"-dev", "pipe", "-stats", "0", "-ctl", ctl, "-identify-request"}, tc.args...), &stdout, &stderr, env)
 			}()
-			asked := make(chan struct{}, 8)
+			asked, polled := make(chan struct{}, 8), make(chan struct{}, 64)
 			go func() {
 				var dec Decoder
 				buf := make([]byte, 256)
@@ -152,8 +161,14 @@ func TestMainIdentifyAndQuery(t *testing.T) {
 						return
 					}
 					for _, f := range dec.Write(buf[:n]) {
-						if f.Hdr == hdrAliveReply && f.Cmd == 0x17 {
+						switch {
+						case f.Hdr == hdrAliveReply && f.Cmd == 0x17:
 							asked <- struct{}{}
+						case f.Hdr == [4]byte{0x88, 0x0c, 0x01, 0x0c} && f.Cmd == 0x5c:
+							select {
+							case polled <- struct{}{}:
+							default:
+							}
 						}
 					}
 				}
@@ -165,12 +180,23 @@ func TestMainIdentifyAndQuery(t *testing.T) {
 			case <-time.After(3 * time.Second):
 				t.Fatalf("no identify request; stderr %q", stderr.String())
 			}
-			b.Write(Frame{Hdr: hdrAliveReq, Cmd: 0x17, Payload: unhex(t, record)}.Encode())
+			b.Write(Frame{Hdr: hdrAliveReq, Cmd: 0x17, Payload: unhex(t, tc.record)}.Encode())
 			for i := 0; i < 100 && !strings.Contains(stderr.String(), tc.log); i++ {
 				time.Sleep(10 * time.Millisecond)
 			}
 			if !strings.Contains(stderr.String(), tc.log) {
 				t.Errorf("stderr %q lacks %q", stderr.String(), tc.log)
+			}
+			// The EV6's profile polls; the family's does not.
+			select {
+			case <-polled:
+				if tc.car == "" {
+					t.Errorf("an EV6 poll from the family; stderr %q", stderr.String())
+				}
+			case <-time.After(3 * time.Second):
+				if tc.car != "" {
+					t.Errorf("no EV6 poll; stderr %q", stderr.String())
+				}
 			}
 
 			var out, errb bytes.Buffer
@@ -178,7 +204,7 @@ func TestMainIdentifyAndQuery(t *testing.T) {
 				t.Fatalf("-query snapshot: exit %d, %q", code, errb.String())
 			}
 			norm := strings.Join(strings.Fields(out.String()), " ")
-			for _, w := range []string{tc.header, tc.log, "record ", "Vehicle=cvev Country=us"} {
+			for _, w := range []string{tc.header, tc.verdict, "record ", "Country=us"} {
 				if !strings.Contains(norm, w) {
 					t.Errorf("table lacks %q:\n%s", w, out.String())
 				}
@@ -188,7 +214,7 @@ func TestMainIdentifyAndQuery(t *testing.T) {
 				t.Fatalf("-query snapshot -json: exit %d, %q", code, errb.String())
 			}
 			var s Snapshot
-			if err := json.Unmarshal(out.Bytes(), &s); err != nil || s.Variant.Reply == nil || s.Variant.Reply.Matched != DefaultVariantName {
+			if err := json.Unmarshal(out.Bytes(), &s); err != nil || s.Variant.Reply == nil || s.Variant.Reply.Matched != tc.car {
 				t.Errorf("-json: %v %+v", err, s.Variant)
 			}
 			out.Reset()
@@ -241,18 +267,19 @@ func TestMainVariantCommands(t *testing.T) {
 func TestChooseVariant(t *testing.T) {
 	const ev6Line = "vehicle_info=0xcc country_info=0x01"
 	for _, tc := range []struct {
-		name, flag, cmdline, want, log, source string
+		name, flag, cmdline, want, log, source, family string
 	}{
-		{"auto on the EV6", "auto", ev6Line, DefaultVariantName, "", "cmdline"},
-		{"auto elsewhere", "auto", "vehicle_info=0x12", DefaultVariantName, "no variant matches", "default"},
-		{"auto without identity", "", "", DefaultVariantName, "no variant matches", "default"},
-		{"named", "hkmc-gen5w", ev6Line, "hkmc-gen5w", "but the kernel command line matches kia-ev6-gen5w", "flag"},
-		{"named, as detected", DefaultVariantName, ev6Line, DefaultVariantName, "", "flag"},
+		{"auto on the EV6", "auto", ev6Line, DefaultVariantName, "", "cmdline", ""},
+		{"auto elsewhere", "auto", "vehicle_info=0x12", DefaultVariantName, "no variant matches", "default", ""},
+		{"auto without identity", "", "", DefaultVariantName, "no variant matches", "default", ""},
+		{"a family, narrowed by the command line", "hkmc-gen5w", ev6Line, DefaultVariantName, "variant kia-ev6-gen5w, of hkmc-gen5w, from the kernel command line", "cmdline", "hkmc-gen5w"},
+		{"a family, left to the record", "hkmc-gen5w", "vehicle_info=0x12", "hkmc-gen5w", "", "flag", "hkmc-gen5w"},
+		{"named, as detected", DefaultVariantName, ev6Line, DefaultVariantName, "", "flag", ""},
 	} {
 		var logs []string
 		logf := func(f string, a ...any) { logs = append(logs, fmt.Sprintf(f, a...)) }
 		v, ch, err := chooseVariant(tc.flag, "", func() (string, error) { return tc.cmdline, nil }, logf)
-		if err != nil || v.Name != tc.want || ch.Name != tc.want || ch.Source != tc.source {
+		if err != nil || v.Name != tc.want || ch.Name != tc.want || ch.Source != tc.source || ch.Family != tc.family {
 			t.Errorf("%s: %v %+v %v, want %s from %s", tc.name, v, ch, err, tc.want, tc.source)
 			continue
 		}

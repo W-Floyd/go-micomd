@@ -391,6 +391,21 @@ func MatchVariant(id Identity) (string, error) {
 	return best, nil
 }
 
+// descends is whether the embedded variant name is family or extends it.
+func descends(name, family string) bool {
+	for range maxExtends + 1 {
+		if name == family {
+			return true
+		}
+		rv, err := embeddedRaw(name)
+		if err != nil || rv.Extends == "" {
+			return false
+		}
+		name = rv.Extends
+	}
+	return false
+}
+
 func matches(rule map[string]intList, id Identity) bool {
 	if len(rule) == 0 {
 		return false

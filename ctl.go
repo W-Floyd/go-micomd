@@ -199,15 +199,19 @@ func serveUnix(ctx context.Context, path string, serve func(net.Conn)) error {
 	if err != nil {
 		return err
 	}
+	removed := make(chan struct{})
 	go func() {
 		<-ctx.Done()
 		ln.Close()
 		os.Remove(path)
+		close(removed)
 	}()
 	for {
 		c, err := ln.Accept()
 		if err != nil {
 			if ctx.Err() != nil {
+				// Gone before returning: a successor may listen on path.
+				<-removed
 				return nil
 			}
 			return err

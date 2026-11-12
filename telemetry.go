@@ -83,10 +83,14 @@ type VariantChoice struct {
 	// keepalive runs.
 	Name string `json:"name"`
 	// Source is how it was chosen: "file" (-variant-file), "flag"
-	// (-variant), "cmdline" (the kernel command line matched it) or
-	// "default" (nothing matched); "" when the caller gave Config.Variant.
+	// (-variant), "cmdline" (the kernel command line matched it), "record"
+	// (the micom's variant record matched it, within Family) or "default"
+	// (nothing matched); "" when the caller gave Config.Variant.
 	Source string `json:"source"`
 	File   string `json:"file,omitempty"`
+	// Family is the abstract variant -variant named, which the command line
+	// or the micom's variant record ("record" Source) narrowed to Name.
+	Family string `json:"family,omitempty"`
 	// Cmdline is the identity keys the kernel command line carried, and
 	// Matched the variant they match, "" for none.
 	Cmdline Identity `json:"cmdline"`
@@ -327,12 +331,20 @@ func (s Snapshot) WriteTable(w io.Writer) error {
 		why = "from " + v.File
 	case "flag":
 		why = "-variant"
+		if v.Family != "" {
+			why += ", a family: until the micom's variant record names the car"
+		}
 	case "cmdline":
 		why = "kernel command line " + identityString(v.Cmdline)
+	case "record":
+		why = "the micom's variant record"
 	case "default":
 		why = "default: no variant matches " + identityString(v.Cmdline)
 	default:
 		why = "given by the caller"
+	}
+	if v.Family != "" && v.Source != "flag" {
+		why += ", of -variant " + v.Family
 	}
 	if v.Source != "cmdline" && v.Matched != "" {
 		why += "; the kernel command line matches " + v.Matched
