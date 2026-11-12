@@ -213,6 +213,7 @@ func TestEV6VariantSendsAsService(t *testing.T) {
 		"ff880c010c01000176",                           // hev-status-request
 		"ffc2430043000002013e", "ff8e0b010bc70002c772", // climate-status-request, bcan-valid-request
 		"ffc14400440500013a", "ff92110111110003fafa7e", // body-status-request, usm-units-request
+		"ff880c010c53000124", "ff880c010c54000123", // ev-schedule-settings-request, ev-charge-window-request
 		"ff8a01010111000164", "ff8a01010110000165", // cpu-alive-start, cpu-alive-stop
 	}
 	for _, s := range append(serviceAllow, added...) {

@@ -121,6 +121,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	climateStatus := fs.Bool("climate-status-request", false, "ask the climate for its whole state once the link is up (stock's All_Datc_Req), retried once 1.5 s later as stock does: the reply carries the panel's state, otherwise sent only on change. The only frame it adds is the variant's climate-status-request send entry (inferred, never tried on a car: this flag alone allows it)")
 	bodyStatus := fs.Bool("body-status-request", false, "ask the body for its whole state once the link is up: stock's B-CAN validity check, every 1 s up to 5 times until valid, then its All_B_CAN_Req; the reply carries the doors, locks and 12 V charge, otherwise sent only on change. The only frames it adds are the variant's bcan-valid-request and body-status-request send entries (inferred, never tried on a car: this flag alone allows them)")
 	usmUnits := fs.Bool("usm-units-request", false, "ask the micom for the car's unit settings once the link is up (stock's read-all of the units group), retried up to 3 times 2 s apart. The only frame it adds is the variant's usm-units-request send entry (inferred, never tried on a car: this flag alone allows it)")
+	evSchedule := fs.Bool("ev-schedule-request", false, "ask the micom for the EV schedule records once the link is up (stock's 0x0c53 and 0x0c54 reads), each retried up to 3 times 2 s apart until it answers: the schedule settings (off-peak window, scheduled charging, departure 2's Friday to Sunday, scheduled climate) and the charge window (defrost, temperature unit), otherwise sent only on change. The only frames it adds are the variant's ev-schedule-settings-request and ev-charge-window-request send entries (inferred, never tried on a car: this flag alone allows them)")
 	hevStatus := fs.Bool("hev-status-request", false, "ask the micom for its HEV status once the link is up, retried up to 3 times 2 s apart until it answers, as stock does at start: the bulk 0x8c01 reply carries the range with the climate on and off, otherwise sent only on change. The only frame it adds is the variant's hev-status-request send entry (inferred, never tried on a car: this flag alone allows it)")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -347,6 +348,13 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 		if *usmUnits {
 			if r := read("-usm-units-request", usmUnitsRequest, usmUnitsName, "the unit settings", 3, 2*time.Second, nil); r != nil {
 				chains = append(chains, []*startupRead{r})
+			}
+		}
+		if *evSchedule {
+			for _, x := range [][3]string{{evSettingsRequest, evSettingsName, "the schedule settings"}, {evWindowRequest, evWindowName, "the charge window"}} {
+				if r := read("-ev-schedule-request", x[0], x[1], x[2], 3, 2*time.Second, nil); r != nil {
+					chains = append(chains, []*startupRead{r})
+				}
 			}
 		}
 		if *dump {

@@ -116,8 +116,9 @@ range with the climate on and off is otherwise sent only on change; the
 request is stock's, never tried on a car, so it is off by default. Stock's
 other start-up reads are opt-in the same way: `-climate-status-request`
 (the climate's whole state), `-body-status-request` (the B-CAN validity
-check, then the doors, locks and 12 V charge) and `-usm-units-request` (the
-car's unit settings). None commands the car. See
+check, then the doors, locks and 12 V charge), `-usm-units-request` (the
+car's unit settings) and `-ev-schedule-request` (the EV schedule records
+0x8c53 and 0x8c54). None commands the car. See
 [docs/variants.md](docs/variants.md).
 
 `-input /run/micomd-input.sock` takes one JSON object per line,

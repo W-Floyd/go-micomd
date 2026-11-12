@@ -1883,6 +1883,8 @@ packet-beta
 | bcan-valid-request | `ff 8e 0b 01 0b c7 00 02 c7 72` |  | 🟠 inferred | BCMService B-CAN validity request (0x0bc7 [c7]) at micom ready, every 1 s until 0x8bc7 [1] = 1 |
 | body-status-request | `ff c1 44 00 44 05 00 01 3a` |  | 🟠 inferred | BCMService All_B_CAN_Req (TE_TX_IL 0x05, empty) once B-CAN is valid; answered by ALL_BCM_Resp (0xc40c) |
 | usm-units-request | `ff 92 11 01 11 11 00 03 fa fa 7e` |  | 🟠 inferred | USMService read-all (0x1111 Unit_SET_C_REQ [fa fa]) 2 s after IGN on; answered by 0x9111 with [0] = fa |
+| ev-schedule-settings-request | `ff 88 0c 01 0c 53 00 01 24` |  | 🟠 inferred | HEVService requestInitG3Messages (CAN DB generation > 0, at micom ready): func 0x0c53, empty payload; answered by 0x8c53 |
+| ev-charge-window-request | `ff 88 0c 01 0c 54 00 01 23` |  | 🟠 inferred | HEVService requestInitG3Messages (CAN DB generation > 0, at micom ready): func 0x0c54, empty payload; answered by 0x8c54 |
 | mode-usb | `ff 85 02 01 02 01 00 03 09 00 70` |  | 🟠 inferred | MicomAudioService audio mode USB |
 | mode-music | `ff 85 02 01 02 01 00 03 12 00 6b` |  | 🟠 inferred | MicomAudioService audio mode MUSIC |
 | av-mute-release-0b | `ff 85 02 01 02 0b 00 03 02 00 71` |  | 🟠 inferred | 0x020B mute control: AV, RELEASE |

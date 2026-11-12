@@ -354,6 +354,10 @@ const (
 	bodySnapshotName     = "Body snapshot"
 	usmUnitsRequest      = "usm-units-request"
 	usmUnitsName         = "Units (USM)"
+	evSettingsRequest    = "ev-schedule-settings-request"
+	evSettingsName       = "Schedule settings"
+	evWindowRequest      = "ev-charge-window-request"
+	evWindowName         = "Scheduled charge window"
 )
 
 // SendNamed is the whole-frame send entry called name, whatever its status.

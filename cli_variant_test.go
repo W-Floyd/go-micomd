@@ -323,17 +323,20 @@ func TestKeySetup(t *testing.T) {
 
 // A micom reset since a SoC last asked sends nothing until the boot-mode
 // request arrives, so that request goes out with nothing received; the
-// others wait for the micom to speak.
+// others wait for the micom to speak, then go.
 func TestMainStartupRequestsOnASilentLink(t *testing.T) {
 	for _, tc := range []struct {
 		flag string
-		cmd  byte // the request's func 0x01xx command
-		sent bool
+		hdr  [4]byte
+		cmd  byte
+		sent bool // with nothing received
 	}{
-		{"-boot-mode-request", 0x01, true},
-		{"-identify-request", 0x17, false},
+		{"-boot-mode-request", hdrAliveReply, 0x01, true},
+		{"-identify-request", hdrAliveReply, 0x17, false},
+		{"-ev-schedule-request", [4]byte{0x88, 0x0c, 0x01, 0x0c}, 0x53, false},
+		{"-ev-schedule-request", [4]byte{0x88, 0x0c, 0x01, 0x0c}, 0x54, false},
 	} {
-		t.Run(tc.flag, func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s %#02x", tc.flag, tc.cmd), func(t *testing.T) {
 			a, b := net.Pipe()
 			ctx, cancel := context.WithCancel(context.Background())
 			var stdout, stderr syncBuffer
@@ -354,7 +357,7 @@ func TestMainStartupRequestsOnASilentLink(t *testing.T) {
 						return
 					}
 					for _, f := range dec.Write(buf[:n]) {
-						if f.Hdr == hdrAliveReply && f.Cmd == tc.cmd {
+						if f.Hdr == tc.hdr && f.Cmd == tc.cmd {
 							asked <- struct{}{}
 						}
 					}
@@ -368,6 +371,14 @@ func TestMainStartupRequestsOnASilentLink(t *testing.T) {
 			case <-time.After(time.Second):
 				if tc.sent {
 					t.Errorf("not sent; stderr %q", stderr.String())
+				}
+			}
+			if !tc.sent {
+				b.Write(Frame{Hdr: hdrAliveReq, Cmd: cmdAlive, Payload: []byte{0}}.Encode())
+				select {
+				case <-asked:
+				case <-time.After(time.Second):
+					t.Errorf("not sent once the micom spoke; stderr %q", stderr.String())
 				}
 			}
 			cancel()

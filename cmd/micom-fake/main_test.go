@@ -62,6 +62,10 @@ func TestFakeAnswersAsTheVariant(t *testing.T) {
 			map[string]map[string]uint64{"Battery conditioning mode": {"Battery conditioning mode": 2}}},
 		{"read 0x0C53 after a write: the written state", []string{"880c010c 05 b3 30 00 00 40", "880c010c 53"},
 			map[string]map[string]uint64{"Schedule settings": {"Off-peak start hour": 22}}},
+		{"-ev-schedule-request's reads: the records held", []string{"880c010c 53", "880c010c 54"},
+			map[string]map[string]uint64{
+				"Schedule settings":       {"Off-peak start hour": 20, "Off-peak end hour": 16, "Scheduled climate temperature": 20},
+				"Scheduled charge window": {"Temperature unit": 1, "Scheduled charge start day": 7}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			v, err := micom.LoadVariant(micom.DefaultVariantName)
@@ -72,8 +76,11 @@ func TestFakeAnswersAsTheVariant(t *testing.T) {
 			if err := f.load(bytes.NewBufferString(scenario)); err != nil {
 				t.Fatal(err)
 			}
-			// The 0x8C55 the car sends with nothing set: 12:00.
+			// The 0x8C55 the car sends with nothing set: 12:00; 0x8C53 and
+			// 0x8C54 as captured.
 			f.hold(frame(t, "0c88018c 55 cdeb7b0c0c000000"))
+			f.hold(frame(t, "0c88018c 53 0014100200400050"))
+			f.hold(frame(t, "0c88018c 54 00010040ffffff0f"))
 			s := &sink{}
 			f.w = s
 			for _, x := range tc.soc {
