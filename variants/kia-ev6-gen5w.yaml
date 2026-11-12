@@ -335,8 +335,9 @@ send:
     status: captured
     ref: "stock micomd strace, source switch: levels 22-31"
     note: "levels 0-35: the maximum is unknown, 35 is the cap (the I2S card's control)"
-  # Inferred statically, never seen sent.
-  - { name: boot-mode-request,  frame: "ff 8a 01 01 01 01 00 01 74", status: inferred, ref: "SystemService; the micom answers 0x8101 with its last mode, mute and volume" }
+  # The link-up: until a SoC sends it after the micom's own reset, the micom
+  # sends the SoC nothing (-boot-mode-request sends it without waiting).
+  - { name: boot-mode-request,  frame: "ff 8a 01 01 01 01 00 01 74", status: code, ref: "SystemService.requestBootMode: sendPacket(-118, 1, 0x101), again after 2000 ms; EV6 micom firmware: dispatcher cmd 0x01 sets the link flag and answers 0x8101 with its last mode, mute and volume (firmware emulation)" }
   # Stock's start-up reads (status only; each sent by its own micomd flag):
   # the climate's All_Datc_Req, the body's B-CAN validity check then its
   # All_B_CAN_Req, and the settings' read-all of the units group.

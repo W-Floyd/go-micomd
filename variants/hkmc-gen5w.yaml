@@ -186,3 +186,7 @@ send:
   - { name: variant-code-save, pattern: "ff 8a 01 01 01 18 00 02 [00-ff] ..", status: inferred, dangerous: "func 0x0118 requestVariantCodeSave: writes the variant coding", ref: "jadx SystemService" }
   - { name: spi-sending-stop,  frame: "ff 8a 01 01 01 1e 00 01 6b", status: inferred, dangerous: "func 0x011e requestSPISendingStop", ref: "jadx SystemService" }
   - { name: vbus-off-on,       frame: "ff 8a 01 01 01 28 00 01 5d", status: inferred, dangerous: "func 0x0128 requestVBusOffOn", ref: "jadx SystemService" }
+  # The micom's CPU-alive requests, on and off: boot leaves them off; on, the
+  # micom resets a SoC that stops answering them.
+  - { name: cpu-alive-start,   frame: "ff 8a 01 01 01 11 00 01 64", status: code, ref: "SystemService.requestCPUAliveTransStart: sendPacket(-118, 1, 0x111); EV6 micom firmware: dispatcher cmd 0x11 clears its alive-off flag, alive requests follow (firmware emulation)" }
+  - { name: cpu-alive-stop,    frame: "ff 8a 01 01 01 10 00 01 65", status: code, ref: "SystemService.requestCPUAliveTransStop: sendPacket(-118, 1, 0x110); EV6 micom firmware: dispatcher cmd 0x10 sets the flag again" }

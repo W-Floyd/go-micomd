@@ -1870,13 +1870,15 @@ packet-beta
 | variant-code-save |  | `ff 8a 01 01 01 18 00 02 [00-ff] ..` | 🟠 inferred | jadx SystemService |
 | spi-sending-stop | `ff 8a 01 01 01 1e 00 01 6b` |  | 🟠 inferred | jadx SystemService |
 | vbus-off-on | `ff 8a 01 01 01 28 00 01 5d` |  | 🟠 inferred | jadx SystemService |
+| cpu-alive-start | `ff 8a 01 01 01 11 00 01 64` |  | 🟡 code | SystemService.requestCPUAliveTransStart: sendPacket(-118, 1, 0x111); EV6 micom firmware: dispatcher cmd 0x11 clears its alive-off flag, alive requests follow (firmware emulation) |
+| cpu-alive-stop | `ff 8a 01 01 01 10 00 01 65` |  | 🟡 code | SystemService.requestCPUAliveTransStop: sendPacket(-118, 1, 0x110); EV6 micom firmware: dispatcher cmd 0x10 sets the flag again |
 | hev-status-request | `ff 88 0c 01 0c 01 00 01 76` |  | 🟠 inferred | HEVService requestInitHevStatus: func 0x0c01, empty payload; answered by 0x8c01 |
 | av-mute-set | `ff 85 02 01 02 0b 00 03 02 01 70` |  | 🟢 captured | stock micomd strace, source switch |
 | mode-bt-stream | `ff 85 02 01 02 01 00 03 0e 00 77` |  | 🟢 captured | stock micomd strace, source switch (Media); AudioMode BT_STREAM |
 | mode-am | `ff 85 02 01 02 01 00 03 01 00 78` |  | 🟢 captured | stock micomd strace, source switch (Radio); AudioMode AM |
 | av-mute-release | `ff 85 02 01 02 38 00 03 02 00 42` |  | 🟢 captured | stock micomd strace, source switch |
 | main-volume |  | `ff 85 02 01 02 03 00 02 [00-23] ..` | 🟢 captured | stock micomd strace, source switch: levels 22-31 |
-| boot-mode-request | `ff 8a 01 01 01 01 00 01 74` |  | 🟠 inferred | SystemService; the micom answers 0x8101 with its last mode, mute and volume |
+| boot-mode-request | `ff 8a 01 01 01 01 00 01 74` |  | 🟡 code | SystemService.requestBootMode: sendPacket(-118, 1, 0x101), again after 2000 ms; EV6 micom firmware: dispatcher cmd 0x01 sets the link flag and answers 0x8101 with its last mode, mute and volume (firmware emulation) |
 | climate-status-request | `ff c2 43 00 43 00 00 02 01 3e` |  | 🟠 inferred | DATCService All_Datc_Req (TE_TX_IL 0x00, [01]) 500 ms after IGN1 on, once more 1.5 s later; answered by All_Datc_Resp (0x00) |
 | bcan-valid-request | `ff 8e 0b 01 0b c7 00 02 c7 72` |  | 🟠 inferred | BCMService B-CAN validity request (0x0bc7 [c7]) at micom ready, every 1 s until 0x8bc7 [1] = 1 |
 | body-status-request | `ff c1 44 00 44 05 00 01 3a` |  | 🟠 inferred | BCMService All_B_CAN_Req (TE_TX_IL 0x05, empty) once B-CAN is valid; answered by ALL_BCM_Resp (0xc40c) |

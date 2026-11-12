@@ -293,3 +293,59 @@ func TestKeySetup(t *testing.T) {
 		t.Error("the variant's keymap was changed")
 	}
 }
+
+// A micom reset since a SoC last asked sends nothing until the boot-mode
+// request arrives, so that request goes out with nothing received; the
+// others wait for the micom to speak.
+func TestMainStartupRequestsOnASilentLink(t *testing.T) {
+	for _, tc := range []struct {
+		flag string
+		cmd  byte // the request's func 0x01xx command
+		sent bool
+	}{
+		{"-boot-mode-request", 0x01, true},
+		{"-identify-request", 0x17, false},
+	} {
+		t.Run(tc.flag, func(t *testing.T) {
+			a, b := net.Pipe()
+			ctx, cancel := context.WithCancel(context.Background())
+			var stdout, stderr syncBuffer
+			done := make(chan int, 1)
+			env := runEnv{
+				open:    func(string, int) (io.ReadWriteCloser, error) { return a, nil },
+				ctx:     ctx,
+				cmdline: func() (string, error) { return "", nil },
+			}
+			go func() { done <- run([]string{"-dev", "pipe", "-stats", "0", tc.flag}, &stdout, &stderr, env) }()
+			asked := make(chan struct{}, 8)
+			go func() {
+				var dec Decoder
+				buf := make([]byte, 256)
+				for {
+					n, err := b.Read(buf)
+					if err != nil {
+						return
+					}
+					for _, f := range dec.Write(buf[:n]) {
+						if f.Hdr == hdrAliveReply && f.Cmd == tc.cmd {
+							asked <- struct{}{}
+						}
+					}
+				}
+			}()
+			select {
+			case <-asked:
+				if !tc.sent {
+					t.Errorf("sent before the micom spoke")
+				}
+			case <-time.After(time.Second):
+				if tc.sent {
+					t.Errorf("not sent; stderr %q", stderr.String())
+				}
+			}
+			cancel()
+			b.Close()
+			<-done
+		})
+	}
+}

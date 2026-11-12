@@ -116,7 +116,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	allowPersistent := fs.Bool("allow-persistent", false, "with -input also the messages whose every frame the micom writes to its EEPROM (rate-limited; each write wears it)")
 	allowDangerous := fs.Bool("allow-dangerous", false, "allow the variant's dangerous frames (those that reset, rewrite or reconfigure the micom: power config, factory reset, variant-code save, update/download reservations). Off, they are refused on every path")
 	identify := fs.Bool("identify-request", false, "ask the micom for its variant coding once the link is up, retried up to 5 times 3 s apart until it answers; the answer is logged against the variant running and reported by -query snapshot. The only frame it adds is the variant's identify request (inferred on HKMC: this flag alone allows it)")
-	bootMode := fs.Bool("boot-mode-request", false, "ask the micom for its boot record once the link is up, retried up to 4 times 2 s apart until it answers, as stock does at every boot: the record carries the state the micom otherwise sends only on change (the EV6's illumination). The only frame it adds is the variant's boot-mode-request send entry; the micom clears its boot-reason flags on it")
+	bootMode := fs.Bool("boot-mode-request", false, "ask the micom for its boot record at start, retried up to 4 times 2 s apart until it answers, as stock does at every boot; a micom reset since a SoC last asked sends nothing until then: the record carries the state the micom otherwise sends only on change (the EV6's illumination). The only frame it adds is the variant's boot-mode-request send entry; the micom clears its boot-reason flags on it")
 	climateStatus := fs.Bool("climate-status-request", false, "ask the climate for its whole state once the link is up (stock's All_Datc_Req), retried once 1.5 s later as stock does: the reply carries the panel's state, otherwise sent only on change. The only frame it adds is the variant's climate-status-request send entry (inferred, never tried on a car: this flag alone allows it)")
 	bodyStatus := fs.Bool("body-status-request", false, "ask the body for its whole state once the link is up: stock's B-CAN validity check, every 1 s up to 5 times until valid, then its All_B_CAN_Req; the reply carries the doors, locks and 12 V charge, otherwise sent only on change. The only frames it adds are the variant's bcan-valid-request and body-status-request send entries (inferred, never tried on a car: this flag alone allows them)")
 	usmUnits := fs.Bool("usm-units-request", false, "ask the micom for the car's unit settings once the link is up (stock's read-all of the units group), retried up to 3 times 2 s apart. The only frame it adds is the variant's usm-units-request send entry (inferred, never tried on a car: this flag alone allows it)")
@@ -462,7 +462,9 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 		go d.askVariant(ctx, *identifyFrame, identifyTries, identifyWait)
 	}
 	if bootModeFrame != nil {
-		go d.ask(ctx, *bootModeFrame, "-boot-mode-request", "its boot record", "boot record", bootRecord.Load, bootModeTries, bootModeWait)
+		// not ask: a micom reset since a SoC last sent this sends nothing
+		// until it arrives (booting straight into another system)
+		go d.request(ctx, *bootModeFrame, "-boot-mode-request", "its boot record", "boot record", bootRecord.Load, bootModeTries, bootModeWait)
 	}
 	if hevStatusFrame != nil {
 		go d.ask(ctx, *hevStatusFrame, "-hev-status-request", "its HEV status", "HEV status", hevStatusReply.Load, hevStatusTries, hevStatusWait)

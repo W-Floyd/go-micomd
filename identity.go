@@ -97,9 +97,7 @@ func (d *Daemon) askVariant(ctx context.Context, req Frame, tries int, wait time
 	d.ask(ctx, req, "-identify-request", "its variant coding", "variant record", d.hasVariantRecord, tries, wait)
 }
 
-// ask sends req once a frame has arrived (the micom is up), and again every
-// wait until answered says it was, tries times at most. flag, what and reply
-// name them in the log.
+// ask sends req once a frame has arrived (the micom is up), then as request.
 func (d *Daemon) ask(ctx context.Context, req Frame, flag, what, reply string, answered func() bool, tries int, wait time.Duration) {
 	for !d.linkUp() {
 		select {
@@ -108,6 +106,12 @@ func (d *Daemon) ask(ctx context.Context, req Frame, flag, what, reply string, a
 		case <-time.After(50 * time.Millisecond):
 		}
 	}
+	d.request(ctx, req, flag, what, reply, answered, tries, wait)
+}
+
+// request sends req now, and again every wait until answered says it was,
+// tries times at most. flag, what and reply name them in the log.
+func (d *Daemon) request(ctx context.Context, req Frame, flag, what, reply string, answered func() bool, tries int, wait time.Duration) {
 	for i := 1; i <= tries && !answered(); i++ {
 		if err := d.Send(req); err != nil {
 			d.logf("%s: %v", flag, err)
