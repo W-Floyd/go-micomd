@@ -1149,6 +1149,31 @@ messages:
     status: captured
     ref: "HEVService OBC ready (CAN DB generation >= 2); boot record byte 120 = 02; 0x8c4f byte 3 01 unplugged in every 2026-11 capture, 51 for the whole of an AC charge on 2026-11-12 (12 8e 51 51 00 00 00 00 live)"
 
+  # The bulk reply as hkmc-gen5w-ev reads it (the EV6's is always 182 bytes,
+  # one short of its "full" layout), and byte 129: 00 in every reply while not
+  # charging, 47 in the one while charging at 7.1 kW (2026-11-12, beside item
+  # 0x5b's 47): the charging power, so it is known from the start-up read,
+  # item 0x5b being sent on change only.
+  - name: "HEV status"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x01
+    min_length: 130
+    fields:
+      - { name: "Range, climate on",        off: 0x3c, type: u16, unit: " km" }
+      - { name: "Range added, climate off", off: 0x36,            unit: " km" }
+      - { name: "Average efficiency",        off: 9,  type: u16, scale: 0.1 }
+      - { name: "Charge time estimate, DC",  off: 19, type: u16, unit: " min" }
+      - { name: "Charge time estimate, AC",  off: 29, type: u16, unit: " min" }
+      - { name: "Charge time to full",       off: 31, type: u16, unit: " min" }
+      - { name: "Range at charge limit, AC", off: 46, type: u16, unit: " km" }
+      - { name: "Range at charge limit, DC", off: 48, type: u16, unit: " km" }
+      - { name: "Charge limit, AC",          off: 50, scale: 0.5, unit: " %" }
+      - { name: "Charge limit, DC",          off: 51, scale: 0.5, unit: " %" }
+      - { name: "Charging power",            off: 129, scale: 0.1, unit: " kW" }
+    status: captured
+    ref: "HEVService DATA_M_RESP (hkmc-gen5w-ev); byte 129 from six 182-byte replies, 2026-11-11/12, one while charging"
+
   # More HEVService items (0x8c02 [id] [u16]), seen only on the EV6, during
   # one AC charge (2026-11-12); their stock names are not known.
   # Item 0x5b rose 0 -> 0x48 in 4 s as charging began, back to 0 at each

@@ -42,8 +42,8 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 
 | Status | Messages |
 | --- | --- |
-| 🟢 captured | 19 |
-| 🟡 code | 62 |
+| 🟢 captured | 20 |
+| 🟡 code | 61 |
 | 🟠 inferred | 3 |
 
 Not yet backed by a capture:
@@ -68,7 +68,6 @@ Not yet backed by a capture:
 | Trip energy | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x5e XEV_BATPWRSUM_KWH: the battery energy used; x0.1 kWh is a fit (20 -> 360 while the pack's energy fell 33 kWh), medium confidence |
 | Average efficiency | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x06 CLU_AVGFCL (AVG_FCI): 0-0x3ff; x0.1, per kWh in the unit item 0x05 gives (km or mi), is a guess, medium confidence; 31-41 seen |
 | HEV status (full) | `0c 88 ?? 8c` | 0x01 | 🟡 code | HEVService DATA_M_RESP as below, and [0x8d] into EV_BATTERYCONDITIONING (len >= 0x8e), [0xb6] into BMS_BATTCONDFAILPOPUP |
-| HEV status | `0c 88 ?? 8c` | 0x01 | 🟡 code | HEVService DATA_M_RESP (func 0x8c01, len >= 0x40) into flags ADDED_DIST_DATC_OFF, AVG_FCI, the charge times (the AC one at 29, CAN DB generation > 0), TARGET_SOC_SLOW/QUICK and DTE_SLOW/QUICK_CHARGER_SOC |
 | EV power block | `0c 88 ?? 8c` | 0x5c | 🟡 code | HEVService setHEVStatusValue calls |
 | Departure timers | `0c 88 ?? 8c` | 0x55 | 🟡 code | HEVService G3CAN_VCU_04_1_M (func 0x8c55, gen > 0); 0 in all 43k frames of a 2026-11 capture (nothing set) |
 | tbt-turn | `cluster_tx` | 0x04 | 🟡 code | stock ClusterService\$NaviCluster TBTInfo packer (byte 0 straight from the caller); GPM GpmNaviTBTManager.releaseGuidance; nemesis-report worked example "turn right, 0.3 km" |
@@ -628,9 +627,9 @@ cmd `0x01`, length ≥ 183 · 🟡 code
 
 #### HEV status
 
-cmd `0x01`, length ≥ 64 · 🟡 code
+cmd `0x01`, length ≥ 130 · 🟢 captured
 
-> HEVService DATA_M_RESP (func 0x8c01, len >= 0x40) into flags ADDED_DIST_DATC_OFF, AVG_FCI, the charge times (the AC one at 29, CAN DB generation > 0), TARGET_SOC_SLOW/QUICK and DTE_SLOW/QUICK_CHARGER_SOC
+> HEVService DATA_M_RESP (hkmc-gen5w-ev); byte 129 from six 182-byte replies, 2026-11-11/12, one while charging
 
 | Field | At | Type | Scale | Unit |
 | --- | --- | --- | --- | --- |
@@ -644,6 +643,7 @@ cmd `0x01`, length ≥ 64 · 🟡 code
 | Range at charge limit, DC | byte 48 | u16 |  | km |
 | Charge limit, AC | byte 50 |  | 0.5 | % |
 | Charge limit, DC | byte 51 |  | 0.5 | % |
+| Charging power | byte 129 |  | 0.1 | kW |
 
 #### EV power block
 

@@ -49,7 +49,7 @@ func TestLiviCar(t *testing.T) {
 		// The range plus what the climate off would add, from one frame.
 		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=2a00f308", map[string]any{"rangeClimateOffKm": 251.0}},
 		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=25016b07", map[string]any{"rangeClimateOffKm": 370.0}},
-		{"15:04:05.000 rx hdr=0c88018c cmd=01 payload=0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000f30000", map[string]any{"rangeClimateOffKm": 253.0,
+		{"15:04:05.000 rx hdr=0c88018c cmd=01 payload=0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000f30000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", map[string]any{"rangeClimateOffKm": 253.0, "chargingPowerKw": 0.0,
 			"chargeLimitAcPct": 0.0, "chargeLimitDcPct": 0.0, "chargeTimeAcMin": 0.0, "chargeTimeDcMin": 0.0, "chargeTimeToFullMin": 0.0,
 			"efficiencyAvg": 0.0, "rangeAtChargeLimitAcKm": 0.0, "rangeAtChargeLimitDcKm": 0.0}},
 		{"15:04:05.000 rx hdr=44c100c4 cmd=22 payload=06c40c", map[string]any{"odometerKm": 44340.4}},
@@ -76,6 +76,10 @@ func TestLiviCar(t *testing.T) {
 		// Live, 2026-11-12: an AC charge at 7.2 kW, the cable in.
 		{"15:04:05.000 rx hdr=0c88018c cmd=4f payload=128e515100000000", map[string]any{"chargerReady": true, "charging": true, "chargeType": "ac"}},
 		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=5b0048", map[string]any{"chargingPowerKw": 7.2}},
+		// Live, 2026-11-12, the start-up read while charging at 7.1 kW: the power before item
+		// 0x5b next changes.
+		{"15:04:05.000 rx hdr=0c88018c cmd=01 payload=003cffff003c02ff02001d000000ffffff030000330c9e060405a0ffff014f021201002bff32ff0001010006d78101a001a0c8c81e0000ff0000ffff00610001ff0000209fffffffffffff972cffffffffffffff0101000108010100000001ffff00ba0000000000000000000000010028ffff002e00ff0500000000ff0000000047010000000000000000580a02000000000000000000000000000000000000000000000520ffffffffffff7fff00ff00ffffffffff", map[string]any{"chargeLimitAcPct": 100.0, "chargeLimitDcPct": 100.0, "chargeTimeAcMin": 335.0, "chargeTimeDcMin": 51.0,
+			"chargeTimeToFullMin": 530.0, "chargingPowerKw": 7.1, "efficiencyAvg": 2.9, "rangeAtChargeLimitAcKm": 416.0, "rangeAtChargeLimitDcKm": 416.0, "rangeClimateOffKm": 97.0}},
 		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=1b0001", map[string]any{"chargePlugged": true}},
 		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=140280", map[string]any{"chargeTimeToFullMin": 640.0}},
 		{"15:04:05.000 rx hdr=0c88018c cmd=5c payload=15ffffffffffffffffff01b1000000000000000000000400ff00000000ff", map[string]any{"batteryHeaterW": 0.0, "lowVoltageLoad": 4.0}},
