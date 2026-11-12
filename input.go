@@ -378,12 +378,18 @@ func (v *Variant) receives(name string) bool {
 // allows; the CPU-alive frame is refused whatever the variant says.
 // It returns when ctx ends, and removes the socket.
 func ServeInput(ctx context.Context, d *Daemon, path string, g InputGates) error {
+	e := startInput(ctx, d, path, g)
+	return serveUnix(ctx, path, func(c net.Conn) { serveInputConn(func() *inputEngine { return e }, c) })
+}
+
+// startInput runs d's input engine until ctx ends; path is for the log.
+func startInput(ctx context.Context, d *Daemon, path string, g InputGates) *inputEngine {
 	e := newInputEngine(d.cfg.Variant, g, d.sendMessage, d.own, d.cfg.Now, d.logf)
 	d.observe(e.observe)
 	ok, refused := e.enabled()
 	d.logf("input %s: messages %s; refused: %s", path, listOrNone(ok), listOrNone(refused))
 	go e.run(ctx)
-	return serveUnix(ctx, path, func(c net.Conn) { serveInputConn(e, c) })
+	return e
 }
 
 func listOrNone(l []string) string {
@@ -393,9 +399,10 @@ func listOrNone(l []string) string {
 	return strings.Join(l, ", ")
 }
 
-// serveInputConn answers each line; refusals go to the client, not the log,
-// which a client at 1 Hz would flood.
-func serveInputConn(e *inputEngine, c net.Conn) {
+// serveInputConn answers each line, with the engine cur gives then (a client
+// stays connected across a variant switch); refusals go to the client, not
+// the log, which a client at 1 Hz would flood.
+func serveInputConn(cur func() *inputEngine, c net.Conn) {
 	defer c.Close()
 	sc := bufio.NewScanner(c)
 	for sc.Scan() {
@@ -404,7 +411,7 @@ func serveInputConn(e *inputEngine, c net.Conn) {
 			continue
 		}
 		reply := []byte(`{"ok":true}`)
-		if err := e.handle(line); err != nil {
+		if err := cur().handle(line); err != nil {
 			reply, _ = json.Marshal(map[string]string{"error": err.Error()})
 		}
 		c.Write(append(reply, '\n'))

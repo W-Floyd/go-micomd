@@ -255,6 +255,42 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 		// variant record names the car.
 		family = choice.Family
 	}
+	// The sockets outlive a variant switch: clients stay connected, and the
+	// group and mode a service gave them stay.
+	var curDaemon atomic.Pointer[Daemon]
+	var curInput atomic.Pointer[inputEngine]
+	var tap *Tap
+	if *tapPath != "" {
+		if tap, err = ListenTap(*tapPath); err != nil {
+			lg.Print(err)
+			return 1
+		}
+		defer tap.Close()
+	}
+	var servers sync.WaitGroup
+	serversCtx, stopServers := context.WithCancel(ctx)
+	// Gone before returning, as a successor may listen on the paths.
+	defer func() { stopServers(); servers.Wait() }()
+	startServers := sync.OnceFunc(func() {
+		if *ctlPath != "" {
+			servers.Add(1)
+			go func() {
+				defer servers.Done()
+				if err := serveUnix(serversCtx, *ctlPath, func(c net.Conn) { serveControlConn(curDaemon.Load, c) }); err != nil {
+					lg.Printf("control socket: %v", err)
+				}
+			}()
+		}
+		if *inputPath != "" {
+			servers.Add(1)
+			go func() {
+				defer servers.Done()
+				if err := serveUnix(serversCtx, *inputPath, func(c net.Conn) { serveInputConn(curInput.Load, c) }); err != nil {
+					lg.Printf("input socket: %v", err)
+				}
+			}()
+		}
+	})
 	// serve runs a daemon on v until ctx ends or, given a family, until the
 	// micom's variant record names a car of it: next, which the caller
 	// serves next on the same open port, seeded with that record.
@@ -263,9 +299,6 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 		defer cancel()
 		port := sp.view()
 		defer port.Close()
-		// The sockets are gone before a successor serves them again.
-		var servers sync.WaitGroup
-		defer func() { cancel(); servers.Wait() }()
 		profile := v.Profile()
 		if *codeProfile {
 			profile = v.CodeProfile()
@@ -420,15 +453,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 				}
 			}
 		}
-		var tap *Tap
-		if *tapPath != "" {
-			var err error
-			tap, err = ListenTap(*tapPath)
-			if err != nil {
-				lg.Print(err)
-				return "", nil, 1
-			}
-			defer tap.Close()
+		if tap != nil {
 			prev := cfg.OnFrame
 			cfg.OnFrame = func(f Frame) {
 				if prev != nil {
@@ -467,24 +492,11 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 			})
 		}
 
-		if *ctlPath != "" {
-			servers.Add(1)
-			go func() {
-				defer servers.Done()
-				if err := ServeControl(ctx, d, *ctlPath); err != nil {
-					lg.Printf("control socket: %v", err)
-				}
-			}()
-		}
+		curDaemon.Store(d)
 		if *inputPath != "" {
-			servers.Add(1)
-			go func() {
-				defer servers.Done()
-				if err := ServeInput(ctx, d, *inputPath, InputGates{Inferred: *allowInferred, Persistent: *allowPersistent, Dangerous: *allowDangerous}); err != nil {
-					lg.Printf("input socket: %v", err)
-				}
-			}()
+			curInput.Store(startInput(ctx, d, *inputPath, InputGates{Inferred: *allowInferred, Persistent: *allowPersistent, Dangerous: *allowDangerous}))
 		}
+		startServers()
 		if *every > 0 {
 			go func() {
 				for {

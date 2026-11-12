@@ -95,10 +95,11 @@ that verdict.
   - A command line that matches a descendant chooses it.
   - Otherwise micomd runs the family, sends the identify request as
     `-identify-request` would, and once the record matches a descendant,
-    rebuilds everything on that car: profile, allowlist, keys, sockets and
-    input. The link stays open throughout, so the alive answers never stop
-    and only a frame split across the switch can be lost. The flags apply to
-    the car as if it had been named.
+    rebuilds everything on that car: profile, allowlist, keys and input. The
+    link and the sockets stay open throughout, so the alive answers never
+    stop, socket clients stay connected (the car's daemon answers them) and
+    keep the sockets' group and mode, and only a frame split across the
+    switch can be lost. The flags apply to the car as if it had been named.
   - A record that matches no descendant, or none at all, leaves the family
     running: its keepalive and decoding, and nothing it does not declare.
 - `-variant-file PATH`: a file on disk, for development or an unlisted car. It

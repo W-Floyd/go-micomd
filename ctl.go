@@ -165,7 +165,7 @@ func sameFrame(a, b Frame) bool {
 // queries (query) are answered on the same socket. It returns when ctx ends,
 // and removes the socket.
 func ServeControl(ctx context.Context, d *Daemon, path string) error {
-	return serveUnix(ctx, path, func(c net.Conn) { serveControlConn(d, c) })
+	return serveUnix(ctx, path, func(c net.Conn) { serveControlConn(func() *Daemon { return d }, c) })
 }
 
 // listenUnix listens on a unix socket at path, mode 0660, replacing a stale
@@ -220,10 +220,13 @@ func serveUnix(ctx context.Context, path string, serve func(net.Conn)) error {
 	}
 }
 
-func serveControlConn(d *Daemon, c net.Conn) {
+// serveControlConn answers each line with the daemon cur gives then, so a
+// client stays connected across a variant switch.
+func serveControlConn(cur func() *Daemon, c net.Conn) {
 	defer c.Close()
 	sc := bufio.NewScanner(c)
 	for sc.Scan() {
+		d := cur()
 		line := strings.TrimSpace(sc.Text())
 		if line == "" {
 			continue

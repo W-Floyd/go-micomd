@@ -1,6 +1,7 @@
 package micom
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -141,6 +142,7 @@ func TestMainIdentifyAndQuery(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 			ctl := tapPath(t)
+			socks := []string{ctl, ctl + ".tap", ctl + ".input"}
 			var stdout, stderr syncBuffer
 			done := make(chan int, 1)
 			env := runEnv{
@@ -149,7 +151,7 @@ func TestMainIdentifyAndQuery(t *testing.T) {
 				cmdline: func() (string, error) { return "", nil },
 			}
 			go func() {
-				done <- run(append([]string{"-dev", "pipe", "-stats", "0", "-ctl", ctl, "-identify-request"}, tc.args...), &stdout, &stderr, env)
+				done <- run(append([]string{"-dev", "pipe", "-stats", "0", "-ctl", ctl, "-tap", socks[1], "-input", socks[2], "-identify-request"}, tc.args...), &stdout, &stderr, env)
 			}()
 			asked, polled := make(chan struct{}, 8), make(chan struct{}, 64)
 			go func() {
@@ -180,6 +182,28 @@ func TestMainIdentifyAndQuery(t *testing.T) {
 			case <-time.After(3 * time.Second):
 				t.Fatalf("no identify request; stderr %q", stderr.String())
 			}
+			// As a service gives them a group: kept whatever the record says.
+			before := make([]os.FileInfo, len(socks))
+			for i, p := range socks {
+				for j := 0; j < 100; j++ {
+					if fi, err := os.Stat(p); err == nil && fi.Mode().Perm() == 0o660 {
+						break
+					}
+					time.Sleep(10 * time.Millisecond)
+				}
+				if err := os.Chmod(p, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				var err error
+				if before[i], err = os.Stat(p); err != nil {
+					t.Fatal(err)
+				}
+			}
+			conn, err := net.Dial("unix", ctl)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer conn.Close()
 			b.Write(Frame{Hdr: hdrAliveReq, Cmd: 0x17, Payload: unhex(t, tc.record)}.Encode())
 			for i := 0; i < 100 && !strings.Contains(stderr.String(), tc.log); i++ {
 				time.Sleep(10 * time.Millisecond)
@@ -197,6 +221,19 @@ func TestMainIdentifyAndQuery(t *testing.T) {
 				if tc.car != "" {
 					t.Errorf("no EV6 poll; stderr %q", stderr.String())
 				}
+			}
+			for i, p := range socks {
+				fi, err := os.Stat(p)
+				if err != nil || !os.SameFile(fi, before[i]) || fi.Mode().Perm() != 0o600 {
+					t.Errorf("%s: not the socket served before the record (%v)", p, err)
+				}
+			}
+			// A client connected before the record is answered by the car's daemon.
+			fmt.Fprintln(conn, "snapshot")
+			line, err := bufio.NewReader(conn).ReadString('\n')
+			var cs Snapshot
+			if err != nil || json.Unmarshal([]byte(line), &cs) != nil || cs.Variant.Reply == nil || cs.Variant.Reply.Matched != tc.car {
+				t.Errorf("snapshot over the earlier connection: %v %q", err, line)
 			}
 
 			var out, errb bytes.Buffer
