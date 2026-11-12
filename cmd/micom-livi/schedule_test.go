@@ -107,13 +107,6 @@ func TestScheduleTelemetry(t *testing.T) {
 // reports it back; without, it says nothing.
 func TestScheduleEdits(t *testing.T) {
 	all := map[byte]string{0x55: liveDepartures, 0x53: seenSettings, 0x54: seenWindow}
-	edit := func(js string) scheduleEdit {
-		var e scheduleEdit
-		if err := json.Unmarshal([]byte(js), &e); err != nil {
-			t.Fatal(err)
-		}
-		return e
-	}
 	parked := func() (bool, string) { return true, "" }
 	for _, tc := range []struct {
 		name   string
@@ -155,6 +148,8 @@ func TestScheduleEdits(t *testing.T) {
 		{"the car's mode 1 is never written back", map[byte]string{0x55: liveDepartures, 0x53: "0014100200410050", 0x54: seenWindow}, true, parked,
 			`{"offPeak":{"startHour":21}}`, 0, true, nil,
 			[]string{"failed: ev-off-peak: Scheduled charging mode reads code 1, which enum sched_charge_mode does not name"}},
+		{"a field micom-livi does not know", all, true, parked, `{"climateTemp":22}`, 0, true, nil,
+			[]string{`failed: the edit: json: unknown field "climateTemp"`}},
 		{"minutes in tens, a known mode", all, true, parked, `{"departure2":{"minute":15},"chargingMode":"fastest"}`, 0, true, nil,
 			[]string{"failed: Scheduled charging mode: \"fastest\" is not in enum sched_charge_mode; minute 15: the car takes tens"}},
 	} {
@@ -170,10 +165,11 @@ func TestScheduleEdits(t *testing.T) {
 			}
 			clock := time.Unix(1_800_000_000, 0)
 			var lines, states []string
-			r := &scheduleRunner{s: s, writes: tc.writes, confirm: 10 * time.Second, parked: tc.parked, logf: t.Logf,
-				now: func() time.Time { return clock }}
+			r := &writeRunner{what: "ev schedule", flag: "-ev-schedule-writes", key: "evScheduleWrite", plan: s.planRequest,
+				pick:   func(n *navigation) *writeRequest { return n.EvScheduleRequest },
+				writes: tc.writes, confirm: 10 * time.Second, parked: tc.parked, logf: t.Logf, now: func() time.Time { return clock }}
 			r.post = func(k string, v any) {
-				w := v.(scheduleWrite)
+				w := v.(writeReport)
 				states = append(states, strings.TrimSuffix(w.State+": "+w.Why, ": "))
 			}
 			r.send = func(line string) error {
@@ -201,7 +197,7 @@ func TestScheduleEdits(t *testing.T) {
 				}
 				return nil
 			}
-			r.observe(&navigation{EvScheduleRequest: &scheduleRequest{ID: 1, At: clock.Add(-tc.age).Unix(), Set: edit(tc.set)}})
+			r.observe(&navigation{EvScheduleRequest: &writeRequest{ID: 1, At: clock.Add(-tc.age).Unix(), Set: json.RawMessage(tc.set)}})
 			for range 3 {
 				r.step()
 				clock = clock.Add(5 * time.Second)

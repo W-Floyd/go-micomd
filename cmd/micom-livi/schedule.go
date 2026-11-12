@@ -1,16 +1,12 @@
 package main
 
 import (
-	"bufio"
-	"context"
 	"encoding/json"
 	"fmt"
 	"maps"
-	"net"
 	"slices"
 	"strings"
 	"sync"
-	"time"
 
 	micom "github.com/W-Floyd/go-micomd"
 )
@@ -21,7 +17,7 @@ import (
 // /navigation) go back to the car read-modify-write: the variant's
 // ev-departures and ev-off-peak rebuilt from what their fields reflect, only
 // the edited fields changed (Variant.ReflectedInput), then confirmed by the
-// car's readback. LIVI hears how it went as evScheduleWrite.
+// car's readback (writes.go). LIVI hears how it went as evScheduleWrite.
 
 // scheduleWrites are the variant's messages that set the schedules, in the
 // order an edit touching both sends them.
@@ -254,24 +250,16 @@ func (s *schedule) codes(e scheduleEdit) (map[string]uint64, error) {
 	return out, nil
 }
 
-// scheduleSend is one write of an edit: micomd's input line, and the read
-// fields the car must then report, at these codes.
-type scheduleSend struct {
-	msg  string
-	line string
-	want map[string]uint64
-}
-
 // plan is what to send for e: each write that sets a field e changes, built
 // from the car's state with e over it.
-func (s *schedule) plan(e scheduleEdit) ([]scheduleSend, error) {
+func (s *schedule) plan(e scheduleEdit) ([]carWrite, error) {
 	changes, err := s.codes(e)
 	if err != nil {
 		return nil, err
 	}
 	now := s.snapshot()
 	maps.Copy(now, changes)
-	var out []scheduleSend
+	var out []carWrite
 	for _, w := range scheduleWrites {
 		touched := false
 		for name := range changes {
@@ -293,7 +281,7 @@ func (s *schedule) plan(e scheduleEdit) ([]scheduleSend, error) {
 		for _, r := range s.v.Reflections(w) {
 			want[r.From] = now[r.From]
 		}
-		out = append(out, scheduleSend{w, string(b), want})
+		out = append(out, carWrite{w, string(b), want, func() []string { return s.unconfirmed(want) }})
 	}
 	return out, nil
 }
@@ -311,162 +299,13 @@ func (s *schedule) unconfirmed(want map[string]uint64) []string {
 	return out
 }
 
-// scheduleRequest is LIVI's edit at GET /navigation: id tells a new one from
-// the last, at (Unix seconds) one made before micom-livi started.
-type scheduleRequest struct {
-	ID  int64        `json:"id"`
-	At  int64        `json:"at"`
-	Set scheduleEdit `json:"set"`
-}
-
-// scheduleWrite is evScheduleWrite, how LIVI's edit id went: "sending",
-// then "confirmed" or "failed" with why.
-type scheduleWrite struct {
-	ID    int64  `json:"id"`
-	State string `json:"state"`
-	Why   string `json:"why,omitempty"`
-}
-
-// requestFresh is how old an edit may be when first seen: one older was
-// made for a car state since gone.
-const requestFresh = 15 * time.Second
-
-// scheduleRunner sends LIVI's edits.
-type scheduleRunner struct {
-	s       *schedule
-	input   string
-	writes  bool          // -ev-schedule-writes
-	confirm time.Duration // how long the car may take to report a write back
-	parked  func() (bool, string)
-	logf    func(string, ...any)
-	post    func(key string, v any)
-	now     func() time.Time
-	// send writes one line to micomd's input; nil: over its own connection
-	// to input.
-	send func(line string) error
-
-	mu   sync.Mutex
-	req  *scheduleRequest
-	conn net.Conn
-	rd   *bufio.Reader
-
-	last    int64 // the id last taken up
-	pending []scheduleSend
-	sentAt  time.Time
-	cur     int64
-}
-
-func (r *scheduleRunner) observe(n *navigation) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.req = nil
-	if n != nil {
-		r.req = n.EvScheduleRequest
+// planRequest is plan for LIVI's request body.
+func (s *schedule) planRequest(set json.RawMessage) ([]carWrite, error) {
+	var e scheduleEdit
+	if err := strictJSON(set, &e); err != nil {
+		return nil, err
 	}
-}
-
-func (r *scheduleRunner) run(ctx context.Context) {
-	tick := time.NewTicker(250 * time.Millisecond)
-	defer tick.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			if r.conn != nil {
-				r.conn.Close()
-			}
-			return
-		case <-tick.C:
-			r.step()
-		}
-	}
-}
-
-func (r *scheduleRunner) report(w scheduleWrite) {
-	if w.State != "sending" {
-		r.logf("ev schedule: edit %d %s%s", w.ID, w.State, map[bool]string{true: ": " + w.Why}[w.Why != ""])
-	}
-	r.post("evScheduleWrite", w)
-}
-
-// step takes up a new edit, or checks the one sent against the car's readback.
-func (r *scheduleRunner) step() {
-	now := r.now()
-	if r.pending != nil {
-		left := r.s.unconfirmed(r.pending[0].want)
-		switch {
-		case len(left) == 0:
-			r.pending = r.pending[1:]
-			if len(r.pending) > 0 {
-				r.sendNext(now)
-				return
-			}
-			r.pending = nil
-			r.report(scheduleWrite{ID: r.cur, State: "confirmed"})
-		case now.Sub(r.sentAt) >= r.confirm:
-			r.pending = nil
-			r.report(scheduleWrite{ID: r.cur, State: "failed",
-				Why: fmt.Sprintf("the car did not report it back within %s (%s)", r.confirm, strings.Join(left, ", "))})
-		}
-		return
-	}
-	r.mu.Lock()
-	req := r.req
-	r.mu.Unlock()
-	if req == nil || req.ID == r.last {
-		return
-	}
-	r.last, r.cur = req.ID, req.ID
-	fail := func(why string) { r.report(scheduleWrite{ID: req.ID, State: "failed", Why: why}) }
-	if !r.writes {
-		fail("writes are off: micom-livi runs without -ev-schedule-writes")
-		return
-	}
-	if age := now.Sub(time.Unix(req.At, 0)); age > requestFresh {
-		fail(fmt.Sprintf("the edit is %d s old", int(age.Seconds())))
-		return
-	}
-	if ok, why := r.parked(); !ok {
-		fail(why)
-		return
-	}
-	sends, err := r.s.plan(req.Set)
-	if err != nil {
-		fail(err.Error())
-		return
-	}
-	r.report(scheduleWrite{ID: req.ID, State: "sending"})
-	r.pending = sends
-	r.sendNext(now)
-}
-
-func (r *scheduleRunner) sendNext(now time.Time) {
-	s := r.pending[0]
-	r.logf("ev schedule: edit %d: %s", r.cur, s.line)
-	if err := r.write(s.line); err != nil {
-		r.pending = nil
-		r.report(scheduleWrite{ID: r.cur, State: "failed", Why: err.Error()})
-		return
-	}
-	r.sentAt = now
-}
-
-func (r *scheduleRunner) write(line string) error {
-	if r.send != nil {
-		return r.send(line)
-	}
-	if r.conn == nil {
-		c, err := net.Dial("unix", r.input)
-		if err != nil {
-			return err
-		}
-		r.conn, r.rd = c, bufio.NewReader(c)
-	}
-	err := sendInput(r.conn, r.rd, line)
-	if _, refused := err.(refusal); err != nil && !refused {
-		r.conn.Close()
-		r.conn = nil
-	}
-	return err
+	return s.plan(e)
 }
 
 // parkedFrom is whether the car is known to be in Park: its driving

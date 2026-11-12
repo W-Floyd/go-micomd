@@ -114,10 +114,9 @@ func TestEV6Messages(t *testing.T) {
 			`{"msg":"batt-cond-mode","on":true} => on: no such field`,
 		}, []string{"ff 88 0c 01 0c 62 00 02 02 14", "ff 88 0c 01 0c 62 00 02 00 16", "ff 88 0c 01 0c 62 00 02 01 17", "ff 88 0c 01 0c 62 00 02 00 16"}},
 		// Stock's EV settings under QEMU (2026-11-12): one limit per frame,
-		// winter mode 3 and the other limits 0xff; the current, then 0. An
-		// input keeps the fields it does not name, so the second gives null.
-		{"charge limits as stock sends them", []string{
-			`{"msg":"ev-charge-limits","ac_limit":90}`, `{"msg":"ev-charge-limits","ac_limit":null,"dc_limit":50}`,
+		// winter mode 3 and the other limits 0xff; the current, then 0.
+		{"charge limits as stock sends them, nothing kept from the last", []string{
+			`{"msg":"ev-charge-limits","ac_limit":90}`, `{"msg":"ev-charge-limits","dc_limit":50}`,
 			`{"msg":"ev-charge-limits","ac_limit":45} => below the minimum 50`,
 		}, []string{"ff 88 0c 01 0c 18 00 08 00 00 c0 00 b4 ff ff 12", "ff 88 0c 01 0c 18 00 08 00 00 c0 00 ff 64 ff c2"}},
 		{"AC charging current 60 %, then the default", []string{`{"msg":"ev-charging-current","current":"minimum"}`, "after 150ms"},

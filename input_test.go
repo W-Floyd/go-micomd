@@ -30,6 +30,8 @@ messages:
   - {name: coded, dir: to_micom, hdr: audio_tx, cmd: 0x40, length: 1, status: code, ref: r, fields: [{name: a, off: 0}]}
   - {name: tied, dir: to_micom, hdr: audio_tx, cmd: 0x42, length: 1, status: captured, ref: r,
      fields: [{name: a, off: 0}], end: [{msg: coded, set: {a: 0}}]}
+  - {name: limits, dir: to_micom, hdr: audio_tx, cmd: 0x48, length: 2, status: captured, ref: r, merge: false,
+     fields: [{name: a, off: 0, invalid: 0xff}, {name: b, off: 1, invalid: 0xff}]}
   - {name: store, dir: to_micom, hdr: audio_tx, cmd: 0x43, length: 1, status: captured, ref: r,
      fields: [{name: a, off: 0}], persistent: true, min_interval: 1s}
   # needs: a 1 only while the lamp is on, a 2 only while it is off, a 3 always.
@@ -86,6 +88,12 @@ func TestInput(t *testing.T) {
 			{0, `{"msg":"mode","level":6}`, "ok"},
 			{0, `{"msg":"mode","level":null}`, "ok"},
 		}, []string{"own q,q-code", "01:0e05", "01:0e06", "01:0eff"}},
+		{"merge false: an input keeps nothing of the last", InputGates{}, []step{
+			{0, `{"msg":"limits","a":1}`, "ok"},
+			{0, `{"msg":"limits","b":2}`, "ok"},
+			{0, `{"msg":"limits","a":1,"c":3}`, "limits: c: no such field"},
+			{0, `{"msg":"limits"}`, "ok"},
+		}, []string{"48:01ff", "48:ff02", "48:ffff"}},
 		{"refused", InputGates{}, []step{
 			{0, `mode media`, "line is not a JSON object"},
 			{0, `{"msg":"mode"} {}`, "line is not a JSON object"},

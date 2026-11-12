@@ -54,6 +54,7 @@ messages:                    # a named list: merged by name, remove: true delete
       - { name: bar, off: 7, bits: "7:4", scale: 10, max: 100, invalid: 15 }
       - { name: distance_tenths, off: 7, bits: "3:0", max: 9, invalid: 15 }
     on_change: true          # send when the encoded frame changes (default true)
+    # merge: false           # each input from the defaults, not over the last (default true)
     every: 1s                # and/or repeat the last frame while active
     # owns: ack              # a profile entry this replaces while active (cluster-sub-info)
     timeout: 30s             # no input for this long: run end
@@ -176,6 +177,11 @@ values.
 - **Input** for message M validates every key, merges the values into M's
   state (keys not given keep theirs), encodes, and on success makes M active.
   A refused input changes nothing.
+- **merge** (default true): `merge: false` starts each input from the
+  defaults, keeping nothing of the last: for a command whose fields not
+  named mean "leave alone" (`ev-charge-limits`), so a later input naming
+  another field never resends an earlier one. An end step's `set` likewise
+  starts from the defaults.
 - **on_change** (default true): the frame goes out when it differs from the
   last one sent, and always on the first input. `on_change: false`: every
   input sends, the same frame too (acks, and frames the micom forgets on a
@@ -304,7 +310,9 @@ A to_micom field may name where the car reports its value back:
   an `unless` code, an enum code without a name, out of `min`/`max`).
   `micom-livi -ev-schedule-writes` edits `ev-departures` and `ev-off-peak`
   this way (micomd: `-allow-inferred -allow-dangerous-msg
-  ev-departures,ev-off-peak`).
+  ev-departures,ev-off-peak`). `micom-livi -ev-charge-writes` does not: it
+  sends one setting of `ev-charge-limits` or `ev-charging-current` as stock
+  does, the rest "unchanged", and confirms it by the reflected field.
 - The raw code is copied, so the two fields share an encoding (both x0.5 %, a
   1-bit day into a 2-bit one). The invalid marker and the `unless` codes (a
   pulse's idle value) set nothing.

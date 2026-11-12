@@ -26,10 +26,13 @@ type rawMessage struct {
 	Transport *rawTransport `yaml:"transport,omitempty"`
 	Fields    []rawMsgField `yaml:"fields,omitempty"`
 	OnChange  *bool         `yaml:"on_change,omitempty"`
-	Every     time.Duration `yaml:"every,omitempty"`
-	Owns      string        `yaml:"owns,omitempty"`
-	Timeout   time.Duration `yaml:"timeout,omitempty"`
-	End       []rawEndStep  `yaml:"end,omitempty"`
+	// Merge false: each input starts from the defaults, keeping nothing of
+	// the last.
+	Merge   *bool         `yaml:"merge,omitempty"`
+	Every   time.Duration `yaml:"every,omitempty"`
+	Owns    string        `yaml:"owns,omitempty"`
+	Timeout time.Duration `yaml:"timeout,omitempty"`
+	End     []rawEndStep  `yaml:"end,omitempty"`
 	// MinInterval spaces sends; inputs within it are coalesced, the newest
 	// sent when it has passed.
 	MinInterval time.Duration `yaml:"min_interval,omitempty"`
@@ -161,6 +164,7 @@ type msgSpec struct {
 	byName         map[string]*field
 	computed       bool // a field has from: re-encoded at every send
 	onChange       bool
+	merge          bool
 	every, timeout time.Duration
 	minInterval    time.Duration
 	persistent     bool
@@ -374,8 +378,8 @@ func (d *decoder) covers(b *decoder) bool {
 
 func compileFromMicom(c *checker, v *Variant, where string, r rawMessage, enums map[string]map[string]int64, hdrOf func(string, string) ([4]byte, bool)) {
 	checkStatus(c, where, r.Status, false)
-	if r.Fill != nil || r.Transport != nil || r.OnChange != nil || r.Every != 0 || r.Owns != "" || r.Timeout != 0 || len(r.End) > 0 || r.MinInterval != 0 || r.Persistent || r.Dangerous != "" || r.Requires != nil {
-		c.errf(where, "fill, transport, on_change, every, owns, timeout, end, min_interval, persistent, dangerous and requires are for to_micom")
+	if r.Fill != nil || r.Transport != nil || r.OnChange != nil || r.Merge != nil || r.Every != 0 || r.Owns != "" || r.Timeout != 0 || len(r.End) > 0 || r.MinInterval != 0 || r.Persistent || r.Dangerous != "" || r.Requires != nil {
+		c.errf(where, "fill, transport, on_change, merge, every, owns, timeout, end, min_interval, persistent, dangerous and requires are for to_micom")
 	}
 	d := &decoder{name: r.Name}
 	need := 0
@@ -440,7 +444,7 @@ func compileToMicom(c *checker, v *Variant, where string, r rawMessage, enums ma
 		}
 	}
 	m := &msgSpec{name: r.Name, status: r.Status, cmd: r.Cmd, byName: map[string]*field{},
-		onChange: r.OnChange == nil || *r.OnChange, every: r.Every, timeout: r.Timeout, owns: r.Owns,
+		onChange: r.OnChange == nil || *r.OnChange, merge: r.Merge == nil || *r.Merge, every: r.Every, timeout: r.Timeout, owns: r.Owns,
 		minInterval: r.MinInterval, persistent: r.Persistent, dangerous: r.Dangerous, rawRequires: r.Requires}
 	if r.Length == nil || *r.Length < 1 || *r.Length > MaxPayload {
 		c.errf(where, "length is required, 1 to %d", MaxPayload)

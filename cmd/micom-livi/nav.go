@@ -57,7 +57,10 @@ type navigation struct {
 	Precondition *preconditionPrefs `json:"precondition"`
 	// EvScheduleRequest is LIVI's edit of the car's schedules, nil while
 	// none stands.
-	EvScheduleRequest *scheduleRequest `json:"evScheduleRequest"`
+	EvScheduleRequest *writeRequest `json:"evScheduleRequest"`
+	// EvChargeRequest is LIVI's change of the car's charge limits or AC
+	// charging current, nil while none stands.
+	EvChargeRequest *writeRequest `json:"evChargeRequest"`
 }
 
 // navOptions are how the cluster shows distances and the time.

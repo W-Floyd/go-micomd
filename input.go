@@ -162,7 +162,7 @@ func (e *inputEngine) handle(line []byte) error {
 	defer e.mu.Unlock()
 	st := e.state[name]
 	merged := map[string]inValue{}
-	if st != nil {
+	if st != nil && m.merge {
 		maps.Copy(merged, st.vals)
 	}
 	maps.Copy(merged, vals)
@@ -294,7 +294,7 @@ func (e *inputEngine) end(m *msgSpec) error {
 		t := e.v.messages[s.msg]
 		ts := e.state[t.name]
 		vals := map[string]inValue{}
-		if ts != nil {
+		if ts != nil && t.merge {
 			maps.Copy(vals, ts.vals)
 		}
 		maps.Copy(vals, s.set)

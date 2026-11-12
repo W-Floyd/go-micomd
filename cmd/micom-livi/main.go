@@ -8,11 +8,12 @@
 // it on the instrument cluster through micomd's -input socket (nav.go), with
 // -gpsd the compass and, while there is a fix, the unit's position.
 // It posts the car's EV schedules too, and with -ev-schedule-writes sends
-// LIVI's edits of them back (schedule.go).
+// LIVI's edits of them back (schedule.go); with -ev-charge-writes, its changes
+// of the charge limits and AC charging current (charge.go).
 //
 //	micom-livi [-tap /run/micomd.sock] [-url http://127.0.0.1:4000/telemetry] [-every 250ms] [-capacity-kwh N]
 //
-// Without -precondition and -ev-schedule-writes it sends the car nothing but
+// Without -precondition, -ev-schedule-writes and -ev-charge-writes it sends the car nothing but
 // the cluster's guidance: micomd owns the link. It is
 // a client of both sides, so either can restart: it reconnects to the tap, and
 // posts the whole state again once LIVI answers after a failure (LIVI restores
@@ -64,7 +65,8 @@ func main() {
 	pcMinSoC := flag.Float64("precondition-min-soc", 20, "%: the car's charge it needs, now")
 	pcMinArrival := flag.Float64("precondition-min-arrival", 5, "% of -capacity-kwh the forecast must leave on arrival")
 	schedWrites := flag.Bool("ev-schedule-writes", false, "with -input, send LIVI's edits of the car's departure timers, off-peak window and charging mode, and scheduled climate (the variant's ev-departures and ev-off-peak, read-modify-write; micomd needs -allow-inferred and -allow-dangerous-msg ev-departures,ev-off-peak), only while parked; off, LIVI shows them read-only")
-	schedConfirm := flag.Duration("ev-schedule-confirm", 10*time.Second, "how long the car may take to report an edit back before it counts as failed")
+	schedConfirm := flag.Duration("ev-schedule-confirm", 10*time.Second, "how long the car may take to report an edit back before it counts as failed (-ev-schedule-writes, -ev-charge-writes)")
+	chargeWrites := flag.Bool("ev-charge-writes", false, "with -input, send LIVI's changes of the car's AC and DC charge limits and AC charging current as stock does, one setting per frame (the variant's ev-charge-limits and ev-charging-current; micomd needs -allow-inferred and -allow-dangerous-msg ev-charge-limits,ev-charging-current), only while parked; off, LIVI shows them read-only")
 	flag.Parse()
 
 	lg := log.New(os.Stderr, "", log.LstdFlags)
@@ -77,9 +79,10 @@ func main() {
 	if err != nil {
 		lg.Fatal(err)
 	}
-	car := &carState{sched: newSchedule(v)}
+	car := &carState{sched: newSchedule(v), charge: newCharge(v)}
 	p := newPoster(*url, *every, lg.Printf)
 	p.set("evScheduleWrites", *input != "" && *schedWrites)
+	p.set("evChargeWrites", *input != "" && *chargeWrites)
 	navDone, pcDone := make(chan struct{}), make(chan struct{})
 	var observers []func(*navigation)
 	observe := func(n *navigation) {
@@ -104,10 +107,16 @@ func main() {
 		close(pcDone)
 	}
 	if *input != "" {
-		r := &scheduleRunner{s: car.sched, input: *input, writes: *schedWrites, confirm: *schedConfirm,
-			parked: parkedFrom(car), logf: lg.Printf, post: p.set, now: time.Now}
-		go r.run(ctx)
-		observers = append(observers, r.observe)
+		for _, r := range []*writeRunner{
+			{what: "ev schedule", flag: "-ev-schedule-writes", key: "evScheduleWrite", writes: *schedWrites,
+				pick: func(n *navigation) *writeRequest { return n.EvScheduleRequest }, plan: car.sched.planRequest},
+			{what: "ev charge", flag: "-ev-charge-writes", key: "evChargeWrite", writes: *chargeWrites,
+				pick: func(n *navigation) *writeRequest { return n.EvChargeRequest }, plan: car.charge.planRequest},
+		} {
+			r.input, r.confirm, r.parked, r.logf, r.post, r.now = *input, *schedConfirm, parkedFrom(car), lg.Printf, p.set, time.Now
+			go r.run(ctx)
+			observers = append(observers, r.observe)
+		}
 		b := newBridge(time.Second)
 		b.releaseAfter, b.night, b.observe = *releaseAfter, car.night.get, observe
 		if *gpsd != "" {
@@ -154,6 +163,7 @@ type carState struct {
 	regulation latest[bool]    // the driving regulation: out of Park
 	gear       latest[string]  // P, R, N or D
 	sched      *schedule
+	charge     *charge
 }
 
 // follow reads the tap until it ends, posting the climate when a burst of
@@ -208,6 +218,11 @@ func follow(path string, settle time.Duration, p *poster, car *carState) error {
 				}
 				if car.sched != nil && car.sched.take(f) {
 					for k, v := range car.sched.telemetry() {
+						p.set(k, v)
+					}
+				}
+				if car.charge != nil && car.charge.take(f) {
+					for k, v := range car.charge.telemetry() {
 						p.set(k, v)
 					}
 				}

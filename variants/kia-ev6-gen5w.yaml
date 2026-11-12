@@ -711,8 +711,8 @@ messages:
   # 10 % steps: AC 50..100 % 00 00 c0 00 64..c8 ff ff, DC 50..100 %
   # 00 00 c0 00 ff 64..c8 ff; the same with the car's winter mode 0, 1 or 2
   # and its other limit at 75 %; no frame for the value already held.
-  # micomd's input keeps the fields an input leaves out: to send stock's
-  # frame, give the other limits null.
+  # merge: false, so an input naming one limit sends stock's frame, never a
+  # limit an earlier input set.
   - name: ev-charge-limits
     dir: to_micom
     hdr: poll_tx
@@ -724,6 +724,7 @@ messages:
       - { name: dc_limit,    off: 5, scale: 0.5, unit: " %", invalid: 0xff, min: 50, max: 100, reflects: { msg: "Charge limit, DC", field: "Charge limit, DC" } }
       - { name: route_limit, off: 6, scale: 0.5, unit: " %", invalid: 0xff }
     on_change: false
+    merge: false
     dangerous: "sets the car's charge limits; one below the charge stops an AC charge"
     status: code
     ref: "stock HEVService.setTargetSOCext, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c18, 7 bytes), from TAppEV3 one limit per frame; readback items 0x21/0x22/0x44; stock under QEMU (micom-fake, 2026-11-12) sends exactly these frames, not seen from a car"
