@@ -1556,36 +1556,36 @@ cmd `0x06`, length 7 · 🟡 code
 
 > stock HEVService.setDepartTimeNClimateSet, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c06, 7 bytes); readback G3CAN_VCU_04_1/2/3_M
 
-| Field | At | Range |
-| --- | --- | --- |
-| d1_hour | byte 0 bits 7:3 | ..23 |
-| d1_min_bits | byte 0 bits 2:0 |  |
-| d1_mon | byte 1 bits 7 |  |
-| d1_tue | byte 1 bits 6 |  |
-| d1_wed | byte 1 bits 5 |  |
-| d1_thu | byte 1 bits 4 |  |
-| d1_fri | byte 1 bits 3 |  |
-| d1_sat | byte 1 bits 2 |  |
-| d1_sun | byte 1 bits 1 |  |
-| d1_on | byte 1 bits 0 |  |
-| d2_hour | byte 2 bits 7:3 | ..23 |
-| d2_min_bits | byte 2 bits 2:0 |  |
-| d2_mon | byte 3 bits 7 |  |
-| d2_tue | byte 3 bits 6 |  |
-| d2_wed | byte 3 bits 5 |  |
-| d2_thu | byte 3 bits 4 |  |
-| d2_fri | byte 3 bits 3 |  |
-| d2_sat | byte 3 bits 2 |  |
-| d2_sun | byte 3 bits 1 |  |
-| d2_on | byte 3 bits 0 |  |
-| d1_climate | byte 4 bits 7 |  |
-| d1_temp | byte 4 bits 6:1 |  |
-| d1_temp_unit | byte 4 bits 0 |  |
-| d1_defrost | byte 5 bits 7 |  |
-| d2_climate | byte 5 bits 6 |  |
-| d2_temp | byte 5 bits 5:0 |  |
-| d2_temp_unit | byte 6 bits 7 |  |
-| d2_defrost | byte 6 bits 6 |  |
+| Field | At | Range | Notes |
+| --- | --- | --- | --- |
+| d1_hour | byte 0 bits 7:3 | ..23 |  |
+| d1_min_bits | byte 0 bits 2:0 |  |  |
+| d1_mon | byte 1 bits 7 |  |  |
+| d1_tue | byte 1 bits 6 |  |  |
+| d1_wed | byte 1 bits 5 |  |  |
+| d1_thu | byte 1 bits 4 |  |  |
+| d1_fri | byte 1 bits 3 |  |  |
+| d1_sat | byte 1 bits 2 |  |  |
+| d1_sun | byte 1 bits 1 |  |  |
+| d1_on | byte 1 bits 0 |  |  |
+| d2_hour | byte 2 bits 7:3 | ..23 |  |
+| d2_min_bits | byte 2 bits 2:0 |  |  |
+| d2_mon | byte 3 bits 7 |  |  |
+| d2_tue | byte 3 bits 6 |  |  |
+| d2_wed | byte 3 bits 5 |  |  |
+| d2_thu | byte 3 bits 4 |  |  |
+| d2_fri | byte 3 bits 3 |  |  |
+| d2_sat | byte 3 bits 2 |  |  |
+| d2_sun | byte 3 bits 1 |  |  |
+| d2_on | byte 3 bits 0 |  |  |
+| d1_climate | byte 4 bits 7 |  |  |
+| d1_temp | byte 4 bits 6:1 |  |  |
+| d1_temp_unit | byte 4 bits 0 |  |  |
+| d1_defrost | byte 5 bits 7 |  |  |
+| d2_climate | byte 5 bits 6 |  |  |
+| d2_temp | byte 5 bits 5:0 |  | from "Scheduled climate temperature" |
+| d2_temp_unit | byte 6 bits 7 |  | from "Temperature unit" |
+| d2_defrost | byte 6 bits 6 |  |  |
 
 #### ev-charge-limits
 

@@ -7,10 +7,13 @@
 // With -input it also reads LIVI's route guidance (GET /navigation) and shows
 // it on the instrument cluster through micomd's -input socket (nav.go), with
 // -gpsd the compass and, while there is a fix, the unit's position.
+// It posts the car's EV schedules too, and with -ev-schedule-writes sends
+// LIVI's edits of them back (schedule.go).
 //
 //	micom-livi [-tap /run/micomd.sock] [-url http://127.0.0.1:4000/telemetry] [-every 250ms] [-capacity-kwh N]
 //
-// It only reads: micomd owns the link, and nothing goes back to the car. It is
+// Without -precondition and -ev-schedule-writes it sends the car nothing but
+// the cluster's guidance: micomd owns the link. It is
 // a client of both sides, so either can restart: it reconnects to the tap, and
 // posts the whole state again once LIVI answers after a failure (LIVI restores
 // its own saved climate at start, which the car's must replace).
@@ -60,6 +63,8 @@ func main() {
 	pcMaxTime := flag.Duration("precondition-max-time", time.Hour, "start this close to the charger")
 	pcMinSoC := flag.Float64("precondition-min-soc", 20, "%: the car's charge it needs, now")
 	pcMinArrival := flag.Float64("precondition-min-arrival", 5, "% of -capacity-kwh the forecast must leave on arrival")
+	schedWrites := flag.Bool("ev-schedule-writes", false, "with -input, send LIVI's edits of the car's departure timers, off-peak window and charging mode, and scheduled climate (the variant's ev-departures and ev-off-peak, read-modify-write; micomd needs -allow-dangerous), only while parked; off, LIVI shows them read-only")
+	schedConfirm := flag.Duration("ev-schedule-confirm", 10*time.Second, "how long the car may take to report an edit back before it counts as failed")
 	flag.Parse()
 
 	lg := log.New(os.Stderr, "", log.LstdFlags)
@@ -68,10 +73,20 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	car := &carState{}
+	v, err := micom.DefaultVariant()
+	if err != nil {
+		lg.Fatal(err)
+	}
+	car := &carState{sched: newSchedule(v)}
 	p := newPoster(*url, *every, lg.Printf)
+	p.set("evScheduleWrites", *input != "" && *schedWrites)
 	navDone, pcDone := make(chan struct{}), make(chan struct{})
-	var observe func(*navigation)
+	var observers []func(*navigation)
+	observe := func(n *navigation) {
+		for _, o := range observers {
+			o(n)
+		}
+	}
 	if *input != "" && *precondition {
 		r := &precondRunner{
 			p: precond{rules: precondRules{
@@ -84,11 +99,15 @@ func main() {
 			r.run(ctx)
 			close(pcDone)
 		}()
-		observe = r.observe
+		observers = append(observers, r.observe)
 	} else {
 		close(pcDone)
 	}
 	if *input != "" {
+		r := &scheduleRunner{s: car.sched, input: *input, writes: *schedWrites, confirm: *schedConfirm,
+			parked: parkedFrom(car), logf: lg.Printf, post: p.set, now: time.Now}
+		go r.run(ctx)
+		observers = append(observers, r.observe)
 		b := newBridge(time.Second)
 		b.releaseAfter, b.night, b.observe = *releaseAfter, car.night.get, observe
 		if *gpsd != "" {
@@ -129,9 +148,12 @@ func main() {
 
 // carState is what the tap last told of the car, for the other goroutines.
 type carState struct {
-	night latest[bool]
-	soc   latest[float64] // %
-	cond  latest[bool]    // battery conditioning running
+	night      latest[bool]
+	soc        latest[float64] // %
+	cond       latest[bool]    // battery conditioning running
+	regulation latest[bool]    // the driving regulation: out of Park
+	gear       latest[string]  // P, R, N or D
+	sched      *schedule
 }
 
 // follow reads the tap until it ends, posting the climate when a burst of
@@ -178,6 +200,15 @@ func follow(path string, settle time.Duration, p *poster, car *carState) error {
 						car.night.set(v.(bool))
 					case "fuelPct":
 						car.soc.set(v.(float64))
+					case "drivingRegulation":
+						car.regulation.set(v.(bool))
+					case "gear":
+						car.gear.set(v.(string))
+					}
+				}
+				if car.sched != nil && car.sched.take(f) {
+					for k, v := range car.sched.telemetry() {
+						p.set(k, v)
 					}
 				}
 				for _, fl := range micom.Decode(f) {

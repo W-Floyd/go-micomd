@@ -55,6 +55,9 @@ type navigation struct {
 	// Precondition is LIVI's preconditioning settings, nil from a LIVI
 	// without them (auto).
 	Precondition *preconditionPrefs `json:"precondition"`
+	// EvScheduleRequest is LIVI's edit of the car's schedules, nil while
+	// none stands.
+	EvScheduleRequest *scheduleRequest `json:"evScheduleRequest"`
 }
 
 // navOptions are how the cluster shows distances and the time.

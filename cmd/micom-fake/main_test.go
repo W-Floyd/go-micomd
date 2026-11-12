@@ -54,6 +54,8 @@ func TestFakeAnswersAsTheVariant(t *testing.T) {
 				"Departure timers":  {"Departure 1 hour": 7, "Departure 1 minute bits": 3, "Departure 2 hour": 12},
 				"Departure days":    {"Departure 1 Monday": 1, "Departure 1 Tuesday": 0, "Departure 1 Wednesday": 1, "Departure 1 enabled": 1},
 				"Schedule settings": {"Scheduled climate": 1, "Scheduled climate temperature": 0x14}}},
+		{"off-peak, then departure 2 Friday on: 0x8C53 holds both", []string{"880c010c 05 b3 30 00 00 c0", "880c010c 06 60 00 60 09 29 14 80"},
+			map[string]map[string]uint64{"Schedule settings": {"Off-peak start hour": 22, "Scheduled charging mode": 3, "Departure 2 Friday": 1, "Departure 2 enabled": 1, "Scheduled climate temperature": 20}}},
 		{"AC limit 70 %, the rest unchanged", []string{"880c010c 18 00 00 00 00 8c ff ff"},
 			map[string]map[string]uint64{"Charge limit, AC": {"Charge limit, AC": 140}, "Winter mode": {"Winter mode": 0}}},
 		{"conditioning on, then the pulse's default", []string{"880c010c 62 02", "880c010c 62 00"},

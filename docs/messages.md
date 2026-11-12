@@ -292,10 +292,18 @@ A to_micom field may name where the car reports its value back:
 - { name: mode, off: 0, enum: batt_cond_mode, reflects: { msg: "Battery conditioning mode", field: "Battery conditioning mode", unless: [0] } }
 ```
 
-- Only an emulated micom uses it (`cmd/micom-fake`, `Variant.Reflect`): a frame
+- An emulated micom uses it (`cmd/micom-fake`, `Variant.Reflect`): a frame
   sent to it rebuilds each named from_micom message from the payload it last
   sent, with the field's raw code; messages that are one frame (header,
   command, guards) build one payload. micomd never reads it.
+- A client uses it to change one setting of several a frame carries
+  (`Variant.ReflectedInput`): the input is rebuilt from what the car last
+  reported, the edit over it, and the change is confirmed once the reports
+  match. It fails rather than guess: a reflected field not yet received, or
+  one whose code the to_micom field cannot take (wider, the invalid marker,
+  an `unless` code, an enum code without a name, out of `min`/`max`).
+  `micom-livi -ev-schedule-writes` edits `ev-departures` and `ev-off-peak`
+  this way.
 - The raw code is copied, so the two fields share an encoding (both x0.5 %, a
   1-bit day into a 2-bit one). The invalid marker and the `unless` codes (a
   pulse's idle value) set nothing.

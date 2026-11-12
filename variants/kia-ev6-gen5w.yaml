@@ -682,8 +682,10 @@ messages:
       - { name: d1_temp_unit, off: 4, bits: "0",   reflects: { msg: "Scheduled charge window", field: "Temperature unit" } }
       - { name: d1_defrost,   off: 5, bits: "7",   reflects: { msg: "Scheduled charge window", field: "Scheduled climate defrost" } }
       - { name: d2_climate,   off: 5, bits: "6", default: 0 }
-      - { name: d2_temp,      off: 5, bits: "5:0", default: 0 }
-      - { name: d2_temp_unit, off: 6, bits: "7", default: 0 }
+      # Set 2's climate has no readback; stock sends set 1's temperature and
+      # unit in it (both captures above), so they are copied, never guessed.
+      - { name: d2_temp,      off: 5, bits: "5:0", from: { field: "Scheduled climate temperature" } }
+      - { name: d2_temp_unit, off: 6, bits: "7",   from: { field: "Temperature unit" } }
       - { name: d2_defrost,   off: 6, bits: "6", default: 0 }
     on_change: false
     dangerous: "sets the car's departure timers and scheduled climate, which it acts on unattended"
