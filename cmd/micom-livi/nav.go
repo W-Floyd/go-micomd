@@ -299,12 +299,38 @@ func (b *bridge) reset() {
 }
 
 // release is the lines that give the pane back, nil when it is not held.
+// The look stays told: it is not the pane's.
 func (b *bridge) release() []string {
 	if !b.owned {
 		return nil
 	}
-	b.reset()
+	b.owned, b.routing = false, false
+	for msg := range b.sent {
+		if msg != "cluster-day-night" && msg != "hu-day-night" {
+			delete(b.sent, msg)
+			delete(b.at, msg)
+		}
+	}
 	return []string{freeAlive, freeOwn}
+}
+
+// look adds the day or night lines, on change: the HU's (hu-day-night,
+// which the cluster's own look follows) and the navigation pane's. They go
+// whether or not the pane is held.
+func (b *bridge) look(out []string, now time.Time) []string {
+	if b.night == nil {
+		return out
+	}
+	night := b.night()
+	if night == nil {
+		return out
+	}
+	mode, state := "day", 1
+	if *night {
+		mode, state = "night", 2
+	}
+	out = b.emit(out, map[string]any{"msg": "cluster-day-night", "mode": mode}, now, false)
+	return b.emit(out, map[string]any{"msg": "hu-day-night", "state": state}, now, false)
 }
 
 // step is the lines to send for n, which is nil when LIVI cannot be read.
@@ -316,10 +342,10 @@ func (b *bridge) step(n *navigation, now time.Time, o navOptions) []string {
 		if b.owned {
 			b.released = true
 		}
-		return b.release()
+		return b.look(b.release(), now)
 	}
 	if b.released && n == nil {
-		return nil
+		return b.look(nil, now)
 	}
 	b.released = false
 	var out []string
@@ -333,15 +359,7 @@ func (b *bridge) step(n *navigation, now time.Time, o navOptions) []string {
 		}
 		b.alive = route
 	}
-	if b.night != nil {
-		if night := b.night(); night != nil {
-			mode := "day"
-			if *night {
-				mode = "night"
-			}
-			out = b.emit(out, map[string]any{"msg": "cluster-day-night", "mode": mode}, now, false)
-		}
-	}
+	out = b.look(out, now)
 	if b.position != nil {
 		if lat, lon, ok := b.position(now); ok {
 			out = b.emit(out, map[string]any{"msg": "cluster-position", "lat_arcsec": lat, "lon_arcsec": lon}, now, true)

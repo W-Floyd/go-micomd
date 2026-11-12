@@ -921,6 +921,22 @@ messages:
     status: code
     ref: "stock battSoc, func 0x819b byte 7"
 
+  # The HU's day or night, func 0x0190: the cluster's light or dark look
+  # follows it, not 0x0D0F (0x0D0F night went out at dusk on 2026-11-12 and
+  # the cluster stayed light). The micom keeps the byte (0x4000056c) and
+  # puts it in a 2-bit CAN signal (0x40015aa4 bits 4-5). Stock's caller and
+  # values are not traced: 1 day, 2 night is a guess (the micom's other
+  # day/night codes), so the field is a number.
+  - name: hu-day-night
+    dir: to_micom
+    hdr: system_tx
+    cmd: 0x90
+    length: 1
+    fields:
+      - { name: state, off: 0, max: 3 }
+    status: code
+    ref: "stock SystemService.sendHUDayNightState (sendPacket 0x8a, 1, func 0x0190); micom firmware dispatcher 0x774a2 case 0x90 -> FUN_000d4a3a"
+
   # SoC→micom system service commands confirmed from the micom firmware command
   # dispatcher (0x774a2; jump table at 0x77526) and emulation (watching the
   # firmware console). Each is dangerous: it arms an update/download boot or

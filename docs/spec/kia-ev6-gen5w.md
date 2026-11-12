@@ -43,7 +43,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 20 |
-| 🟡 code | 61 |
+| 🟡 code | 62 |
 | 🟠 inferred | 3 |
 
 Not yet backed by a capture:
@@ -97,6 +97,7 @@ Not yet backed by a capture:
 | Boot record (full) | `system_rx` | 0x01 | 🟡 code | stock SystemService InitialCarInfo; 149 bytes, byte 120 = 02 and byte 7 = ca in 2026-11 captures |
 | Rheostat level | `system_rx` | 0x45 | 🟡 code | stock SYS_RHEOSTAT_M (func 0x8145) |
 | System 0x819B | `system_rx` | 0x9b | 🟡 code | stock battSoc, func 0x819b byte 7 |
+| hu-day-night | `system_tx` | 0x90 | 🟡 code | stock SystemService.sendHUDayNightState (sendPacket 0x8a, 1, func 0x0190); micom firmware dispatcher 0x774a2 case 0x90 -> FUN_000d4a3a |
 | sys-update-reservation | `system_tx` | 0x57 | 🟠 inferred | micom dispatcher cmd 0x57 -> event 0x125; emulated firmware console 2026-11-10 ('SYS_UPDATE_RESERVATION_C : 0x1, 0x20') |
 | sys-download-reservation | `system_tx` | 0x8d | 🟠 inferred | micom dispatcher cmd 0x8d -> event 0x18a; emulated firmware console 2026-11-10 ('SYS_DOWNLOAD_RESERVATION_C : 0x1, 0xFA') |
 | sys-sleep-boot-control | `system_tx` | 0x67 | 🟠 inferred | micom dispatcher cmd 0x67; name tentative (strings in the event consumers) |
@@ -1660,6 +1661,21 @@ packet-beta
 ### system_tx
 
 `8a 01 01 01`: the CPU-alive reply
+
+#### hu-day-night
+
+cmd `0x90`, length 1 · 🟡 code
+
+> stock SystemService.sendHUDayNightState (sendPacket 0x8a, 1, func 0x0190); micom firmware dispatcher 0x774a2 case 0x90 -> FUN_000d4a3a
+
+| Field | At | Range |
+| --- | --- | --- |
+| state | byte 0 | ..3 |
+
+```mermaid
+packet-beta
+0-7: "state"
+```
 
 #### sys-update-reservation
 
