@@ -62,6 +62,13 @@ func TestScheduleTelemetry(t *testing.T) {
 			"departure1": map[string]any{"on": false, "hour": 12.0, "minute": 0.0, "days": off},
 			"departure2": map[string]any{"on": nil, "hour": 12.0, "minute": 0.0, "days": []any{false, false, false, false, nil, nil, nil}},
 		}},
+		{"0x8C55 live, 2026-11: 12:00, no days, departure 1 off", map[byte]string{0x55: "f52c350c0c000000"}, map[string]any{
+			"departure1": map[string]any{"on": false, "hour": 12.0, "minute": 0.0, "days": off},
+			"departure2": map[string]any{"on": nil, "hour": 12.0, "minute": 0.0, "days": []any{false, false, false, false, nil, nil, nil}},
+		}},
+		{"departure 1 07:30 Monday to Friday, on, as stock lays it out", map[byte]string{0x55: "f52c35670c550500"}, map[string]any{
+			"departure1": map[string]any{"on": true, "hour": 7.0, "minute": 30.0, "days": []any{true, true, true, true, true, false, false}},
+		}},
 		{"all three as seen", map[byte]string{0x55: liveDepartures, 0x53: seenSettings, 0x54: seenWindow}, map[string]any{
 			"departure2":            map[string]any{"on": false, "hour": 12.0, "minute": 0.0, "days": off},
 			"offPeak":               map[string]any{"startHour": 20.0, "startMinute": 0.0, "endHour": 16.0, "endMinute": 0.0},

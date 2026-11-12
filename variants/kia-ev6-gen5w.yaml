@@ -565,14 +565,19 @@ messages:
   # at their defaults. reflects: is where the car reports a write back
   # (micom-fake). The writes change what the car does unattended, so they
   # are dangerous: -allow-dangerous on top of -allow-inferred.
-  # The rest of 0x8C55 (gen > 0), beside hkmc-gen5w-ev's "Departure
-  # timers" (bytes 3-4, matched first): the days and set 1's enable.
-  - name: "Departure days"
+  # hkmc-gen5w-ev's "Departure timers" (bytes 3-4) with the rest of 0x8C55
+  # (gen > 0): the days and set 1's enable. One message, as a frame decodes
+  # as its first match only.
+  - name: "Departure timers"
     dir: from_micom
     hdr: "0c 88 ?? 8c"
     cmd: 0x55
     min_length: 8
     fields:
+      - { name: "Departure 1 hour",        off: 3, bits: "4:0" }
+      - { name: "Departure 1 minute bits", off: 3, bits: "7:5" }
+      - { name: "Departure 2 hour",        off: 4, bits: "4:0" }
+      - { name: "Departure 2 minute bits", off: 4, bits: "7:5" }
       - { name: "Departure 1 Monday",    off: 5, bits: "1:0" }
       - { name: "Departure 1 Tuesday",   off: 5, bits: "3:2" }
       - { name: "Departure 1 Wednesday", off: 5, bits: "5:4" }
@@ -663,20 +668,20 @@ messages:
     fields:
       - { name: d1_hour,     off: 0, bits: "7:3", max: 23, reflects: { msg: "Departure timers", field: "Departure 1 hour" } }
       - { name: d1_min_bits, off: 0, bits: "2:0",          reflects: { msg: "Departure timers", field: "Departure 1 minute bits" } }
-      - { name: d1_mon, off: 1, bits: "7", reflects: { msg: "Departure days", field: "Departure 1 Monday" } }
-      - { name: d1_tue, off: 1, bits: "6", reflects: { msg: "Departure days", field: "Departure 1 Tuesday" } }
-      - { name: d1_wed, off: 1, bits: "5", reflects: { msg: "Departure days", field: "Departure 1 Wednesday" } }
-      - { name: d1_thu, off: 1, bits: "4", reflects: { msg: "Departure days", field: "Departure 1 Thursday" } }
-      - { name: d1_fri, off: 1, bits: "3", reflects: { msg: "Departure days", field: "Departure 1 Friday" } }
-      - { name: d1_sat, off: 1, bits: "2", reflects: { msg: "Departure days", field: "Departure 1 Saturday" } }
-      - { name: d1_sun, off: 1, bits: "1", reflects: { msg: "Departure days", field: "Departure 1 Sunday" } }
-      - { name: d1_on,  off: 1, bits: "0", reflects: { msg: "Departure days", field: "Departure 1 enabled" } }
+      - { name: d1_mon, off: 1, bits: "7", reflects: { msg: "Departure timers", field: "Departure 1 Monday" } }
+      - { name: d1_tue, off: 1, bits: "6", reflects: { msg: "Departure timers", field: "Departure 1 Tuesday" } }
+      - { name: d1_wed, off: 1, bits: "5", reflects: { msg: "Departure timers", field: "Departure 1 Wednesday" } }
+      - { name: d1_thu, off: 1, bits: "4", reflects: { msg: "Departure timers", field: "Departure 1 Thursday" } }
+      - { name: d1_fri, off: 1, bits: "3", reflects: { msg: "Departure timers", field: "Departure 1 Friday" } }
+      - { name: d1_sat, off: 1, bits: "2", reflects: { msg: "Departure timers", field: "Departure 1 Saturday" } }
+      - { name: d1_sun, off: 1, bits: "1", reflects: { msg: "Departure timers", field: "Departure 1 Sunday" } }
+      - { name: d1_on,  off: 1, bits: "0", reflects: { msg: "Departure timers", field: "Departure 1 enabled" } }
       - { name: d2_hour,     off: 2, bits: "7:3", max: 23, reflects: { msg: "Departure timers", field: "Departure 2 hour" } }
       - { name: d2_min_bits, off: 2, bits: "2:0",          reflects: { msg: "Departure timers", field: "Departure 2 minute bits" } }
-      - { name: d2_mon, off: 3, bits: "7", reflects: { msg: "Departure days", field: "Departure 2 Monday" } }
-      - { name: d2_tue, off: 3, bits: "6", reflects: { msg: "Departure days", field: "Departure 2 Tuesday" } }
-      - { name: d2_wed, off: 3, bits: "5", reflects: { msg: "Departure days", field: "Departure 2 Wednesday" } }
-      - { name: d2_thu, off: 3, bits: "4", reflects: { msg: "Departure days", field: "Departure 2 Thursday" } }
+      - { name: d2_mon, off: 3, bits: "7", reflects: { msg: "Departure timers", field: "Departure 2 Monday" } }
+      - { name: d2_tue, off: 3, bits: "6", reflects: { msg: "Departure timers", field: "Departure 2 Tuesday" } }
+      - { name: d2_wed, off: 3, bits: "5", reflects: { msg: "Departure timers", field: "Departure 2 Wednesday" } }
+      - { name: d2_thu, off: 3, bits: "4", reflects: { msg: "Departure timers", field: "Departure 2 Thursday" } }
       - { name: d2_fri, off: 3, bits: "3", reflects: { msg: "Schedule settings", field: "Departure 2 Friday" } }
       - { name: d2_sat, off: 3, bits: "2", reflects: { msg: "Schedule settings", field: "Departure 2 Saturday" } }
       - { name: d2_sun, off: 3, bits: "1", reflects: { msg: "Schedule settings", field: "Departure 2 Sunday" } }

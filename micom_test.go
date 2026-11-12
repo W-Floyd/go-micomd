@@ -139,6 +139,10 @@ func TestDescribeLive(t *testing.T) {
 		{"0c88018c", "5c", "15ffffffffffffffffff01b1000000000000000000000400ff00000000ff", "Climate power=255 W"},
 		{"0c88018c", "5c", "15ffffffffffffffffff01b1000000000000000000000400ff00000000ff", "AVN motor power=n/a"},
 		{"0c88018c", "55", "4d749148ff550500", "Departure 1 hour=8"},
+		// Live, 2026-11: both 12:00, no days, departure 1 off.
+		{"0c88018c", "55", "f52c350c0c000000", "Departure timers: Departure 1 hour=12 Departure 1 minute bits=0 Departure 2 hour=12 Departure 2 minute bits=0 Departure 1 Monday=0 Departure 1 Tuesday=0 Departure 1 Wednesday=0 Departure 1 Thursday=0 Departure 1 enabled=0 Departure 1 Friday=0 Departure 1 Saturday=0 Departure 1 Sunday=0 Departure 2 Monday=0"},
+		// Synthetic, stock's layout: departure 1 07:30 Monday to Friday, on.
+		{"0c88018c", "55", "f52c35670c550500", "Departure 1 hour=7 Departure 1 minute bits=3 Departure 2 hour=12 Departure 2 minute bits=0 Departure 1 Monday=1 Departure 1 Tuesday=1 Departure 1 Wednesday=1 Departure 1 Thursday=1 Departure 1 enabled=1 Departure 1 Friday=1 Departure 1 Saturday=0 Departure 1 Sunday=0 Departure 2 Monday=0"},
 		{"0c88018c", "4f", "2d3a200100000000", "Charger ready=1"},
 		{"0c88018c", "02", "140028", "Charge time to full: Charge time to full=40 min"},
 		{"0c88018c", "02", "0e001f", "Charge time estimate, DC=31 min"},
@@ -334,14 +338,25 @@ func TestSnapshot(t *testing.T) {
 	d.telem.add(frame("0c88018c", "02", "5700ff"), now.Add(-time.Second))
 	d.telem.add(frame("0d8f018d", "2d", "00"), now)
 	d.telem.add(frame("018a0181", "0f", ""), now.Add(-3*time.Second))
+	d.telem.add(frame("0c88018c", "55", "f52c350c0c000000"), now.Add(-3*time.Second)) // live, 2026-11
 	s := d.Snapshot()
-	if len(s.Readings) != 1 || s.Readings[0].Value != 255 || s.Readings[0].AgeMs != 1000 {
+	got := map[string]Reading{}
+	for _, r := range s.Readings {
+		got[r.Name] = r
+	}
+	if r := got["Climate power draw"]; r.Value != 255 || r.AgeMs != 1000 {
 		t.Errorf("readings = %+v, want the latest climate power, 1 s old", s.Readings)
+	}
+	// One 0x8C55 gives its times and its days.
+	for name, want := range map[string]int{"Departure 1 hour": 12, "Departure 2 hour": 12, "Departure 1 Monday": 0, "Departure 1 enabled": 0, "Departure 2 Thursday": 0} {
+		if r, ok := got[name]; !ok || r.Value != want || !r.Valid {
+			t.Errorf("%s = %+v (%v), want %d", name, r, ok, want)
+		}
 	}
 	if s.LastAliveAgeMs != 3000 {
 		t.Errorf("LastAliveAgeMs = %d, want 3000", s.LastAliveAgeMs)
 	}
-	if len(s.Frames) != 3 || s.Frames[0].Key != "0c88018c 02" || s.Frames[0].Count != 2 || s.Frames[0].Name != "Status flag" {
+	if len(s.Frames) != 4 || s.Frames[0].Key != "0c88018c 02" || s.Frames[0].Count != 2 || s.Frames[0].Name != "Status flag" {
 		t.Errorf("frames = %+v", s.Frames)
 	}
 }

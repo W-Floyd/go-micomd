@@ -270,6 +270,9 @@ Inheritance runs root first:
 - Named lists (`signals`, `messages`, `profile`, `send`, and `keys.push` and
   `keys.knobs` by type.code) merge by name: the same name replaces the
   parent's entry, and `remove: true` deletes it.
+- A frame decodes as the first `from_micom` message that matches it, so one
+  that an earlier message matches every frame of is refused. To read more of
+  a parent's frame, redefine its message by name with the extra fields.
 - A name used twice in one file is an error.
 - `match` and `abstract` are not inherited.
 

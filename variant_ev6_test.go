@@ -82,11 +82,16 @@ func TestEV6VariantDescribesAsBefore(t *testing.T) {
 		// What the Go tables knew must read the same; frames they knew
 		// nothing of may be decoded since (the variant code, power state).
 		added := legacyFrameName(f) == "" && legacyDescribe(f) == "" && legacyDecode(f) == nil
-		if a, b, c := legacyDescribe(f), v.Describe(f), Describe(f); (a != b || a != c) && !added {
+		// 0x8C55 is read whole (its days too), so from 8 bytes, as the car
+		// sends it: the Go tables' reading is where it starts.
+		departures := legacyFrameName(f) == "Departure timers"
+		grown := func(a, b string) bool { return departures && (b == "" && len(f.Payload) < 8 || strings.HasPrefix(b, a+" ")) }
+		if a, b, c := legacyDescribe(f), v.Describe(f), Describe(f); (a != b || a != c) && !added && !(grown(a, b) && b == c) {
 			t.Errorf("%v: legacy Describe %q, variant %q, Describe %q", f, a, b, c)
 			bad++
 		}
-		if a, b, c := legacyDecode(f), v.Decode(f), Decode(f); (!reflect.DeepEqual(a, b) || !reflect.DeepEqual(a, c)) && !added {
+		if a, b, c := legacyDecode(f), v.Decode(f), Decode(f); (!reflect.DeepEqual(a, b) || !reflect.DeepEqual(a, c)) && !added &&
+			!(departures && reflect.DeepEqual(b, c) && (b == nil && len(f.Payload) < 8 || len(b) > len(a) && reflect.DeepEqual(a, b[:len(a)]))) {
 			t.Errorf("%v: legacy Decode %v, variant %v, Decode %v", f, a, b, c)
 			bad++
 		}

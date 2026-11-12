@@ -334,6 +334,42 @@ func compileMessages(c *checker, v *Variant, raws []rawMessage, enums map[string
 			c.errf(where, "dir is from_micom or to_micom, not %q", r.Dir)
 		}
 	}
+	checkShadowed(c, v)
+}
+
+// checkShadowed refuses a from_micom message an earlier one matches every
+// frame of: a frame decodes as the first match only, so it would never be
+// read. A car's file extending its parent's message redefines it by name.
+func checkShadowed(c *checker, v *Variant) {
+	for _, cmd := range slices.Sorted(maps.Keys(v.decoders)) {
+		ds := v.decoders[cmd]
+		for j, b := range ds {
+			for _, a := range ds[:j] {
+				if a.covers(b) {
+					c.errf("messages["+b.name+"]", "never decodes: %q, earlier, matches every frame it does (redefine %q instead)", a.name, a.name)
+					break
+				}
+			}
+		}
+	}
+}
+
+// covers is whether every frame b matches, d matches too.
+func (d *decoder) covers(b *decoder) bool {
+	for i := range d.mask {
+		if d.mask[i]&^b.mask[i] != 0 || b.hdr[i]&d.mask[i] != d.hdr[i] {
+			return false
+		}
+	}
+	if d.minLen > b.length() {
+		return false
+	}
+	for _, g := range d.guards {
+		if !slices.Contains(b.guards, g) {
+			return false
+		}
+	}
+	return true
 }
 
 func compileFromMicom(c *checker, v *Variant, where string, r rawMessage, enums map[string]map[string]int64, hdrOf func(string, string) ([4]byte, bool)) {

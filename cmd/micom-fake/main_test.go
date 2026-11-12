@@ -51,8 +51,7 @@ func TestFakeAnswersAsTheVariant(t *testing.T) {
 			map[string]map[string]uint64{"Schedule settings": {"Off-peak start hour": 22, "Off-peak start minute bits": 3, "Off-peak end hour": 6, "Off-peak end minute bits": 0, "Scheduled charging mode": 3}}},
 		{"departure 1 07:30 Mon Wed on, climate 0x14", []string{"880c010c 06 3b a1 60 00 a8 00 00"},
 			map[string]map[string]uint64{
-				"Departure timers":  {"Departure 1 hour": 7, "Departure 1 minute bits": 3, "Departure 2 hour": 12},
-				"Departure days":    {"Departure 1 Monday": 1, "Departure 1 Tuesday": 0, "Departure 1 Wednesday": 1, "Departure 1 enabled": 1},
+				"Departure timers":  {"Departure 1 hour": 7, "Departure 1 minute bits": 3, "Departure 2 hour": 12, "Departure 1 Monday": 1, "Departure 1 Tuesday": 0, "Departure 1 Wednesday": 1, "Departure 1 enabled": 1},
 				"Schedule settings": {"Scheduled climate": 1, "Scheduled climate temperature": 0x14}}},
 		{"off-peak, then departure 2 Friday on: 0x8C53 holds both", []string{"880c010c 05 b3 30 00 00 c0", "880c010c 06 60 00 60 09 29 14 80"},
 			map[string]map[string]uint64{"Schedule settings": {"Off-peak start hour": 22, "Scheduled charging mode": 3, "Departure 2 Friday": 1, "Departure 2 enabled": 1, "Scheduled climate temperature": 20}}},

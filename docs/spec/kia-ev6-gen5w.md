@@ -43,7 +43,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 17 |
-| 🟡 code | 63 |
+| 🟡 code | 62 |
 | 🟠 inferred | 3 |
 
 Not yet backed by a capture:
@@ -70,7 +70,7 @@ Not yet backed by a capture:
 | HEV status (full) | `0c 88 ?? 8c` | 0x01 | 🟡 code | HEVService DATA_M_RESP as below, and [0x8d] into EV_BATTERYCONDITIONING (len >= 0x8e), [0xb6] into BMS_BATTCONDFAILPOPUP |
 | HEV status | `0c 88 ?? 8c` | 0x01 | 🟡 code | HEVService DATA_M_RESP (func 0x8c01, len >= 0x40) into flags ADDED_DIST_DATC_OFF, AVG_FCI, the charge times (the AC one at 29, CAN DB generation > 0), TARGET_SOC_SLOW/QUICK and DTE_SLOW/QUICK_CHARGER_SOC |
 | EV power block | `0c 88 ?? 8c` | 0x5c | 🟡 code | HEVService setHEVStatusValue calls |
-| Departure timers | `0c 88 ?? 8c` | 0x55 | 🟡 code | HEVService; captured only at the default |
+| Departure timers | `0c 88 ?? 8c` | 0x55 | 🟡 code | HEVService G3CAN_VCU_04_1_M (func 0x8c55, gen > 0); 0 in all 43k frames of a 2026-11 capture (nothing set) |
 | tbt-turn | `cluster_tx` | 0x04 | 🟡 code | stock ClusterService\$NaviCluster TBTInfo packer (byte 0 straight from the caller); GPM GpmNaviTBTManager.releaseGuidance; nemesis-report worked example "turn right, 0.3 km" |
 | tbt-points | `cluster_tx` | 0x02 | 🟡 code | stock ClusterService\$NaviCluster TBTSubInfo2C packer |
 | cluster-sub-info | `cluster_tx` | 0x03 | 🟡 code | stock ClusterService\$NaviCluster TBTSubInfo packer; the captured ack frame |
@@ -82,7 +82,6 @@ Not yet backed by a capture:
 | batt-cond-remain-time | `poll_tx` | 0x65 | 🟡 code | stock HEVService.setBattCondRemainTime: sendPacket(0x88, 0x0c, 0x0c65, [hi, lo]) |
 | batt-cond-ev-station | `poll_tx` | 0x68 | 🟡 code | stock HEVService.setBattCondEvStation: sendPacket(0x88, 0x0c, 0x0c68, [flag & 0xf, type & 0xf]), then HEVService\$6 [7, 7] after 120 ms; github.com/paytondevs/gen5w-preconditioning PreconditioningProfile |
 | batt-cond-mode | `poll_tx` | 0x62 | 🟡 code | stock HEVManager.setBatteryConditioning -> HEVService: sendPacket(0x88, 0x0c, 0x0c62, [mode]), then HEVService\$5 [0] after 120 ms |
-| Departure days | `0c 88 ?? 8c` | 0x55 | 🟡 code | HEVService G3CAN_VCU_04_1_M (func 0x8c55, gen > 0); 0 in all 43k frames of a 2026-11 capture (nothing set) |
 | Schedule settings | `0c 88 ?? 8c` | 0x53 | 🟡 code | HEVService G3CAN_VCU_04_2_M (func 0x8c53); seen 8 times as 00 14 10 02 00 40 00 50 (20:00-16:00, mode 0, climate off) |
 | Scheduled charge window | `0c 88 ?? 8c` | 0x54 | 🟡 code | HEVService G3CAN_VCU_04_3_M (func 0x8c54); seen 13 times as 00 01 00 40 ff ff ff 0f (no window) |
 | ev-off-peak | `poll_tx` | 0x05 | 🟡 code | stock HEVService.setEconomicChargeTime, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c05, 5 bytes) |
@@ -692,9 +691,9 @@ packet-beta
 
 #### Departure timers
 
-cmd `0x55`, length ≥ 5 · 🟡 code
+cmd `0x55`, length ≥ 8 · 🟡 code
 
-> HEVService; captured only at the default
+> HEVService G3CAN_VCU_04_1_M (func 0x8c55, gen > 0); 0 in all 43k frames of a 2026-11 capture (nothing set)
 
 | Field | At |
 | --- | --- |
@@ -702,25 +701,6 @@ cmd `0x55`, length ≥ 5 · 🟡 code
 | Departure 1 minute bits | byte 3 bits 7:5 |
 | Departure 2 hour | byte 4 bits 4:0 |
 | Departure 2 minute bits | byte 4 bits 7:5 |
-
-#### Charger state
-
-cmd `0x4f`, length ≥ 4 · 🟢 captured
-
-> HEVService OBC ready (CAN DB generation >= 2); boot record byte 120 = 02 and 0x8c4f byte 3 = 01 in every 2026-11 capture
-
-| Field | At |
-| --- | --- |
-| Charger ready | byte 3 bits 1:0 |
-
-#### Departure days
-
-cmd `0x55`, length ≥ 8 · 🟡 code
-
-> HEVService G3CAN_VCU_04_1_M (func 0x8c55, gen > 0); 0 in all 43k frames of a 2026-11 capture (nothing set)
-
-| Field | At |
-| --- | --- |
 | Departure 1 Monday | byte 5 bits 1:0 |
 | Departure 1 Tuesday | byte 5 bits 3:2 |
 | Departure 1 Wednesday | byte 5 bits 5:4 |
@@ -733,6 +713,16 @@ cmd `0x55`, length ≥ 8 · 🟡 code
 | Departure 2 Tuesday | byte 7 bits 3:2 |
 | Departure 2 Wednesday | byte 7 bits 5:4 |
 | Departure 2 Thursday | byte 7 bits 7:6 |
+
+#### Charger state
+
+cmd `0x4f`, length ≥ 4 · 🟢 captured
+
+> HEVService OBC ready (CAN DB generation >= 2); boot record byte 120 = 02 and 0x8c4f byte 3 = 01 in every 2026-11 capture
+
+| Field | At |
+| --- | --- |
+| Charger ready | byte 3 bits 1:0 |
 
 #### Schedule settings
 

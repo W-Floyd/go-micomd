@@ -98,6 +98,9 @@ func TestLoadVariantRefuses(t *testing.T) {
 		{"remove nothing", head + "signals: [{name: s, remove: true}]\n", "nothing inherited"},
 		{"decode", head + "decode: [{name: d, hdr: \"0c 88 01 8c\", cmd: 0x5c, min_len: 2, fields: [{name: f, off: 1}]}]\n", "decode: moved to messages:"},
 		{"from_micom guard", rx(f0, ", min_length: 2, when: [{eq: 1}]}"), "a guard is {off"},
+		{"from_micom shadowed", rx(f0, ", min_length: 2}, {name: N, dir: from_micom, hdr: system_rx, cmd: 0x40, min_length: 3, fields: [{name: b, off: 2}]}"), `never decodes: "M", earlier`},
+		{"from_micom shadowed, open header", head + "messages: [{name: M, dir: from_micom, hdr: \"01 8a ?? 81\", cmd: 0x40, length: 3, fields: [" + f0 + "]}, " +
+			"{name: N, dir: from_micom, hdr: system_rx, cmd: 0x40, length: 3, when: [{off: 1, eq: 2}], fields: [{name: b, off: 2}]}]\n", "never decodes"},
 		{"from_micom str unit", rx("{name: a, off: 0, type: str, size: 2, unit: \" W\"}", ", min_length: 2}"), "a str field has only"},
 		{"message dir", head + "messages: [{name: m, dir: up, cmd: 1, fields: [" + f0 + "]}]\n", "dir is from_micom or to_micom"},
 		{"message twice", tx(f0, "}, {name: m, dir: to_micom, hdr: audio_tx, cmd: 0x41, length: 1, status: code, ref: r, fields: ["+f0+"]}"), "once"},
