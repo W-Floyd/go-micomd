@@ -167,7 +167,8 @@ messages:
     status: code
     ref: "HEVService item 0x44 XEV_WINTERMODESTA; never seen"
   # The AC charging current as the car holds it: stock shows 2 as its
-  # second choice, 3 as its third, anything else as its first.
+  # second choice, 3 as its third, anything else as its first (the EV6:
+  # 100 / 90 / 60 %, under QEMU with micom-fake).
   - name: "AC charging current"
     dir: from_micom
     hdr: "0c 88 ?? 8c"

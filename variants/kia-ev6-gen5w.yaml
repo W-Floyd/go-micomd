@@ -701,9 +701,18 @@ messages:
     dangerous: "sets the car's departure timers and scheduled climate, which it acts on unattended"
     status: code
     ref: "stock HEVService.setDepartTimeNClimateSet, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c06, 7 bytes); readback G3CAN_VCU_04_1/2/3_M"
-  # setTargetSOCext: one limit at a time from the EV app, 0xff the others.
-  # With a limit the app sends winter mode 3 (00 00 c0 00 ff 8c ff for DC
-  # 70 %: stock under QEMU, micom-fake, 2026-11-11), read here as unchanged.
+  # setTargetSOCext (gen >= 2): a new byte[7], so [0], [1] and [3] are
+  # always 0; [2] bits 7:6 winter mode (gen < 2: bits 1:0); [4] AC, [5] DC,
+  # [6] route target, each the percentage / 0.5, 0xff unchanged. The EV app
+  # sends one field per frame, the others 0xff and winter mode 3, which
+  # leaves it (a winter-mode change sends 0xff in all three limits); it
+  # copies nothing from the car's readback. It never sets the route target.
+  # Stock V015 under QEMU with micom-fake (2026-11-12), the settings page's
+  # 10 % steps: AC 50..100 % 00 00 c0 00 64..c8 ff ff, DC 50..100 %
+  # 00 00 c0 00 ff 64..c8 ff; the same with the car's winter mode 0, 1 or 2
+  # and its other limit at 75 %; no frame for the value already held.
+  # micomd's input keeps the fields an input leaves out: to send stock's
+  # frame, give the other limits null.
   - name: ev-charge-limits
     dir: to_micom
     hdr: poll_tx
@@ -717,7 +726,14 @@ messages:
     on_change: false
     dangerous: "sets the car's charge limits; one below the charge stops an AC charge"
     status: code
-    ref: "stock HEVService.setTargetSOCext, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c18, 7 bytes); readback items 0x21/0x22/0x44"
+    ref: "stock HEVService.setTargetSOCext, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c18, 7 bytes), from TAppEV3 one limit per frame; readback items 0x21/0x22/0x44; stock under QEMU (micom-fake, 2026-11-12) sends exactly these frames, not seen from a car"
+  # setOBCCurrent with HEVService flag 82 = 1 (set at onMicomReady for CAN DB
+  # generation >= 1; 0x8C5F can change it): the portable (ICCB) value only,
+  # 1 maximum, 2 reduced, 3 minimum, then 0 after 120 ms. The EV6's app shows
+  # one choice, 100 / 90 / 60 %, for portable and station alike (the EVSE
+  # value is dropped on this path), greyed until OBC or VCMS ready is 1.
+  # Stock V015 under QEMU (2026-11-12): 90 % 02, 60 % 03, 100 % 01, each
+  # followed by 00 120-180 ms later.
   - name: ev-charging-current
     dir: to_micom
     hdr: poll_tx
@@ -730,7 +746,7 @@ messages:
       - { msg: ev-charging-current, set: { current: default } }
     dangerous: "sets the car's AC charging current"
     status: code
-    ref: "stock HEVService.setOBCCurrent (flag 82 = 1): sendPacket(0x88, 0x0c, 0x0c5b, getInCurrModeValue(iccb, false)), 0 after 120 ms"
+    ref: "stock HEVService.setOBCCurrent (flag 82 = 1): sendPacket(0x88, 0x0c, 0x0c5b, getInCurrModeValue(iccb, false)), 0 after 120 ms; stock under QEMU (micom-fake, 2026-11-12) sends exactly these frames, not seen from a car"
   - name: ev-v2l-limit
     dir: to_micom
     hdr: poll_tx

@@ -85,8 +85,8 @@ Not yet backed by a capture:
 | Scheduled charge window | `0c 88 ?? 8c` | 0x54 | 🟡 code | HEVService G3CAN_VCU_04_3_M (func 0x8c54); seen 13 times as 00 01 00 40 ff ff ff 0f (no window) |
 | ev-off-peak | `poll_tx` | 0x05 | 🟡 code | stock HEVService.setEconomicChargeTime, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c05, 5 bytes) |
 | ev-departures | `poll_tx` | 0x06 | 🟡 code | stock HEVService.setDepartTimeNClimateSet, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c06, 7 bytes); readback G3CAN_VCU_04_1/2/3_M |
-| ev-charge-limits | `poll_tx` | 0x18 | 🟡 code | stock HEVService.setTargetSOCext, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c18, 7 bytes); readback items 0x21/0x22/0x44 |
-| ev-charging-current | `poll_tx` | 0x5b | 🟡 code | stock HEVService.setOBCCurrent (flag 82 = 1): sendPacket(0x88, 0x0c, 0x0c5b, getInCurrModeValue(iccb, false)), 0 after 120 ms |
+| ev-charge-limits | `poll_tx` | 0x18 | 🟡 code | stock HEVService.setTargetSOCext, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c18, 7 bytes), from TAppEV3 one limit per frame; readback items 0x21/0x22/0x44; stock under QEMU (micom-fake, 2026-11-12) sends exactly these frames, not seen from a car |
+| ev-charging-current | `poll_tx` | 0x5b | 🟡 code | stock HEVService.setOBCCurrent (flag 82 = 1): sendPacket(0x88, 0x0c, 0x0c5b, getInCurrModeValue(iccb, false)), 0 after 120 ms; stock under QEMU (micom-fake, 2026-11-12) sends exactly these frames, not seen from a car |
 | ev-v2l-limit | `poll_tx` | 0x5a | 🟡 code | stock HEVService: sendPacket(0x88, 0x0c, 0x0c5a, limSoc), 0xff after 120 ms |
 | Power state | `system_rx` | 0x08 | 🟡 code | micom firmware FUN_0006ee40; firmware emulation, ACC off to state 0 |
 | Power state (ACC on) | `system_rx` | 0x08 | 🟡 code | firmware emulation: ff 01 8a 01 81 08 00 03 01 05 fb on ACC on |
@@ -1618,7 +1618,7 @@ cmd `0x06`, length 7 · 🟡 code
 
 cmd `0x18`, length 7 · 🟡 code
 
-> stock HEVService.setTargetSOCext, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c18, 7 bytes); readback items 0x21/0x22/0x44
+> stock HEVService.setTargetSOCext, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c18, 7 bytes), from TAppEV3 one limit per frame; readback items 0x21/0x22/0x44; stock under QEMU (micom-fake, 2026-11-12) sends exactly these frames, not seen from a car
 
 | Field | At | Scale | Unit | Range | Notes |
 | --- | --- | --- | --- | --- | --- |
@@ -1631,7 +1631,7 @@ cmd `0x18`, length 7 · 🟡 code
 
 cmd `0x5b`, length 1 · 🟡 code
 
-> stock HEVService.setOBCCurrent (flag 82 = 1): sendPacket(0x88, 0x0c, 0x0c5b, getInCurrModeValue(iccb, false)), 0 after 120 ms
+> stock HEVService.setOBCCurrent (flag 82 = 1): sendPacket(0x88, 0x0c, 0x0c5b, getInCurrModeValue(iccb, false)), 0 after 120 ms; stock under QEMU (micom-fake, 2026-11-12) sends exactly these frames, not seen from a car
 
 | Field | At | Enum |
 | --- | --- | --- |
