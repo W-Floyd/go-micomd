@@ -183,13 +183,16 @@ func TestEV6Messages(t *testing.T) {
 		}
 	}
 	// All are code: refused without -allow-inferred. The EEPROM writers also
-	// need -allow-persistent.
+	// need -allow-persistent, the dangerous -allow-dangerous(-msg).
 	for _, tc := range []struct {
 		g    InputGates
 		want []string
 	}{
 		{InputGates{}, nil},
 		{InputGates{Persistent: true}, nil},
+		// -allow-dangerous-msg: the named only, and still -allow-inferred.
+		{InputGates{DangerousMsgs: []string{"ev-departures", "ev-off-peak"}}, nil},
+		{InputGates{Inferred: true, DangerousMsgs: []string{"ev-departures", "ev-off-peak"}}, []string{"backlight", "batt-cond-ev-station", "batt-cond-mode", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-position", "cluster-sub-info", "ev-departures", "ev-off-peak", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
 		{InputGates{Inferred: true}, []string{"backlight", "batt-cond-ev-station", "batt-cond-mode", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-position", "cluster-sub-info", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
 		{InputGates{Inferred: true, Persistent: true}, []string{"backlight", "backlight-dim-mode", "backlight-manual-level", "backlight-period-level", "batt-cond-ev-station", "batt-cond-mode", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-position", "cluster-sub-info", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
 	} {

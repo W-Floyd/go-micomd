@@ -109,18 +109,31 @@ func TestAllow(t *testing.T) {
 		}
 		b.Close()
 	}
-	// A dangerous frame that -allow lists is sent only with -allow-dangerous.
-	for _, allowDanger := range []bool{false, true} {
+	// A dangerous frame that -allow lists is sent only with -allow-dangerous,
+	// or -allow-dangerous-msg naming its entry.
+	for _, c := range []struct {
+		all  bool
+		msgs []string
+		sent bool
+	}{
+		{false, nil, false},
+		{true, nil, true},
+		{false, []string{"last-info-init"}, true},
+		{false, []string{"variant-code-save", "rear-camera-reset"}, false},
+	} {
 		var al allowList
 		if err := al.Set("ff 8a 01 01 01 07 00 01 72"); err != nil {
 			t.Fatal(err)
 		}
 		a, b := net.Pipe()
 		go io.Copy(io.Discard, b)
-		d := New(Config{Port: a, Profile: []Periodic{}, Allow: al.frames, AllowPatterns: al.patterns, AllowDangerous: allowDanger})
+		d := New(Config{Port: a, Profile: []Periodic{}, Allow: al.frames, AllowPatterns: al.patterns, AllowDangerous: c.all, AllowDangerousMsgs: c.msgs})
 		err := d.Send(frame("ff 8a 01 01 01 07 00 01 72"))
-		if (err == nil) != allowDanger {
-			t.Errorf("dangerous with allow=%v: sent %v (%v)", allowDanger, err == nil, err)
+		if (err == nil) != c.sent {
+			t.Errorf("dangerous with -allow-dangerous=%v -allow-dangerous-msg %v: sent %v (%v)", c.all, c.msgs, err == nil, err)
+		}
+		if !c.sent && (err == nil || !strings.Contains(err.Error(), "needs -allow-dangerous-msg last-info-init or -allow-dangerous")) {
+			t.Errorf("refusal %v names no way to allow it", err)
 		}
 		b.Close()
 	}

@@ -69,6 +69,8 @@ type InputGates struct {
 	// Dangerous admits messages that reset, rewrite or reconfigure the micom
 	// (-allow-dangerous).
 	Dangerous bool
+	// DangerousMsgs admits these dangerous messages (-allow-dangerous-msg).
+	DangerousMsgs []string
 }
 
 func newInputEngine(v *Variant, g InputGates, send func(Frame) error, own func([]string, bool), now func() time.Time, logf func(string, ...any)) *inputEngine {
@@ -81,8 +83,8 @@ func newInputEngine(v *Variant, g InputGates, send func(Frame) error, own func([
 		if m.persistent && !g.Persistent {
 			why = append(why, "persistent (writes the micom's EEPROM): needs -allow-persistent")
 		}
-		if m.dangerous != "" && !g.Dangerous {
-			why = append(why, "dangerous ("+m.dangerous+"): needs -allow-dangerous")
+		if d := (dangerGate{g.Dangerous, g.DangerousMsgs}).refuses(n, m.dangerous); d != "" {
+			why = append(why, d)
 		}
 		if why != nil {
 			e.refused[n] = strings.Join(why, "; ")

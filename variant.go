@@ -54,9 +54,11 @@ type Variant struct {
 	sent      map[hdrCmd]*msgSpec // to_micom, by frame
 	required  map[string]bool     // from_micom fields a to_micom message requires
 	// dangerous frames (hdr+cmd) reset/rewrite/reconfigure the micom; sent
-	// only with -allow-dangerous. Value is the defining entry's name, for
-	// the refusal message. Built from messages/sends marked dangerous.
-	dangerous map[hdrCmd]string
+	// only with -allow-dangerous, or -allow-dangerous-msg naming an entry in
+	// dangerousBy. Value is the reason, for the refusal message. Built from
+	// messages/sends marked dangerous.
+	dangerous   map[hdrCmd]string
+	dangerousBy map[hdrCmd][]string
 
 	profile  []periodicSpec
 	sends    []sendSpec
@@ -492,7 +494,7 @@ func compile(rv rawVariant) (*Variant, error) {
 		keys:    keymap{push: map[keyKey]uint16{}, knob: map[knobKey]uint16{}},
 		signals: map[hdrCmd]*sigSpec{}, decoders: map[byte][]*decoder{}, names: map[hdrCmd]string{},
 		messages: map[string]*msgSpec{}, sent: map[hdrCmd]*msgSpec{}, required: map[string]bool{},
-		dangerous: map[hdrCmd]string{},
+		dangerous: map[hdrCmd]string{}, dangerousBy: map[hdrCmd][]string{},
 	}
 	if rv.Schema != variantSchema {
 		c.errf("schema", "is %d, want %d", rv.Schema, variantSchema)
@@ -708,9 +710,9 @@ func compile(rv rawVariant) (*Variant, error) {
 			v.sends = append(v.sends, sp)
 			if sp.dangerous != "" {
 				if sp.frame != nil {
-					v.dangerous[hdrCmd{sp.frame.Hdr, sp.frame.Cmd}] = sp.dangerous
+					v.markDangerous(hdrCmd{sp.frame.Hdr, sp.frame.Cmd}, sp.name, sp.dangerous)
 				} else if sp.pattern != nil {
-					v.dangerous[hdrCmd{sp.pattern.Hdr, sp.pattern.Cmd}] = sp.dangerous
+					v.markDangerous(hdrCmd{sp.pattern.Hdr, sp.pattern.Cmd}, sp.name, sp.dangerous)
 				}
 			}
 		}
@@ -758,14 +760,77 @@ func compileSend(c *checker, where string, s rawSend, sendable func(string, [4]b
 	return sp, true
 }
 
-// dangerousReason names the entry that makes hdr+cmd dangerous, "" if it is
-// not. A dangerous frame resets, rewrites or reconfigures the micom and is
-// sent only with -allow-dangerous.
+// dangerousReason is why hdr+cmd is dangerous, "" if it is not. A
+// dangerous frame resets, rewrites or reconfigures the micom.
 func (v *Variant) dangerousReason(hdr [4]byte, cmd byte) string {
 	if v == nil {
 		return ""
 	}
 	return v.dangerous[hdrCmd{hdr, cmd}]
+}
+
+func (v *Variant) markDangerous(hc hdrCmd, name, why string) {
+	v.dangerous[hc] = why
+	if !slices.Contains(v.dangerousBy[hc], name) {
+		v.dangerousBy[hc] = append(v.dangerousBy[hc], name)
+	}
+}
+
+// dangerGate is which dangerous entries may be sent: every one
+// (-allow-dangerous) or those named (-allow-dangerous-msg).
+type dangerGate struct {
+	all   bool
+	names []string
+}
+
+// refuses is why g refuses entry name, dangerous for why; "" if it may be
+// sent.
+func (g dangerGate) refuses(name, why string) string {
+	if why == "" || g.all || slices.Contains(g.names, name) {
+		return ""
+	}
+	return "dangerous (" + why + "): needs -allow-dangerous-msg " + name + " or -allow-dangerous"
+}
+
+// dangerRefusal is why g refuses a frame of hdr+cmd: "" unless it is
+// dangerous and g allows no entry defining it.
+func (v *Variant) dangerRefusal(hdr [4]byte, cmd byte, g dangerGate) string {
+	why := v.dangerousReason(hdr, cmd)
+	if why == "" {
+		return ""
+	}
+	names := v.dangerousBy[hdrCmd{hdr, cmd}]
+	for _, n := range names {
+		if g.refuses(n, why) == "" {
+			return ""
+		}
+	}
+	return g.refuses(strings.Join(names, ","), why)
+}
+
+// dangerousEntry is why v's message or send entry name is dangerous, ""
+// if it is neither or not dangerous.
+func (v *Variant) dangerousEntry(name string) string {
+	if m := v.messages[name]; m != nil && m.dangerous != "" {
+		return m.dangerous
+	}
+	for _, s := range v.sends {
+		if s.name == name && s.dangerous != "" {
+			return s.dangerous
+		}
+	}
+	return ""
+}
+
+// unknownDangerous lists the names no dangerous entry of v defines.
+func (v *Variant) unknownDangerous(names []string) []string {
+	var out []string
+	for _, n := range names {
+		if v.dangerousEntry(n) == "" {
+			out = append(out, n)
+		}
+	}
+	return out
 }
 
 func checkStatus(c *checker, where, s string, required bool) {

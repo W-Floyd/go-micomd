@@ -303,7 +303,8 @@ A to_micom field may name where the car reports its value back:
   one whose code the to_micom field cannot take (wider, the invalid marker,
   an `unless` code, an enum code without a name, out of `min`/`max`).
   `micom-livi -ev-schedule-writes` edits `ev-departures` and `ev-off-peak`
-  this way.
+  this way (micomd: `-allow-inferred -allow-dangerous-msg
+  ev-departures,ev-off-peak`).
 - The raw code is copied, so the two fields share an encoding (both x0.5 %, a
   1-bit day into a 2-bit one). The invalid marker and the `unless` codes (a
   pulse's idle value) set nothing.
@@ -421,9 +422,15 @@ Refusals name the message and the field:
   such send entries. A message is enabled only if
   every message its `end` names is too.
 - `persistent: true` messages also need `-allow-persistent`.
-- `dangerous: <why>` messages (and send entries) also need `-allow-dangerous`;
-  the string says why the frame resets, rewrites or reconfigures the micom and
+- `dangerous: <why>` messages (and send entries) also need `-allow-dangerous`,
+  which admits every one, or `-allow-dangerous-msg NAME[,NAME...]`
+  (repeatable), which admits those named only; the status gate still applies.
+  The string says why the frame resets, rewrites or reconfigures the micom and
   is shown in the refusal. It is checked again on every frame the input sends.
+  A name that is no dangerous message or send entry of the variant is refused
+  at start (and by `-variant-check`). Under `-variant FAMILY` a name need only
+  be a car's of the family; it is checked again against the car the micom's
+  variant record names, and one that car lacks is logged and stays refused.
 - At load, a to_micom message's header must be a declared `to_micom` header;
   the CPU-alive header and command are refused, as for send entries.
 - `owns` must name a routine profile entry of the same header and command.

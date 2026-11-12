@@ -523,7 +523,7 @@ func compileToMicom(c *checker, v *Variant, where string, r rawMessage, enums ma
 	v.sent[hc] = m
 	v.messages[m.name] = m
 	if m.dangerous != "" {
-		v.dangerous[hc] = m.dangerous
+		v.markDangerous(hc, m.name, m.dangerous)
 	}
 }
 

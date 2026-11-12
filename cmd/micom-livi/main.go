@@ -63,7 +63,7 @@ func main() {
 	pcMaxTime := flag.Duration("precondition-max-time", time.Hour, "start this close to the charger")
 	pcMinSoC := flag.Float64("precondition-min-soc", 20, "%: the car's charge it needs, now")
 	pcMinArrival := flag.Float64("precondition-min-arrival", 5, "% of -capacity-kwh the forecast must leave on arrival")
-	schedWrites := flag.Bool("ev-schedule-writes", false, "with -input, send LIVI's edits of the car's departure timers, off-peak window and charging mode, and scheduled climate (the variant's ev-departures and ev-off-peak, read-modify-write; micomd needs -allow-dangerous), only while parked; off, LIVI shows them read-only")
+	schedWrites := flag.Bool("ev-schedule-writes", false, "with -input, send LIVI's edits of the car's departure timers, off-peak window and charging mode, and scheduled climate (the variant's ev-departures and ev-off-peak, read-modify-write; micomd needs -allow-inferred and -allow-dangerous-msg ev-departures,ev-off-peak), only while parked; off, LIVI shows them read-only")
 	schedConfirm := flag.Duration("ev-schedule-confirm", 10*time.Second, "how long the car may take to report an edit back before it counts as failed")
 	flag.Parse()
 

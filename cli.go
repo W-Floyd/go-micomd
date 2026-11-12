@@ -116,6 +116,8 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	inputPath := fs.String("input", "", "serve the structured input here: one JSON object per line, {\"msg\": NAME, field: value, ...}, encoded by the variant's to_micom messages (docs/messages.md)")
 	allowPersistent := fs.Bool("allow-persistent", false, "with -input also the messages whose every frame the micom writes to its EEPROM (rate-limited; each write wears it)")
 	allowDangerous := fs.Bool("allow-dangerous", false, "allow the variant's dangerous frames (those that reset, rewrite or reconfigure the micom: power config, factory reset, variant-code save, update/download reservations). Off, they are refused on every path")
+	var dangerousMsgs nameList
+	fs.Var(&dangerousMsgs, "allow-dangerous-msg", "allow only these of the variant's dangerous messages or send entries, by name, comma separated; repeatable. Each still needs -allow-inferred where its status is not captured. Under -variant FAMILY, names of its cars, checked against the car its variant record names")
 	identify := fs.Bool("identify-request", false, "ask the micom for its variant coding once the link is up, retried up to 5 times 3 s apart until it answers; the answer is logged against the variant running and reported by -query snapshot. The only frame it adds is the variant's identify request (inferred on HKMC: this flag alone allows it)")
 	bootMode := fs.Bool("boot-mode-request", false, "ask the micom for its boot record at start, retried up to 4 times 2 s apart until it answers, as stock does at every boot; a micom reset since a SoC last asked sends nothing until then: the record carries the state the micom otherwise sends only on change (the EV6's illumination). The only frame it adds is the variant's boot-mode-request send entry; the micom clears its boot-reason flags on it")
 	climateStatus := fs.Bool("climate-status-request", false, "ask the climate for its whole state once the link is up (stock's All_Datc_Req), retried once 1.5 s later as stock does: the reply carries the panel's state, otherwise sent only on change. The only frame it adds is the variant's climate-status-request send entry (inferred, never tried on a car: this flag alone allows it)")
@@ -179,7 +181,11 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	if *variantCheck && fs.NArg() > 0 {
 		code := 0
 		for _, p := range fs.Args() {
-			if _, err := LoadVariantFile(p); err != nil {
+			v, err := LoadVariantFile(p)
+			if err == nil {
+				err = checkDangerousMsgs(v, dangerousMsgs)
+			}
+			if err != nil {
 				fmt.Fprintln(stderr, err)
 				code = 1
 				continue
@@ -195,6 +201,13 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	}
 	lg := log.New(stderr, "", log.LstdFlags)
 	v, choice, err := chooseVariant(*variantName, *variantFile, env.cmdline, lg.Printf)
+	if err == nil {
+		// A flag's mistake, unlike a broken variant, is refused at start.
+		if err := checkDangerousMsgs(v, dangerousMsgs); err != nil {
+			fmt.Fprintln(stderr, err)
+			return 2
+		}
+	}
 	if *variantCheck || *showVariant {
 		if err != nil {
 			fmt.Fprintln(stderr, err)
@@ -310,9 +323,9 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 			profile = append(profile, v.ClockProfile()...)
 			lg.Printf("sending the clock frames from this machine's clock: %s", time.Now().Format(time.RFC3339))
 		}
-		cfg := Config{Port: port, Variant: v, Choice: choice, Recorder: rec, Profile: profile, Logf: lg.Printf, NoAlive: *noAlive, Allow: allow.frames, AllowPatterns: allow.patterns, AllowDangerous: *allowDangerous}
+		cfg := Config{Port: port, Variant: v, Choice: choice, Recorder: rec, Profile: profile, Logf: lg.Printf, NoAlive: *noAlive, Allow: allow.frames, AllowPatterns: allow.patterns, AllowDangerous: *allowDangerous, AllowDangerousMsgs: dangerousMsgs}
 		if *allowVariant {
-			frames, patterns := v.Sends(*allowInferred, *allowDangerous)
+			frames, patterns := v.Sends(*allowInferred, *allowDangerous, dangerousMsgs...)
 			cfg.Allow = append(cfg.Allow, frames...)
 			cfg.AllowPatterns = append(cfg.AllowPatterns, patterns...)
 		}
@@ -498,7 +511,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 
 		curDaemon.Store(d)
 		if *inputPath != "" {
-			curInput.Store(startInput(ctx, d, *inputPath, InputGates{Inferred: *allowInferred, Persistent: *allowPersistent, Dangerous: *allowDangerous}))
+			curInput.Store(startInput(ctx, d, *inputPath, InputGates{Inferred: *allowInferred, Persistent: *allowPersistent, Dangerous: *allowDangerous, DangerousMsgs: dangerousMsgs}))
 		}
 		if family == "" || identifyFrame == nil {
 			hold.settle()
@@ -566,6 +579,9 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 		} else {
 			v = nv
 			choice.Name, choice.Source = nv.Name, "record"
+			if bad := v.unknownDangerous(dangerousMsgs); bad != nil {
+				lg.Printf("-allow-dangerous-msg: %s: no dangerous message of %s; refused", strings.Join(bad, ","), v.Name)
+			}
 		}
 		family = ""
 	}
@@ -623,6 +639,49 @@ func chooseVariant(name, file string, cmdline func() (string, error), logf func(
 	ch.Name = name
 	v, err := LoadVariant(name)
 	return v, ch, err
+}
+
+// nameList is a repeatable flag of comma-separated names.
+type nameList []string
+
+func (n *nameList) String() string { return strings.Join(*n, ",") }
+
+func (n *nameList) Set(s string) error {
+	for _, x := range strings.Split(s, ",") {
+		if x = strings.TrimSpace(x); x == "" {
+			return errors.New("an empty name")
+		}
+		*n = append(*n, x)
+	}
+	return nil
+}
+
+// checkDangerousMsgs refuses names no dangerous entry of v defines; of a
+// family, nor of any car of it, as the car is known only from the micom's
+// variant record.
+func checkDangerousMsgs(v *Variant, names []string) error {
+	bad := v.unknownDangerous(names)
+	if v.Abstract {
+		for _, n := range VariantNames() {
+			if len(bad) == 0 {
+				break
+			}
+			if n == v.Name || !descends(n, v.Name) {
+				continue
+			}
+			if car, err := LoadVariant(n); err == nil {
+				bad = car.unknownDangerous(bad)
+			}
+		}
+	}
+	if bad == nil {
+		return nil
+	}
+	of := v.Name
+	if v.Abstract {
+		of += " or its cars"
+	}
+	return fmt.Errorf("-allow-dangerous-msg: %s: no dangerous message or send entry of %s", strings.Join(bad, ","), of)
 }
 
 // isFamily is whether name is an embedded abstract variant: a family whose

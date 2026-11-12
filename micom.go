@@ -51,7 +51,12 @@ type Config struct {
 	// rewrite or reconfigure the micom) be sent. Off, they are refused
 	// whatever Allow or the profile says (-allow-dangerous).
 	AllowDangerous bool
+	// AllowDangerousMsgs lets those of the variant's dangerous frames that
+	// these messages or send entries define be sent (-allow-dangerous-msg).
+	AllowDangerousMsgs []string
 }
+
+func (c *Config) danger() dangerGate { return dangerGate{c.AllowDangerous, c.AllowDangerousMsgs} }
 
 // Stats is a snapshot of the link.
 type Stats struct {
@@ -169,12 +174,12 @@ func (d *Daemon) logf(format string, args ...any) {
 
 // allowed reports whether f is one the profile can produce: same header and
 // command as an entry's frame now; or one Allow or AllowPatterns lists. A
-// dangerous frame never is, unless AllowDangerous.
+// dangerous frame never is, unless AllowDangerous or AllowDangerousMsgs.
 func (d *Daemon) allowed(f Frame) bool {
 	if !d.cfg.NoAlive && f.Hdr == hdrAliveReply && f.Cmd == cmdAlive {
 		return true
 	}
-	if !d.cfg.AllowDangerous && d.cfg.Variant.dangerousReason(f.Hdr, f.Cmd) != "" {
+	if d.cfg.Variant.dangerRefusal(f.Hdr, f.Cmd, d.cfg.danger()) != "" {
 		return false
 	}
 	now := d.cfg.Now()
@@ -201,8 +206,8 @@ func (d *Daemon) allowed(f Frame) bool {
 // the daemon cannot be made to send what it was not configured to.
 func (d *Daemon) Send(f Frame) error {
 	if !d.allowed(f) {
-		if why := d.cfg.Variant.dangerousReason(f.Hdr, f.Cmd); why != "" && !d.cfg.AllowDangerous {
-			return fmt.Errorf("micom: %v is dangerous (%s): needs -allow-dangerous", f, why)
+		if why := d.cfg.Variant.dangerRefusal(f.Hdr, f.Cmd, d.cfg.danger()); why != "" {
+			return fmt.Errorf("micom: %v is %s", f, why)
 		}
 		return fmt.Errorf("micom: %v is not in the profile", f)
 	}
@@ -211,13 +216,14 @@ func (d *Daemon) Send(f Frame) error {
 
 // sendMessage puts a frame built from a to_micom message on the wire. Its
 // header was checked when the variant loaded; the CPU-alive frame is refused
-// again here, and a dangerous one unless AllowDangerous.
+// again here, and a dangerous one unless AllowDangerous or
+// AllowDangerousMsgs.
 func (d *Daemon) sendMessage(f Frame) error {
 	if (f.Hdr == hdrAliveReply || f.Hdr == hdrAliveReq) && f.Cmd == cmdAlive {
 		return fmt.Errorf("micom: %v: the CPU-alive exchange is micomd's own", f)
 	}
-	if why := d.cfg.Variant.dangerousReason(f.Hdr, f.Cmd); why != "" && !d.cfg.AllowDangerous {
-		return fmt.Errorf("micom: %v is dangerous (%s): needs -allow-dangerous", f, why)
+	if why := d.cfg.Variant.dangerRefusal(f.Hdr, f.Cmd, d.cfg.danger()); why != "" {
+		return fmt.Errorf("micom: %v is %s", f, why)
 	}
 	return d.write(f)
 }

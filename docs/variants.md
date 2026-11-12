@@ -314,7 +314,8 @@ A file can make frames sendable. Nothing in it can send arbitrary frames:
    reconfigures the micom, and the string says why (shown in refusals). Such a
    frame is defined and documented like any other, but refused on every path
    — `Daemon.Send`, the control socket, the input, and `-allow`/`-allow-variant`
-   — unless `-allow-dangerous` is passed, and it may never be a profile frame
+   — unless `-allow-dangerous` is passed (every one) or `-allow-dangerous-msg`
+   names its entry (those named only), and it may never be a profile frame
    (sent unasked). The SystemService requests on `8a 01 01 01` that were once a
    hardcoded denylist are now `dangerous` entries in the base variant: func
    0x0102 SYS_POWER_C (power config, EEPROM), 0x0105 rear camera reset, 0x0107

@@ -564,7 +564,8 @@ messages:
   # (gen > 0). All from HEVService; none seen on the wire but the readbacks
   # at their defaults. reflects: is where the car reports a write back
   # (micom-fake). The writes change what the car does unattended, so they
-  # are dangerous: -allow-dangerous on top of -allow-inferred.
+  # are dangerous: -allow-dangerous, or -allow-dangerous-msg naming them, on
+  # top of -allow-inferred.
   # hkmc-gen5w-ev's "Departure timers" (bytes 3-4) with the rest of 0x8C55
   # (gen > 0): the days and set 1's enable. One message, as a frame decodes
   # as its first match only.

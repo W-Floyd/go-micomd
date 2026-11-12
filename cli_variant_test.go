@@ -151,9 +151,9 @@ func TestMainIdentifyAndQuery(t *testing.T) {
 				cmdline: func() (string, error) { return "", nil },
 			}
 			go func() {
-				done <- run(append([]string{"-dev", "pipe", "-stats", "0", "-ctl", ctl, "-tap", socks[1], "-input", socks[2], "-identify-request", "-allow-inferred"}, tc.args...), &stdout, &stderr, env)
+				done <- run(append([]string{"-dev", "pipe", "-stats", "0", "-ctl", ctl, "-tap", socks[1], "-input", socks[2], "-identify-request", "-allow-inferred", "-allow-dangerous-msg", "ev-off-peak"}, tc.args...), &stdout, &stderr, env)
 			}()
-			asked, polled, night := make(chan struct{}, 8), make(chan struct{}, 64), make(chan struct{}, 8)
+			asked, polled, night, offPeak := make(chan struct{}, 8), make(chan struct{}, 64), make(chan struct{}, 8), make(chan struct{}, 8)
 			go func() {
 				var dec Decoder
 				buf := make([]byte, 256)
@@ -171,6 +171,8 @@ func TestMainIdentifyAndQuery(t *testing.T) {
 							case polled <- struct{}{}:
 							default:
 							}
+						case f.Hdr == [4]byte{0x88, 0x0c, 0x01, 0x0c} && f.Cmd == 0x05:
+							offPeak <- struct{}{}
 						case f.Hdr == [4]byte{0x8f, 0x0d, 0x01, 0x0d} && f.Cmd == 0x0f && bytes.Equal(f.Payload, []byte{1}):
 							select {
 							case night <- struct{}{}:
@@ -243,6 +245,32 @@ func TestMainIdentifyAndQuery(t *testing.T) {
 			case <-time.After(time.Second):
 				if tc.car != "" {
 					t.Error("the car's message never reached the micom")
+				}
+			}
+			// -allow-dangerous-msg names the car's message: checked against the
+			// car the record names, not refused by the family at start.
+			for _, x := range []struct{ line, car string }{
+				{`{"msg":"ev-off-peak","start_hour":22,"start_min_bits":0,"end_hour":6,"end_min_bits":0,"mode":"off_peak_only"}`, `{"ok":true}`},
+				{`{"msg":"ev-charge-limits","ac_limit":80}`, "needs -allow-dangerous-msg ev-charge-limits or -allow-dangerous"},
+			} {
+				fmt.Fprintln(in, x.line)
+				reply, err := inr.ReadString('\n')
+				want := x.car
+				if tc.car == "" {
+					want = "no message"
+				}
+				if err != nil || !strings.Contains(reply, want) {
+					t.Errorf("%s: reply %q (%v), want %s", x.line, reply, err, want)
+				}
+			}
+			select {
+			case <-offPeak:
+				if tc.car == "" {
+					t.Error("the family sent ev-off-peak")
+				}
+			case <-time.After(time.Second):
+				if tc.car != "" {
+					t.Error("ev-off-peak never reached the micom")
 				}
 			}
 			for i := 0; i < 100 && !strings.Contains(stderr.String(), tc.log); i++ {
@@ -327,6 +355,13 @@ func TestMainVariantCommands(t *testing.T) {
 		{"check files", []string{"-variant-check", good}, 0, good + ": ok", ""},
 		{"check a bad file", []string{"-variant-check", good, bad}, 1, good + ": ok", "dangerous"},
 		{"check the chosen", []string{"-variant-check", "-variant", "kia-ev6-gen5w"}, 0, "kia-ev6-gen5w: ok", ""},
+		{"allow named dangerous messages", []string{"-variant-check", "-variant", "kia-ev6-gen5w", "-allow-dangerous-msg", "ev-departures,ev-off-peak", "-allow-dangerous-msg", "last-info-init"}, 0, "kia-ev6-gen5w: ok", ""},
+		{"allow an unknown dangerous message", []string{"-variant-check", "-variant", "kia-ev6-gen5w", "-allow-dangerous-msg", "ev-departures,nope"}, 2, "", "-allow-dangerous-msg: nope: no dangerous message or send entry of kia-ev6-gen5w"},
+		{"allow a message that is not dangerous", []string{"-variant-check", "-variant", "kia-ev6-gen5w", "-allow-dangerous-msg", "cluster-day-night"}, 2, "", "-allow-dangerous-msg: cluster-day-night: no dangerous"},
+		{"allow an empty name", []string{"-variant-check", "-allow-dangerous-msg", "ev-departures,"}, 2, "", "an empty name"},
+		{"allow a car's dangerous message under its family", []string{"-variant-check", "-variant", "hkmc-gen5w", "-allow-dangerous-msg", "ev-departures,last-info-init"}, 0, "hkmc-gen5w: ok", ""},
+		{"allow a dangerous message no car of the family has", []string{"-variant-check", "-variant", "hkmc-gen5w", "-allow-dangerous-msg", "nope"}, 2, "", "nope: no dangerous message or send entry of hkmc-gen5w or its cars"},
+		{"allow an unknown dangerous message, checking files", []string{"-variant-check", "-allow-dangerous-msg", "nope", good}, 1, "", "nope: no dangerous message or send entry of good"},
 	} {
 		var out, errb bytes.Buffer
 		if code := Main(tc.args, &out, &errb); code != tc.code {
