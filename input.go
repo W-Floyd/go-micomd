@@ -32,8 +32,8 @@ type inputEngine struct {
 	state map[string]*msgState // active messages
 
 	// seen is the last value received of each from_micom field a
-	// requirement names; the reader updates it, apart from mu, so a send
-	// waiting on the wire never holds frames back.
+	// requirement or a computed field names; the reader updates it, apart
+	// from mu, so a send waiting on the wire never holds frames back.
 	seenMu sync.Mutex
 	seen   map[string]seenValue
 }
@@ -41,6 +41,7 @@ type inputEngine struct {
 type seenValue struct {
 	valid bool // false: the field carried its invalid marker
 	code  int64
+	val   any // as decoded: a number, enum name, bool or text
 }
 
 type msgState struct {
@@ -163,7 +164,7 @@ func (e *inputEngine) handle(line []byte) error {
 		maps.Copy(merged, st.vals)
 	}
 	maps.Copy(merged, vals)
-	f, err := m.encode(merged)
+	f, err := m.encode(merged, e.resolve)
 	if err != nil {
 		return fmt.Errorf("%s: %v", name, err)
 	}
@@ -201,6 +202,15 @@ func (e *inputEngine) sendNow(m *msgSpec, st *msgState, now time.Time) error {
 	if why := e.unmet(m, st.vals); why != "" {
 		st.pending = false
 		return fmt.Errorf("not sent: %s", why)
+	}
+	if m.computed {
+		// Computed values are taken now, and checked like an input's.
+		f, err := m.encode(st.vals, e.resolve)
+		if err != nil {
+			st.pending = false
+			return fmt.Errorf("not sent: %v", err)
+		}
+		st.last = f
 	}
 	st.sentFrame, st.sent, st.pending = st.last, true, false
 	st.lastSent, st.nextSend = now, now.Add(m.every)
@@ -249,13 +259,29 @@ func (e *inputEngine) observe(f Frame) {
 				continue
 			}
 			raw := fs.load(f.Payload)
-			s := seenValue{valid: !fs.hasInvalid || raw != fs.invalid, code: fs.signedRaw(raw)}
+			s := seenValue{valid: !fs.hasInvalid || raw != fs.invalid, code: fs.signedRaw(raw), val: fs.value(f.Payload)}
 			e.seenMu.Lock()
 			e.seen[fs.name] = s
 			e.seenMu.Unlock()
 		}
 		return // the decoder Decode would use
 	}
+}
+
+// resolve gives a computed field's value now: the clock, or the last valid
+// value received of its from_micom field.
+func (e *inputEngine) resolve(f *field) (inValue, bool) {
+	if f.src.clock != "" {
+		return clockOnly(e.now())(f)
+	}
+	e.seenMu.Lock()
+	s, ok := e.seen[f.src.field]
+	e.seenMu.Unlock()
+	if !ok || !s.valid || s.val == nil {
+		return inValue{}, false
+	}
+	v, err := toInValue(s.val)
+	return v, err == nil
 }
 
 // end runs m's end steps, then makes it inactive and resumes what it owned.
@@ -270,7 +296,7 @@ func (e *inputEngine) end(m *msgSpec) error {
 			maps.Copy(vals, ts.vals)
 		}
 		maps.Copy(vals, s.set)
-		f, err := t.encode(vals)
+		f, err := t.encode(vals, e.resolve)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %v", t.name, err))
 			continue

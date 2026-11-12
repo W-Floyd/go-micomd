@@ -258,14 +258,19 @@ Inheritance runs root first:
 
 A file can make frames sendable. Nothing in it can send arbitrary frames:
 
-1. **Nothing is computed.**
-   - Every sendable frame is written whole, and must parse with its checksum.
-   - A pattern may range over payload bytes only. The header, command and
-     length are fixed, as `ParsePattern` already demands.
+1. **Only payload bytes are computed, and only from declared fields.**
+   - A sendable frame's header, command and length are fixed and declared.
+     Only payload bytes vary, so the load-time checks below (declared
+     headers, no CPU-alive, no dangerous profile frame) hold for every frame
+     that can be sent.
+   - A whole frame must parse with its checksum.
+   - A pattern may range over payload bytes only, as `ParsePattern` already
+     demands.
    - A template's placeholders are the clock fields, in the payload.
-   - A to_micom message fixes its header, command and length; an input only
-     fills its declared fields, each checked against its type, range and
-     enum ([messages.md](messages.md)).
+   - A to_micom message's payload is its declared fields. Each comes from an
+     input or is computed (`from:` the clock or a received field), and each
+     value is checked at every send against the field's type, range and enum
+     ([messages.md](messages.md)).
 2. **Only the three send paths.**
    - to_micom messages go out only from `-input`, and code or inferred
      ones only with `-allow-inferred`. One may stand in for a profile entry

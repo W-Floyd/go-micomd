@@ -135,6 +135,16 @@ func TestLoadVariantRefuses(t *testing.T) {
 		{"reflects on from_micom", rx("{name: a, off: 0, reflects: {msg: M, field: a}}", ", min_length: 2}"), "reflects is for to_micom"},
 		{"reflects an unknown message", tx("{name: a, off: 0, reflects: {msg: Nope, field: a}}", "}"), `reflects "Nope": no from_micom message`},
 		{"reflects an unknown field", tx("{name: a, off: 0, reflects: {msg: \"Variant code\", field: Nope}}", "}"), `has no field "Nope"`},
+		{"from on from_micom", rx("{name: a, off: 0, from: {clock: hour}}", ", min_length: 2}"), "from is for to_micom"},
+		{"from neither", tx("{name: a, off: 0, from: {}}", "}"), "from is {clock: NAME} or {field: NAME}"},
+		{"from both", tx("{name: a, off: 0, from: {clock: hour, field: Vehicle}}", "}"), "from is {clock: NAME} or {field: NAME}"},
+		{"from an unknown clock", tx("{name: a, off: 0, from: {clock: fortnight}}", "}"), `"fortnight" is not one of`},
+		{"from clock weekday, a number", tx("{name: a, off: 0, from: {clock: weekday}}", "}"), "an enum field whose table names sunday"},
+		{"from clock hour, a bool", tx("{name: a, off: 0, type: bool, from: {clock: hour}}", "}"), "from clock hour: a number field"},
+		{"from an unknown field", tx("{name: a, off: 0, from: {field: Nope}}", "}"), `from: no from_micom field "Nope"`},
+		{"from a field of another kind", tx("{name: a, off: 0, from: {field: Vehicle}}", "}"), `from "Vehicle": its values are enum, this field takes int`},
+		{"end sets a computed field", tx("{name: a, off: 0, from: {clock: hour}}", ", end: [{msg: m, set: {a: 1}}]}"), "a: computed from clock hour, not set"},
+		{"end with nothing received", tx("{name: a, off: 0, enum: vehicle, from: {field: Vehicle}}", ", end: [{msg: m}]}"), `a: from "Vehicle": no value`},
 		{"requires, if a bad value", tx("{name: a, off: 0, max: 3}", ", requires: [{if: {a: 9}, field: Navigation, in: [1]}]}"), "if: a: 9 is above the maximum 3"},
 		{"requires fields that differ", head + "enums: {e: {x: 1}}\nmessages: [{name: A, dir: from_micom, hdr: system_rx, cmd: 0x41, length: 1, fields: [{name: X, off: 0}]}, " +
 			"{name: B, dir: from_micom, hdr: system_rx, cmd: 0x42, length: 1, fields: [{name: X, off: 0, enum: e}]}, " +

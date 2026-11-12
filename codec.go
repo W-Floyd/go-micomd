@@ -35,6 +35,7 @@ type field struct {
 	pad        byte
 	hasPad     bool
 	reflect    *reflectSpec // to_micom: where the micom reports it back
+	src        *fieldSource // to_micom: computed, not an input
 }
 
 var typeWidths = map[string]int{"u8": 1, "i8": 1, "bool": 1, "u16": 2, "i16": 2, "u32": 4, "i32": 4}

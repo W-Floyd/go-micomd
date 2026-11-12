@@ -6,6 +6,7 @@ import (
 	"math"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.yaml.in/yaml/v4"
@@ -70,7 +71,44 @@ type rawMsgField struct {
 	// Reflects (to_micom only): the from_micom field the micom reports this
 	// one's value back in once it has taken it (emulate.go).
 	Reflects *rawReflect `yaml:"reflects,omitempty"`
+	// From (to_micom only): the field's value is computed, not an input.
+	From *rawSource `yaml:"from,omitempty"`
 }
+
+// rawSource is where a computed field's value comes from: exactly one of
+// the clock or the last value received of a from_micom field.
+type rawSource struct {
+	Clock string `yaml:"clock,omitempty"`
+	Field string `yaml:"field,omitempty"`
+}
+
+// fieldSource is a compiled rawSource.
+type fieldSource struct{ clock, field string }
+
+func (s fieldSource) String() string {
+	if s.clock != "" {
+		return "clock " + s.clock
+	}
+	return strconv.Quote(s.field)
+}
+
+// clockSources are the clock values a field may take, in local time.
+var clockSources = map[string]func(time.Time) inValue{
+	"second":  func(t time.Time) inValue { return inValue{kind: vNum, num: float64(t.Second())} },
+	"minute":  func(t time.Time) inValue { return inValue{kind: vNum, num: float64(t.Minute())} },
+	"hour":    func(t time.Time) inValue { return inValue{kind: vNum, num: float64(t.Hour())} },
+	"day":     func(t time.Time) inValue { return inValue{kind: vNum, num: float64(t.Day())} },
+	"month":   func(t time.Time) inValue { return inValue{kind: vNum, num: float64(t.Month())} },
+	"year":    func(t time.Time) inValue { return inValue{kind: vNum, num: float64(t.Year())} },
+	"weekday": func(t time.Time) inValue { return inValue{kind: vStr, str: weekdays[t.Weekday()]} },
+}
+
+// weekdays are clock weekday's names, which its field's enum must all have.
+var weekdays = [...]string{"sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"}
+
+// resolver gives a computed field's value now; false when there is none
+// (nothing received yet, or the invalid marker).
+type resolver func(*field) (inValue, bool)
 
 // rawReflect names a from_micom message and one of its fields. Unless lists
 // raw values that set nothing (a pulse's idle value); the field's invalid
@@ -121,6 +159,7 @@ type msgSpec struct {
 	base           []byte // fill in the bytes no field covers
 	fields         []*field
 	byName         map[string]*field
+	computed       bool // a field has from: re-encoded at every send
 	onChange       bool
 	every, timeout time.Duration
 	minInterval    time.Duration
@@ -170,14 +209,23 @@ type endStep struct {
 	set map[string]inValue
 }
 
-// encode builds the frame from the values given; the rest take their
-// default or invalid marker.
-func (m *msgSpec) encode(vals map[string]inValue) (Frame, error) {
+// encode builds the frame from the values given and, for computed fields,
+// from src (nil: none available); the rest take their default or invalid
+// marker. Every value, computed ones too, passes the field's checks.
+func (m *msgSpec) encode(vals map[string]inValue, src resolver) (Frame, error) {
 	p := slices.Clone(m.base)
 	for _, f := range m.fields {
 		v, ok := vals[f.name]
+		if f.src != nil {
+			ok = false
+			if src != nil {
+				v, ok = src(f)
+			}
+		}
 		switch {
 		case ok:
+		case f.src != nil && f.def == nil && !f.hasInvalid:
+			return Frame{}, fmt.Errorf("%s: from %s: no value", f.name, f.src)
 		case f.def != nil:
 			v = *f.def
 		case f.hasInvalid:
@@ -200,6 +248,9 @@ func (m *msgSpec) parse(in map[string]any) (map[string]inValue, error) {
 		f := m.byName[k]
 		if f == nil {
 			return nil, fmt.Errorf("%s: no such field", k)
+		}
+		if f.src != nil {
+			return nil, fmt.Errorf("%s: computed from %s, not an input", k, f.src)
 		}
 		v, err := toInValue(in[k])
 		if err != nil {
@@ -399,6 +450,7 @@ func compileToMicom(c *checker, v *Variant, where string, r rawMessage, enums ma
 		}
 		m.fields = append(m.fields, f)
 		m.byName[f.name] = f
+		m.computed = m.computed || f.src != nil
 	}
 	fill := byte(0)
 	if r.Fill != nil {
@@ -456,17 +508,26 @@ func checkMessageRefs(c *checker, v *Variant) {
 			}
 			bad := false
 			for _, k := range sortedKeys(s.set) {
-				if t.byName[k] == nil {
+				switch {
+				case t.byName[k] == nil:
 					c.errf(where+".end["+s.msg+"]", "%s: no such field", k)
+					bad = true
+				case t.byName[k].src != nil:
+					c.errf(where+".end["+s.msg+"]", "%s: computed from %s, not set", k, t.byName[k].src)
 					bad = true
 				}
 			}
-			if _, err := t.encode(s.set); err != nil && !bad {
+			// An end runs unasked, perhaps before anything is received:
+			// it must encode with the clock alone (any recent date).
+			if _, err := t.encode(s.set, clockOnly(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))); err != nil && !bad {
 				c.errf(where+".end["+s.msg+"]", "%v", err)
 			}
 		}
 		compileRequires(c, v, m, where+".requires")
 		for _, f := range m.fields {
+			if f.src != nil && f.src.field != "" {
+				compileSourceField(c, v, f, where+"."+f.name)
+			}
 			if r := f.reflect; r != nil {
 				if d := v.decoderNamed(r.msg); d == nil {
 					c.errf(where+"."+f.name, "reflects %q: no from_micom message by that name", r.msg)
@@ -494,16 +555,7 @@ func checkMessageRefs(c *checker, v *Variant) {
 func compileRequires(c *checker, v *Variant, m *msgSpec, where string) {
 	for _, r := range m.rawRequires {
 		w := where + "[" + r.Field + "]"
-		var same []*field
-		for _, ds := range v.decoders {
-			for _, d := range ds {
-				for _, f := range d.fields {
-					if f.name == r.Field {
-						same = append(same, f)
-					}
-				}
-			}
-		}
+		same := fromMicomFields(v, r.Field)
 		if len(same) == 0 {
 			c.errf(w, "no from_micom field %q", r.Field)
 			continue
@@ -549,6 +601,8 @@ func compileRequires(c *checker, v *Variant, m *msgSpec, where string) {
 			switch {
 			case mf == nil:
 				c.errf(w, "if: %s: no such field", k)
+			case mf.src != nil:
+				c.errf(w, "if: %s: computed from %s, not an input", k, mf.src)
 			case err != nil:
 				c.errf(w, "if: %v", err)
 			default:
@@ -557,6 +611,55 @@ func compileRequires(c *checker, v *Variant, m *msgSpec, where string) {
 		}
 		m.requires = append(m.requires, req)
 		v.required[r.Field] = true
+	}
+}
+
+// fromMicomFields are the from_micom fields called name, across messages.
+func fromMicomFields(v *Variant, name string) []*field {
+	var out []*field
+	for _, ds := range v.decoders {
+		for _, d := range ds {
+			for _, f := range d.fields {
+				if f.name == name {
+					out = append(out, f)
+				}
+			}
+		}
+	}
+	return out
+}
+
+// compileSourceField checks that a computed field's from_micom source exists
+// and reads as the same kind of value (number, name, bool or text), and has
+// it watched. Whether each value fits is checked at every send.
+func compileSourceField(c *checker, v *Variant, f *field, where string) {
+	same := fromMicomFields(v, f.src.field)
+	if len(same) == 0 {
+		c.errf(where, "from: no from_micom field %q", f.src.field)
+		return
+	}
+	kind := func(x *field) string {
+		if x.enum != "" {
+			return "enum"
+		}
+		return x.typ
+	}
+	for _, s := range same {
+		if kind(s) != kind(f) {
+			c.errf(where, "from %q: its values are %s, this field takes %s", f.src.field, kind(s), kind(f))
+			return
+		}
+	}
+	v.required[f.src.field] = true
+}
+
+// clockOnly resolves clock sources at t, and nothing else.
+func clockOnly(t time.Time) resolver {
+	return func(f *field) (inValue, bool) {
+		if f.src.clock == "" {
+			return inValue{}, false
+		}
+		return clockSources[f.src.clock](t), true
 	}
 }
 
@@ -738,6 +841,28 @@ func compileField(c *checker, where string, r rawMsgField, enums map[string]map[
 			c.errf(w, "default, min and max are for to_micom")
 		}
 		f.fractional = f.scale != math.Trunc(f.scale) || f.offset != math.Trunc(f.offset)
+	}
+	if s := r.From; s != nil {
+		f.src = &fieldSource{clock: s.Clock, field: s.Field}
+		switch {
+		case !toMicom:
+			c.errf(w, "from is for to_micom fields")
+		case (s.Clock == "") == (s.Field == ""):
+			c.errf(w, "from is {clock: NAME} or {field: NAME}")
+		case s.Clock == "weekday":
+			for _, d := range weekdays {
+				if _, ok := f.codes[d]; !ok || f.enum == "" {
+					c.errf(w, "from clock weekday: an enum field whose table names %s", strings.Join(weekdays[:], ", "))
+					break
+				}
+			}
+		case s.Clock != "":
+			if clockSources[s.Clock] == nil {
+				c.errf(w, "from clock: %q is not one of %s", s.Clock, strings.Join(sortedKeys(clockSources), ", "))
+			} else if f.typ != "int" || f.enum != "" {
+				c.errf(w, "from clock %s: a number field", s.Clock)
+			}
+		}
 	}
 	if len(c.errs) > n {
 		return nil, false

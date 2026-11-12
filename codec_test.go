@@ -47,7 +47,7 @@ func TestFieldCodec(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		f, err := v.messages["m"].encode(map[string]inValue{"a": iv})
+		f, err := v.messages["m"].encode(map[string]inValue{"a": iv}, nil)
 		if err != nil {
 			t.Errorf("%s: encode %v: %v", tc.field, tc.in, err)
 			continue

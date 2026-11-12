@@ -175,7 +175,7 @@ func TestEV6Messages(t *testing.T) {
 			vals, err := m.parse(back)
 			var again Frame
 			if err == nil {
-				again, err = m.encode(vals)
+				again, err = m.encode(vals, nil)
 			}
 			if err != nil || !sameFrame(again, sent[i]) {
 				t.Errorf("%s: %s %s encodes to %v (%v), want %v", tc.name, name, line, again, err, sent[i])

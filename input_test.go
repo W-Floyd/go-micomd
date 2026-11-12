@@ -16,7 +16,8 @@ import (
 const inputVariant = `schema: 1
 name: t
 extends: hkmc-gen5w
-enums: {mode: {media: 0x0e, radio: 1}, lamp: {"off": 0, "on": 1}}
+enums: {mode: {media: 0x0e, radio: 1}, lamp: {"off": 0, "on": 1},
+  day: {sunday: 1, saturday: 2, friday: 4, thursday: 8, wednesday: 16, tuesday: 32, monday: 64}}
 profile:
   - {name: q, every: 1s, frame: "ff 85 02 01 02 01 00 03 0e 00 77", status: captured, ref: r}
   - {name: q-code, every: 1s, frame: "ff 85 02 01 02 01 00 03 01 00 78", opt_in: code, replaces: q, status: code, ref: r}
@@ -32,11 +33,16 @@ messages:
   - {name: store, dir: to_micom, hdr: audio_tx, cmd: 0x43, length: 1, status: captured, ref: r,
      fields: [{name: a, off: 0}], persistent: true, min_interval: 1s}
   # needs: a 1 only while the lamp is on, a 2 only while it is off, a 3 always.
-  - {name: Lamp, dir: from_micom, hdr: system_rx, cmd: 0x40, length: 1, fields: [{name: Lamp state, off: 0, enum: lamp, invalid: 0xff}]}
+  - {name: Lamp, dir: from_micom, hdr: system_rx, cmd: 0x40, length: 1, fields: [{name: Lamp state, off: 0, enum: lamp, invalid: 0xff}, {name: Lamp code, off: 0}]}
   - {name: needs, dir: to_micom, hdr: audio_tx, cmd: 0x44, length: 1, status: captured, ref: r, fields: [{name: a, off: 0}],
      on_change: false, requires: [{if: {a: 1}, field: Lamp state, in: ["on"]}, {if: {a: 2}, field: Lamp state, in: ["off"]}]}
   - {name: held, dir: to_micom, hdr: audio_tx, cmd: 0x45, length: 1, status: captured, ref: r, fields: [{name: a, off: 0}],
      min_interval: 1s, requires: [{field: Lamp state, in: ["on"]}]}
+  # Computed: the clock (weekday as one bit, hour in bits 7:3), and what the micom last reported.
+  - {name: clock, dir: to_micom, hdr: audio_tx, cmd: 0x46, length: 2, status: captured, ref: r, every: 1s, timeout: 5s,
+     fields: [{name: weekday, off: 0, enum: day, from: {clock: weekday}}, {name: hour, off: 1, bits: "7:3", from: {clock: hour}}]}
+  - {name: echo, dir: to_micom, hdr: audio_tx, cmd: 0x47, length: 2, status: captured, ref: r,
+     fields: [{name: lamp, off: 0, enum: lamp, invalid: 0xff, from: {field: Lamp state}}, {name: code, off: 1, max: 3, default: 0, from: {field: Lamp code}}]}
 `
 
 // recorder collects what an engine does: frames sent as "cmd:payload" in
@@ -171,9 +177,23 @@ func TestInput(t *testing.T) {
 			{time.Second, "", ""},
 			{2 * time.Second, "", ""},
 		}, []string{"45:01"}},
+		{"computed from the clock, again at every send", InputGates{}, []step{
+			{0, `{"msg":"clock"}`, "ok"},
+			{time.Second, "", ""},
+			{time.Second, `{"msg":"clock","hour":1}`, `clock: hour: computed from clock hour, not an input`},
+		}, []string{"46:10b8", "46:0800"}},
+		{"computed from what was received, checked as an input", InputGates{}, []step{
+			{0, `{"msg":"echo"}`, "ok"},
+			{0, "rx 01", ""},
+			{0, `{"msg":"echo"}`, "ok"},
+			{0, "rx 07", ""},
+			{0, `{"msg":"echo"}`, "echo: lamp: 7 is not a name of enum lamp"},
+			{0, "rx ff", ""},
+			{0, `{"msg":"echo"}`, "echo: code: 255 is above the maximum 3"},
+		}, []string{"47:ff00", "47:0101"}},
 	} {
 		var r recorder
-		start := time.Unix(1000, 0)
+		start := time.Date(2026, 11, 11, 23, 59, 59, 0, time.UTC) // a Wednesday
 		now := start
 		e := newInputEngine(v, tc.gates, r.send, r.own, func() time.Time { return now }, t.Logf)
 		for _, s := range tc.steps {

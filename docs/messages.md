@@ -104,6 +104,7 @@ and coded by:
 | `invalid` | the raw marker for "not available" (0xff, 0xffff, 0x3f, 15) |
 | `min`, `max` | the input's range, inclusive, before scaling; the raw value must also fit the field |
 | `default` | the input value when none was given |
+| `from` | computed, not an input: `{clock: NAME}` or `{field: NAME}` (see Computed fields) |
 | `unit` | appended to a decoded value, as before |
 | `type: str` | `off`, `size` (bytes), `encoding` (`ASCII`, the default, or `UTF-16LE`), `pad_right` (byte) |
 
@@ -247,6 +248,40 @@ requires:
 - Checked at load: the field exists on a from_micom message, the `in`
   values are its values, the `if` fields are the message's and their
   values encode; `requires` on a from_micom message is refused.
+
+## Computed fields
+
+A to_micom field may take its value from the clock or from what the micom
+reported, instead of from the input:
+
+```yaml
+- { name: weekday, off: 0, enum: weekday_bit, from: { clock: weekday } }
+- { name: hour, off: 1, bits: "7:3", from: { clock: hour } }
+- { name: mode, off: 2, enum: batt_cond_mode, invalid: 0xff, from: { field: "Battery conditioning mode" } }
+```
+
+- `clock` is `second`, `minute`, `hour`, `day`, `month`, `year` (all four
+  digits; `offset: 2000` gives two) or `weekday`, in local time. Weekday is
+  a name, `sunday` to `saturday`, so its field is an enum that names all
+  seven; the table gives the codes (one bit each, above).
+- `field` is the last valid value received of a from_micom field, named as
+  `requires` names one. It must be the same kind of value (number, enum,
+  bool or text). An enum value passes by name.
+- The value is taken at every send: the input, each repeat, a held frame,
+  an end step. It goes through the field's codec like an input's, so a value
+  that does not fit (out of `min`/`max`, not in the enum, the invalid
+  marker's code) stops that send, and an input is refused with the reason.
+  A change in the source does not send by itself: the next send carries it.
+- Without a value (nothing received yet, or its invalid marker), the field
+  takes its `default`, else its `invalid` marker, else the frame is not sent.
+- An input naming a computed field is refused. So are `set` on it in an end
+  step and `if` on it in `requires`.
+- Checked at load: the clock name or the from_micom field exists and is of
+  the field's kind, and every end step encodes with the clock alone, as an
+  end may run before anything is received.
+
+No arithmetic: a value is placed by the field's codec (`scale`, `offset`,
+`bits`, `enum`) and nothing else.
 
 ## Reflects
 

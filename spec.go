@@ -282,6 +282,9 @@ func renderSpec(rv rawVariant) string {
 				if f.Invalid != nil {
 					notes = fmt.Sprintf("invalid %d", *f.Invalid)
 				}
+				if s := f.From; s != nil {
+					notes = strings.TrimPrefix(notes+"; from "+fieldSource{clock: s.Clock, field: s.Field}.String(), "; ")
+				}
 				scale := opt(f.Scale, func(x float64) string { return fmt.Sprint(x) })
 				off := ""
 				if f.Offset != 0 {
