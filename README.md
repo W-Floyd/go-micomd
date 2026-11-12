@@ -55,8 +55,9 @@ been seen. The protocol is described in the package documentation.
 
     micomd -dev /dev/ttyAMA1 [-baud 115200] [-dump] [-clock] [-noalive] [-stats 10s]
 
-`-dump` prints every frame received, decoded where known. `-clock` adds the two
-frames that carry the time, from this machine's clock: only use it when that clock
+`-dev unix:PATH` talks to a Unix socket (an emulated micom) instead of a
+serial port, on any OS. `-dump` prints every frame
+received, decoded where known. `-clock` adds the two frames that carry the time, from this machine's clock: only use it when that clock
 is right, as the car may store it. `-code-profile` sends the variant's
 corrections of captured routine frames, known only from stock code (on the EV6:
 the cluster's compass as "no heading" instead of a stale captured one).

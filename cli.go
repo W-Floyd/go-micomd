@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"maps"
+	"net"
 	"os"
 	"os/signal"
 	"slices"
@@ -66,7 +67,13 @@ type runEnv struct {
 
 func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	if env.open == nil {
-		env.open = func(dev string, baud int) (io.ReadWriteCloser, error) { return OpenTTY(dev, baud) }
+		env.open = func(dev string, baud int) (io.ReadWriteCloser, error) {
+			// a Unix socket in place of the serial port (an emulated micom)
+			if p, ok := strings.CutPrefix(dev, "unix:"); ok {
+				return net.Dial("unix", p)
+			}
+			return OpenTTY(dev, baud)
+		}
 	}
 	if env.cmdline == nil {
 		env.cmdline = func() (string, error) {
@@ -76,7 +83,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	}
 	fs := flag.NewFlagSet("micomd", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	dev := fs.String("dev", "", "the micom's serial device (the vendor's /dev/ttyTCC2, a PL011 at 0x16620000)")
+	dev := fs.String("dev", "", "the micom's serial device (the vendor's /dev/ttyTCC2, a PL011 at 0x16620000), or unix:PATH for an emulated micom's socket")
 	baud := fs.Int("baud", 115200, "baud rate of the link; 115200 8N1 raw is what Android's micomd sets (its tcsetattr: c_cflag 0x1002 = B115200 | CS8)")
 	dump := fs.Bool("dump", false, "print every frame received")
 	clock := fs.Bool("clock", false, "also send the two clock frames, from this machine's clock")
