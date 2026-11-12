@@ -137,7 +137,7 @@ func (e *inputEngine) handle(line []byte) error {
 	case m == nil && e.v.receives(name):
 		return fmt.Errorf("%s: from_micom, not an input", name)
 	case m == nil:
-		return fmt.Errorf("no message %q", name)
+		return noMessage(name)
 	case e.refused[name] != "":
 		return fmt.Errorf("%s: %s", name, e.refused[name])
 	}
@@ -371,6 +371,11 @@ func (v *Variant) receives(name string) bool {
 	return false
 }
 
+// noMessage refuses a name the variant has neither way.
+type noMessage string
+
+func (n noMessage) Error() string { return fmt.Sprintf("no message %q", string(n)) }
+
 // ServeInput serves the structured input on a unix socket (mode 0660): one
 // JSON object per line, {"msg": NAME, field: value, ...}, each answered
 // with {"ok":true} or {"error":"why"}. Only the daemon's variant's to_micom
@@ -379,7 +384,43 @@ func (v *Variant) receives(name string) bool {
 // It returns when ctx ends, and removes the socket.
 func ServeInput(ctx context.Context, d *Daemon, path string, g InputGates) error {
 	e := startInput(ctx, d, path, g)
-	return serveUnix(ctx, path, func(c net.Conn) { serveInputConn(func() *inputEngine { return e }, c) })
+	return serveUnix(ctx, path, func(c net.Conn) { serveInputConn(func() *inputEngine { return e }, nil, c) })
+}
+
+// inputHold holds lines naming messages the engine lacks until settle: until
+// the micom's variant record names the car, a family's engine lacks the car's
+// messages, and a client sending state only on change would not send it
+// again.
+type inputHold struct {
+	settled chan struct{}
+	once    sync.Once
+	slots   chan struct{} // bounds the lines held, whose clients may be gone
+}
+
+func newInputHold(n int) *inputHold {
+	return &inputHold{settled: make(chan struct{}), slots: make(chan struct{}, n)}
+}
+
+func (h *inputHold) settle() { h.once.Do(func() { close(h.settled) }) }
+
+// wait blocks until settle, false at once when settled or full.
+func (h *inputHold) wait() bool {
+	if h == nil {
+		return false
+	}
+	select {
+	case <-h.settled:
+		return false
+	default:
+	}
+	select {
+	case h.slots <- struct{}{}:
+	default:
+		return false
+	}
+	defer func() { <-h.slots }()
+	<-h.settled
+	return true
 }
 
 // startInput runs d's input engine until ctx ends; path is for the log.
@@ -401,8 +442,10 @@ func listOrNone(l []string) string {
 
 // serveInputConn answers each line, with the engine cur gives then (a client
 // stays connected across a variant switch); refusals go to the client, not
-// the log, which a client at 1 Hz would flood.
-func serveInputConn(cur func() *inputEngine, c net.Conn) {
+// the log, which a client at 1 Hz would flood. A line naming a message the
+// engine lacks may wait in hold, with its reply and the lines after it, and
+// is then tried on the engine then.
+func serveInputConn(cur func() *inputEngine, hold *inputHold, c net.Conn) {
 	defer c.Close()
 	sc := bufio.NewScanner(c)
 	for sc.Scan() {
@@ -411,7 +454,11 @@ func serveInputConn(cur func() *inputEngine, c net.Conn) {
 			continue
 		}
 		reply := []byte(`{"ok":true}`)
-		if err := cur().handle(line); err != nil {
+		err := cur().handle(line)
+		if _, ok := err.(noMessage); ok && hold.wait() {
+			err = cur().handle(line)
+		}
+		if err != nil {
 			reply, _ = json.Marshal(map[string]string{"error": err.Error()})
 		}
 		c.Write(append(reply, '\n'))

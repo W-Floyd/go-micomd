@@ -151,9 +151,9 @@ func TestMainIdentifyAndQuery(t *testing.T) {
 				cmdline: func() (string, error) { return "", nil },
 			}
 			go func() {
-				done <- run(append([]string{"-dev", "pipe", "-stats", "0", "-ctl", ctl, "-tap", socks[1], "-input", socks[2], "-identify-request"}, tc.args...), &stdout, &stderr, env)
+				done <- run(append([]string{"-dev", "pipe", "-stats", "0", "-ctl", ctl, "-tap", socks[1], "-input", socks[2], "-identify-request", "-allow-inferred"}, tc.args...), &stdout, &stderr, env)
 			}()
-			asked, polled := make(chan struct{}, 8), make(chan struct{}, 64)
+			asked, polled, night := make(chan struct{}, 8), make(chan struct{}, 64), make(chan struct{}, 8)
 			go func() {
 				var dec Decoder
 				buf := make([]byte, 256)
@@ -169,6 +169,11 @@ func TestMainIdentifyAndQuery(t *testing.T) {
 						case f.Hdr == [4]byte{0x88, 0x0c, 0x01, 0x0c} && f.Cmd == 0x5c:
 							select {
 							case polled <- struct{}{}:
+							default:
+							}
+						case f.Hdr == [4]byte{0x8f, 0x0d, 0x01, 0x0d} && f.Cmd == 0x0f && bytes.Equal(f.Payload, []byte{1}):
+							select {
+							case night <- struct{}{}:
 							default:
 							}
 						}
@@ -204,7 +209,42 @@ func TestMainIdentifyAndQuery(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer conn.Close()
+			// A car's message sent before the record: a family holds it, and
+			// its reply, until the record says whose engine takes it.
+			in, err := net.Dial("unix", socks[2])
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer in.Close()
+			inr := bufio.NewReader(in)
+			fmt.Fprintln(in, `{"msg":"cluster-day-night","mode":"night"}`)
+			if len(tc.args) > 0 {
+				in.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+				if line, err := inr.ReadString('\n'); err == nil {
+					t.Errorf("input answered before the record: %q", line)
+				}
+				in.SetReadDeadline(time.Time{})
+			}
 			b.Write(Frame{Hdr: hdrAliveReq, Cmd: 0x17, Payload: unhex(t, tc.record)}.Encode())
+			in.SetReadDeadline(time.Now().Add(3 * time.Second))
+			reply, err := inr.ReadString('\n')
+			want := `{"ok":true}`
+			if tc.car == "" {
+				want = `{"error":"no message \"cluster-day-night\""}`
+			}
+			if err != nil || strings.TrimSpace(reply) != want {
+				t.Errorf("input reply %q (%v), want %s", reply, err, want)
+			}
+			select {
+			case <-night:
+				if tc.car == "" {
+					t.Error("the family sent the car's message")
+				}
+			case <-time.After(time.Second):
+				if tc.car != "" {
+					t.Error("the car's message never reached the micom")
+				}
+			}
 			for i := 0; i < 100 && !strings.Contains(stderr.String(), tc.log); i++ {
 				time.Sleep(10 * time.Millisecond)
 			}

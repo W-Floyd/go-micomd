@@ -259,6 +259,9 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 	// group and mode a service gave them stay.
 	var curDaemon atomic.Pointer[Daemon]
 	var curInput atomic.Pointer[inputEngine]
+	// Settled once the car is known, or will not be.
+	hold := newInputHold(16)
+	defer hold.settle()
 	var tap *Tap
 	if *tapPath != "" {
 		if tap, err = ListenTap(*tapPath); err != nil {
@@ -285,7 +288,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 			servers.Add(1)
 			go func() {
 				defer servers.Done()
-				if err := serveUnix(serversCtx, *inputPath, func(c net.Conn) { serveInputConn(curInput.Load, c) }); err != nil {
+				if err := serveUnix(serversCtx, *inputPath, func(c net.Conn) { serveInputConn(curInput.Load, hold, c) }); err != nil {
 					lg.Printf("input socket: %v", err)
 				}
 			}()
@@ -446,6 +449,7 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 						}
 						return
 					}
+					hold.settle()
 					if _, msg := recordVerdict(choice.Name, id); msg != said {
 						lg.Print(msg)
 						said = msg
@@ -496,6 +500,9 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 		if *inputPath != "" {
 			curInput.Store(startInput(ctx, d, *inputPath, InputGates{Inferred: *allowInferred, Persistent: *allowPersistent, Dangerous: *allowDangerous}))
 		}
+		if family == "" || identifyFrame == nil {
+			hold.settle()
+		}
 		startServers()
 		if *every > 0 {
 			go func() {
@@ -510,7 +517,12 @@ func run(args []string, stdout, stderr io.Writer, env runEnv) int {
 			}()
 		}
 		if identifyFrame != nil {
-			go d.askVariant(ctx, *identifyFrame, identifyTries, identifyWait)
+			go func() {
+				d.askVariant(ctx, *identifyFrame, identifyTries, identifyWait)
+				if ctx.Err() == nil && !d.hasVariantRecord() {
+					hold.settle() // gave up
+				}
+			}()
 		}
 		if bootModeFrame != nil {
 			// not ask: a micom reset since a SoC last sent this sends nothing

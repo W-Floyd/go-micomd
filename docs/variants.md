@@ -100,6 +100,11 @@ that verdict.
     stop, socket clients stay connected (the car's daemon answers them) and
     keep the sockets' group and mode, and only a frame split across the
     switch can be lost. The flags apply to the car as if it had been named.
+  - Until then, an `-input` line naming a message the family lacks is held,
+    with its reply (16 lines at most; beyond, refused at once), then tried on
+    the car's engine; refused if the record names no descendant or the
+    requests go unanswered. A reply can so wait out the identify retries
+    (5 x 3 s); a client that times out first should resend its state.
   - A record that matches no descendant, or none at all, leaves the family
     running: its keepalive and decoding, and nothing it does not declare.
 - `-variant-file PATH`: a file on disk, for development or an unlisted car. It
