@@ -87,6 +87,8 @@ func TestLiviCar(t *testing.T) {
 		{"15:04:05.000 rx hdr=44c100c4 cmd=00 payload=00", map[string]any{"doorPassengerLocked": true}},
 		{"15:04:05.000 rx hdr=44c100c4 cmd=11 payload=00", map[string]any{"hoodOpen": false}},
 		{"15:04:05.000 rx hdr=44c100c4 cmd=49 payload=02", map[string]any{"chargePortOpen": false}},
+		// Live, 2026-11-12: the port open, the cable in.
+		{"15:04:05.000 rx hdr=44c100c4 cmd=49 payload=01", map[string]any{"chargePortOpen": true}},
 		{"15:04:05.000 rx hdr=018a0181 cmd=03 payload=01", map[string]any{"drivingRegulation": true}},
 		{"15:04:05.000 rx hdr=018a0181 cmd=9a payload=00", map[string]any{"drivingRegulationB": false}},
 		{"15:04:05.000 rx hdr=018a0181 cmd=29 payload=01", map[string]any{"parkingBrake": true}},
