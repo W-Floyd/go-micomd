@@ -180,7 +180,7 @@ messages:
 # each so it is documented here yet refused on every path unless -allow-dangerous
 # (this replaces the old hardcoded Go denylist). From jadx SystemService.java.
 send:
-  - { name: sys-power-config,  pattern: "ff 8a 01 01 01 02 00 02 [00-ff] ..", status: inferred, dangerous: "func 0x0102 SYS_POWER_C: writes the micom's power configuration (EEPROM 0x1ad); value 0 makes ACC-off skip straight to bus sleep", ref: "jadx SystemService; EV6 micom dispatcher cmd 0x02, micom-run" }
+  - { name: sys-power-config,  pattern: "ff 8a 01 01 01 02 00 02 [00-ff] ..", status: inferred, dangerous: "func 0x0102 SYS_POWER_C: writes the micom's power configuration (EEPROM 0x1ad); value 0 makes ACC-off skip straight to bus sleep", ref: "jadx SystemService; EV6 micom dispatcher cmd 0x02, firmware emulation" }
   - { name: rear-camera-reset, frame: "ff 8a 01 01 01 05 00 01 70", status: inferred, dangerous: "func 0x0105 requestRearCameraReset", ref: "jadx SystemService" }
   - { name: last-info-init,    frame: "ff 8a 01 01 01 07 00 01 72", status: inferred, dangerous: "func 0x0107 requestLastInfoInitialization (also requestMicomFactoryReset)", ref: "jadx SystemService" }
   - { name: variant-code-save, pattern: "ff 8a 01 01 01 18 00 02 [00-ff] ..", status: inferred, dangerous: "func 0x0118 requestVariantCodeSave: writes the variant coding", ref: "jadx SystemService" }

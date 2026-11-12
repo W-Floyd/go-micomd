@@ -55,7 +55,7 @@ func TestEV6Messages(t *testing.T) {
 			"ff 8f 0d 01 0d 02 00 0a ff ff ff ff ff ff ff ff ff 86",
 			"ff 8f 0d 01 0d 03 00 0a 00 00 00 0e 00 ff ff 00 00 76", // the compass kept
 		}},
-		// The micom firmware's frames, as micom-run took them.
+		// The micom firmware's frames, as the emulated firmware sent them.
 		{"backlight on", []string{`{"msg":"backlight","on":true}`}, []string{"ff 8c 08 01 08 02 00 02 01 73"}},
 		{"backlight off", []string{`{"msg":"backlight","on":false}`}, []string{"ff 8c 08 01 08 02 00 02 00 72"}},
 		{"shutdown acks, each only in its power state", []string{

@@ -13,9 +13,9 @@ type Periodic struct {
 }
 
 // ScaledProfile divides every Every by n, for running the daemon against a
-// micom whose own clock runs at n times real speed (for example the Icicle
-// emulator's --realtime N): the daemon's send cadence then matches the
-// micom's clock rather than the wall clock. n must be positive. The CPU-alive
+// micom whose own clock runs at n times real speed (for example an emulator
+// running it faster than real time): the daemon's send cadence then matches
+// the micom's clock rather than the wall clock. n must be positive. The CPU-alive
 // reply needs no scaling - it answers inline on receipt, not on a timer.
 func ScaledProfile(n time.Duration, ps []Periodic) []Periodic {
 	out := make([]Periodic, len(ps))

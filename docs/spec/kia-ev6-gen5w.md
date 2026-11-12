@@ -90,32 +90,32 @@ Not yet backed by a capture:
 | ev-charge-limits | `poll_tx` | 0x18 | 🟡 code | stock HEVService.setTargetSOCext, mCanDBGenerationInfo >= 2: sendPacket(0x88, 0x0c, 0x0c18, 7 bytes); readback items 0x21/0x22/0x44 |
 | ev-charging-current | `poll_tx` | 0x5b | 🟡 code | stock HEVService.setOBCCurrent (flag 82 = 1): sendPacket(0x88, 0x0c, 0x0c5b, getInCurrModeValue(iccb, false)), 0 after 120 ms |
 | ev-v2l-limit | `poll_tx` | 0x5a | 🟡 code | stock HEVService: sendPacket(0x88, 0x0c, 0x0c5a, limSoc), 0xff after 120 ms |
-| Power state | `system_rx` | 0x08 | 🟡 code | micom firmware FUN_0006ee40; micom-run ACC off to state 0 |
-| Power state (ACC on) | `system_rx` | 0x08 | 🟡 code | micom-run: ff 01 8a 01 81 08 00 03 01 05 fb on ACC on |
-| ACC edge | `system_rx` | 0x33 | 🟡 code | micom-run: 0x8133 [01] on ACC off, [02] on ACC on |
+| Power state | `system_rx` | 0x08 | 🟡 code | micom firmware FUN_0006ee40; firmware emulation, ACC off to state 0 |
+| Power state (ACC on) | `system_rx` | 0x08 | 🟡 code | firmware emulation: ff 01 8a 01 81 08 00 03 01 05 fb on ACC on |
+| ACC edge | `system_rx` | 0x33 | 🟡 code | firmware emulation: 0x8133 [01] on ACC off, [02] on ACC on |
 | Vehicle ready | `system_rx` | 0x0b | 🟡 code | stock SYS_ALTERNATE_STATUS_M (0x810b, ALT-L); micom firmware, 0x810b sender (a CAN value, debounced 0.5 s) |
 | Charge warning | `system_rx` | 0x0c | 🟡 code | stock SYS_FUELWARNING_STATUS_M (0x810c); micom firmware FUN_00073e46 |
-| Illumination | `system_rx` | 0x0d | 🟡 code | stock SystemService/VideoSetupService SYS_ILLUMINATION_STATUS_M; micom firmware 0x810d sender; micom-run |
+| Illumination | `system_rx` | 0x0d | 🟡 code | stock SystemService/VideoSetupService SYS_ILLUMINATION_STATUS_M; micom firmware 0x810d sender; firmware emulation |
 | Boot record (full) | `system_rx` | 0x01 | 🟡 code | stock SystemService InitialCarInfo; 149 bytes, byte 120 = 02 and byte 7 = ca in 2026-11 captures |
 | Rheostat level | `system_rx` | 0x45 | 🟡 code | stock SYS_RHEOSTAT_M (func 0x8145) |
 | System 0x819B | `system_rx` | 0x9b | 🟡 code | stock battSoc, func 0x819b byte 7 |
-| sys-update-reservation | `system_tx` | 0x57 | 🟠 inferred | micom dispatcher cmd 0x57 -> event 0x125; micom-run console 2026-11-10 ('SYS_UPDATE_RESERVATION_C : 0x1, 0x20') |
-| sys-download-reservation | `system_tx` | 0x8d | 🟠 inferred | micom dispatcher cmd 0x8d -> event 0x18a; micom-run console 2026-11-10 ('SYS_DOWNLOAD_RESERVATION_C : 0x1, 0xFA') |
+| sys-update-reservation | `system_tx` | 0x57 | 🟠 inferred | micom dispatcher cmd 0x57 -> event 0x125; emulated firmware console 2026-11-10 ('SYS_UPDATE_RESERVATION_C : 0x1, 0x20') |
+| sys-download-reservation | `system_tx` | 0x8d | 🟠 inferred | micom dispatcher cmd 0x8d -> event 0x18a; emulated firmware console 2026-11-10 ('SYS_DOWNLOAD_RESERVATION_C : 0x1, 0xFA') |
 | sys-sleep-boot-control | `system_tx` | 0x67 | 🟠 inferred | micom dispatcher cmd 0x67; name tentative (strings in the event consumers) |
 | 12 V battery | `body` | 0x14 | 🟡 code | stock BODY Batt_SoC |
-| Display 0x880C | `display_rx` | 0x0c | 🟡 code | micom-run: 0x080C [00] answered ff 08 8c 01 88 0c 00 02 02 fe |
-| Rheostat | `display_rx` | 0x10 | 🟡 code | micom-run: 0x0810 [00] answered 14 |
-| Display 0x8813 | `display_rx` | 0x13 | 🟡 code | micom-run: 0x0813 [00] answered 32 |
+| Display 0x880C | `display_rx` | 0x0c | 🟡 code | firmware emulation: 0x080C [00] answered ff 08 8c 01 88 0c 00 02 02 fe |
+| Rheostat | `display_rx` | 0x10 | 🟡 code | firmware emulation: 0x0810 [00] answered 14 |
+| Display 0x8813 | `display_rx` | 0x13 | 🟡 code | firmware emulation: 0x0813 [00] answered 32 |
 | Current brightness | `display_rx` | 0x1b | 🟡 code | stock current brightness request 0x081B and its reply; micom firmware 0x081B handler |
 | Climate snapshot | `climate_panel` | 0x00 | 🟡 code | stock DATCService All_Datc_Resp; never captured (nothing sent All_Datc_Req) |
 | B-CAN validity | `tele_rx` | 0xc7 | 🟡 code | stock BCMService BCAN_VALID (0x8bc7) |
 | Body snapshot | `body` | 0x0c | 🟡 code | stock BCMService ALL_BCM_Resp (0xc40c); never captured |
 | Units (USM) | `usm_rx` | 0x11 | 🟡 code | stock USMService Unit_SET (0x9111) |
-| backlight | `display_tx` | 0x02 | 🟡 code | micom-run: ff 8c 08 01 08 02 00 02 01 73 on, ... 00 72 off; eMIOS0 ch 6 PWM |
-| shutdown-ack | `system_tx` | 0x09 | 🟡 code | micom-run: 0x0109 [01] ff 8a 01 01 01 09 00 02 01 7e, [02] ... 02 7d; status bits b8, b12 |
-| backlight-dim-mode | `display_tx` | 0x01 | 🟡 code | stock MON_SET_DIMMING_MODE_C (0 auto, 1 daylight, 2 night, 3 manual); micom firmware 0x0801 handler; micom-run EEPROM trace |
-| backlight-period-level | `display_tx` | 0x07 | 🟡 code | stock dimming brightness [period, level]; micom firmware 0x0807 handler; micom-run EEPROM trace |
-| backlight-manual-level | `display_tx` | 0x1a | 🟡 code | stock user brightness; micom firmware 0x081A handler; micom-run EEPROM trace |
+| backlight | `display_tx` | 0x02 | 🟡 code | firmware emulation: ff 8c 08 01 08 02 00 02 01 73 on, ... 00 72 off; eMIOS0 ch 6 PWM |
+| shutdown-ack | `system_tx` | 0x09 | 🟡 code | firmware emulation: 0x0109 [01] ff 8a 01 01 01 09 00 02 01 7e, [02] ... 02 7d; status bits b8, b12 |
+| backlight-dim-mode | `display_tx` | 0x01 | 🟡 code | stock MON_SET_DIMMING_MODE_C (0 auto, 1 daylight, 2 night, 3 manual); micom firmware 0x0801 handler; EEPROM trace under emulation |
+| backlight-period-level | `display_tx` | 0x07 | 🟡 code | stock dimming brightness [period, level]; micom firmware 0x0807 handler; EEPROM trace under emulation |
+| backlight-manual-level | `display_tx` | 0x1a | 🟡 code | stock user brightness; micom firmware 0x081A handler; EEPROM trace under emulation |
 
 ## Match
 
@@ -138,8 +138,8 @@ Not yet backed by a capture:
 | cluster_rx | `0d 8f 01 8d` | from_micom | 🟢 captured | battery and cruise; cluster_tx's reverse |
 | cluster_tx | `8f 0d 01 0d` | to_micom | 🟢 captured | the ack profile frame; stock ClusterService |
 | diag_relay | `40 c7 80 c0` | from_micom | 🟢 captured | stock HscanMicomService (rcvId 0xc7); seen only in logs taken while Car Scanner polled over OBD |
-| display_rx | `08 8c 01 88` | from_micom | 🟡 code | EV6 micom firmware V002.208, micom-run |
-| display_tx | `8c 08 01 08` | to_micom | 🟡 code | EV6 micom firmware V002.208, micom-run |
+| display_rx | `08 8c 01 88` | from_micom | 🟡 code | EV6 micom firmware V002.208, firmware emulation |
+| display_tx | `8c 08 01 08` | to_micom | 🟡 code | EV6 micom firmware V002.208, firmware emulation |
 | gear_node | `50 c4 00 d0` | from_micom | 🟢 captured | micomd capture, 2026-11-10, P/D/N/R shifts |
 | hev | `0c 88 01 8c` | from_micom | 🟢 captured | logcat MicomD 2026-10-16 |
 | hev_tx | `88 0c 01 0c` | to_micom | 🟢 captured | the poll frame's; HEVService sendPacket(0x88, 0x0c, func) |
@@ -777,7 +777,7 @@ cmd `0x54`, length ≥ 8 · 🟡 code
 
 cmd `0x08`, length 3 · 🟡 code
 
-> micom firmware FUN_0006ee40; micom-run ACC off to state 0
+> micom firmware FUN_0006ee40; firmware emulation, ACC off to state 0
 
 | Field | At | Enum |
 | --- | --- | --- |
@@ -793,7 +793,7 @@ packet-beta
 
 cmd `0x08`, length 2 · 🟡 code
 
-> micom-run: ff 01 8a 01 81 08 00 03 01 05 fb on ACC on
+> firmware emulation: ff 01 8a 01 81 08 00 03 01 05 fb on ACC on
 
 | Field | At | Enum |
 | --- | --- | --- |
@@ -809,7 +809,7 @@ packet-beta
 
 cmd `0x33`, length 1 · 🟡 code
 
-> micom-run: 0x8133 [01] on ACC off, [02] on ACC on
+> firmware emulation: 0x8133 [01] on ACC off, [02] on ACC on
 
 | Field | At | Enum |
 | --- | --- | --- |
@@ -869,7 +869,7 @@ packet-beta
 
 cmd `0x0d`, length 1 · 🟡 code
 
-> stock SystemService/VideoSetupService SYS_ILLUMINATION_STATUS_M; micom firmware 0x810d sender; micom-run
+> stock SystemService/VideoSetupService SYS_ILLUMINATION_STATUS_M; micom firmware 0x810d sender; firmware emulation
 
 | Field | At | Enum |
 | --- | --- | --- |
@@ -997,13 +997,13 @@ packet-beta
 
 ### display_rx
 
-`08 8c 01 88`: EV6 micom firmware V002.208, micom-run
+`08 8c 01 88`: EV6 micom firmware V002.208, firmware emulation
 
 #### Display 0x880C
 
 cmd `0x0c`, length ≥ 1 · 🟡 code
 
-> micom-run: 0x080C [00] answered ff 08 8c 01 88 0c 00 02 02 fe
+> firmware emulation: 0x080C [00] answered ff 08 8c 01 88 0c 00 02 02 fe
 
 | Field | At |
 | --- | --- |
@@ -1018,7 +1018,7 @@ packet-beta
 
 cmd `0x10`, length ≥ 1 · 🟡 code
 
-> micom-run: 0x0810 [00] answered 14
+> firmware emulation: 0x0810 [00] answered 14
 
 | Field | At |
 | --- | --- |
@@ -1033,7 +1033,7 @@ packet-beta
 
 cmd `0x13`, length ≥ 1 · 🟡 code
 
-> micom-run: 0x0813 [00] answered 32
+> firmware emulation: 0x0813 [00] answered 32
 
 | Field | At |
 | --- | --- |
@@ -1638,7 +1638,7 @@ packet-beta
 
 cmd `0x57`, length 1 · 🟠 inferred
 
-> micom dispatcher cmd 0x57 -> event 0x125; micom-run console 2026-11-10 ('SYS_UPDATE_RESERVATION_C : 0x1, 0x20')
+> micom dispatcher cmd 0x57 -> event 0x125; emulated firmware console 2026-11-10 ('SYS_UPDATE_RESERVATION_C : 0x1, 0x20')
 
 | Field | At |
 | --- | --- |
@@ -1653,7 +1653,7 @@ packet-beta
 
 cmd `0x8d`, length 1 · 🟠 inferred
 
-> micom dispatcher cmd 0x8d -> event 0x18a; micom-run console 2026-11-10 ('SYS_DOWNLOAD_RESERVATION_C : 0x1, 0xFA')
+> micom dispatcher cmd 0x8d -> event 0x18a; emulated firmware console 2026-11-10 ('SYS_DOWNLOAD_RESERVATION_C : 0x1, 0xFA')
 
 | Field | At |
 | --- | --- |
@@ -1683,13 +1683,13 @@ packet-beta
 
 ### display_tx
 
-`8c 08 01 08`: EV6 micom firmware V002.208, micom-run
+`8c 08 01 08`: EV6 micom firmware V002.208, firmware emulation
 
 #### backlight
 
 cmd `0x02`, length 1 · 🟡 code
 
-> micom-run: ff 8c 08 01 08 02 00 02 01 73 on, ... 00 72 off; eMIOS0 ch 6 PWM
+> firmware emulation: ff 8c 08 01 08 02 00 02 01 73 on, ... 00 72 off; eMIOS0 ch 6 PWM
 
 | Field | At | Type |
 | --- | --- | --- |
@@ -1703,7 +1703,7 @@ cmd `0x02`, length 1 · 🟡 code
 
 cmd `0x09`, length 1 · 🟡 code
 
-> micom-run: 0x0109 [01] ff 8a 01 01 01 09 00 02 01 7e, [02] ... 02 7d; status bits b8, b12
+> firmware emulation: 0x0109 [01] ff 8a 01 01 01 09 00 02 01 7e, [02] ... 02 7d; status bits b8, b12
 
 | Field | At | Enum |
 | --- | --- | --- |
@@ -1716,13 +1716,13 @@ packet-beta
 
 ### display_tx
 
-`8c 08 01 08`: EV6 micom firmware V002.208, micom-run
+`8c 08 01 08`: EV6 micom firmware V002.208, firmware emulation
 
 #### backlight-dim-mode
 
 cmd `0x01`, length 1 · 🟡 code
 
-> stock MON_SET_DIMMING_MODE_C (0 auto, 1 daylight, 2 night, 3 manual); micom firmware 0x0801 handler; micom-run EEPROM trace
+> stock MON_SET_DIMMING_MODE_C (0 auto, 1 daylight, 2 night, 3 manual); micom firmware 0x0801 handler; EEPROM trace under emulation
 
 | Field | At | Enum |
 | --- | --- | --- |
@@ -1737,7 +1737,7 @@ packet-beta
 
 cmd `0x07`, length 2 · 🟡 code
 
-> stock dimming brightness [period, level]; micom firmware 0x0807 handler; micom-run EEPROM trace
+> stock dimming brightness [period, level]; micom firmware 0x0807 handler; EEPROM trace under emulation
 
 | Field | At | Enum | Range |
 | --- | --- | --- | --- |
@@ -1754,7 +1754,7 @@ packet-beta
 
 cmd `0x1a`, length 2 · 🟡 code
 
-> stock user brightness; micom firmware 0x081A handler; micom-run EEPROM trace
+> stock user brightness; micom firmware 0x081A handler; EEPROM trace under emulation
 
 | Field | At | Type | Range |
 | --- | --- | --- | --- |
@@ -1864,7 +1864,7 @@ packet-beta
 
 | Name | Frame | Pattern | Status | Ref |
 | --- | --- | --- | --- | --- |
-| sys-power-config |  | `ff 8a 01 01 01 02 00 02 [00-ff] ..` | 🟠 inferred | jadx SystemService; EV6 micom dispatcher cmd 0x02, micom-run |
+| sys-power-config |  | `ff 8a 01 01 01 02 00 02 [00-ff] ..` | 🟠 inferred | jadx SystemService; EV6 micom dispatcher cmd 0x02, firmware emulation |
 | rear-camera-reset | `ff 8a 01 01 01 05 00 01 70` |  | 🟠 inferred | jadx SystemService |
 | last-info-init | `ff 8a 01 01 01 07 00 01 72` |  | 🟠 inferred | jadx SystemService |
 | variant-code-save |  | `ff 8a 01 01 01 18 00 02 [00-ff] ..` | 🟠 inferred | jadx SystemService |

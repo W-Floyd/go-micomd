@@ -38,8 +38,8 @@ headers:
   status_tx:     { hdr: "c3 4d 00 4d", dir: to_micom, status: captured }
   clock_tx:      { hdr: "c2 43 00 43", dir: to_micom, status: captured }
   # The micom's display node (backlight): micom firmware, in emulation.
-  display_rx:    { hdr: "08 8c 01 88", dir: from_micom, status: code, ref: "EV6 micom firmware V002.208, micom-run" }
-  display_tx:    { hdr: "8c 08 01 08", dir: to_micom, status: code, ref: "EV6 micom firmware V002.208, micom-run" }
+  display_rx:    { hdr: "08 8c 01 88", dir: from_micom, status: code, ref: "EV6 micom firmware V002.208, firmware emulation" }
+  display_tx:    { hdr: "8c 08 01 08", dir: to_micom, status: code, ref: "EV6 micom firmware V002.208, firmware emulation" }
   # A node not otherwise captured: only ever seen reporting the gear.
   gear_node:     { hdr: "50 c4 00 d0", dir: from_micom, status: captured, ref: "micomd capture, 2026-11-10, P/D/N/R shifts" }
   # Stock's start-up reads, never sent by micomd unless asked (the
@@ -746,7 +746,7 @@ messages:
     fields:
       - { name: "Power state", off: 1, enum: power_state }
     status: code
-    ref: "micom firmware FUN_0006ee40; micom-run ACC off to state 0"
+    ref: "micom firmware FUN_0006ee40; firmware emulation, ACC off to state 0"
   - name: "Power state (ACC on)"
     dir: from_micom
     hdr: system_rx
@@ -756,7 +756,7 @@ messages:
     fields:
       - { name: "Power state", off: 1, enum: power_state }
     status: code
-    ref: "micom-run: ff 01 8a 01 81 08 00 03 01 05 fb on ACC on"
+    ref: "firmware emulation: ff 01 8a 01 81 08 00 03 01 05 fb on ACC on"
   # 0x8133: the ACC edge, before the 0x8108 of the same change.
   - name: "ACC edge"
     dir: from_micom
@@ -766,7 +766,7 @@ messages:
     fields:
       - { name: "ACC", off: 0, enum: acc_edge }
     status: code
-    ref: "micom-run: 0x8133 [01] on ACC off, [02] on ACC on"
+    ref: "firmware emulation: 0x8133 [01] on ACC off, [02] on ACC on"
   # Stock's ignition, ALT-L and low fuel/charge warning (sticky
   # SYSTEM_STATE_IGN1/ALTL/FUELWANING). IGN1 went 00 at ACC off and 01 at
   # ACC on in the captures; ALT-L is the DC-DC on an EV, so the car READY.
@@ -810,7 +810,7 @@ messages:
     fields:
       - { name: "Illumination", off: 0, enum: illumination }
     status: code
-    ref: "stock SystemService/VideoSetupService SYS_ILLUMINATION_STATUS_M; micom firmware 0x810d sender; micom-run"
+    ref: "stock SystemService/VideoSetupService SYS_ILLUMINATION_STATUS_M; micom firmware 0x810d sender; firmware emulation"
   # The whole boot record, read first: the car's state when the micom
   # answered, which the frames below send only on change. Byte 2 the
   # driving regulation, 7 bits ACC 7, IGN1 6, ALT-L (ready) 5, IGN3 1; 8 bits
@@ -892,7 +892,7 @@ messages:
     ref: "stock battSoc, func 0x819b byte 7"
 
   # SoC→micom system service commands confirmed from the micom firmware command
-  # dispatcher (0x774a2; jump table at 0x77526) and micom-run (watching the
+  # dispatcher (0x774a2; jump table at 0x77526) and emulation (watching the
   # firmware console). Each is dangerous: it arms an update/download boot or
   # changes power/sleep state, so it is refused unless -allow-dangerous.
   - name: sys-update-reservation
@@ -905,7 +905,7 @@ messages:
     on_change: false
     status: inferred
     dangerous: "func 0x0157 SYS_UPDATE_RESERVATION_C: arms a software-update boot on the next cycle"
-    ref: "micom dispatcher cmd 0x57 -> event 0x125; micom-run console 2026-11-10 ('SYS_UPDATE_RESERVATION_C : 0x1, 0x20')"
+    ref: "micom dispatcher cmd 0x57 -> event 0x125; emulated firmware console 2026-11-10 ('SYS_UPDATE_RESERVATION_C : 0x1, 0x20')"
   - name: sys-download-reservation
     dir: to_micom
     hdr: system_tx
@@ -916,7 +916,7 @@ messages:
     on_change: false
     status: inferred
     dangerous: "func 0x018d SYS_DOWNLOAD_RESERVATION_C: arms a download boot on the next cycle"
-    ref: "micom dispatcher cmd 0x8d -> event 0x18a; micom-run console 2026-11-10 ('SYS_DOWNLOAD_RESERVATION_C : 0x1, 0xFA')"
+    ref: "micom dispatcher cmd 0x8d -> event 0x18a; emulated firmware console 2026-11-10 ('SYS_DOWNLOAD_RESERVATION_C : 0x1, 0xFA')"
   - name: sys-sleep-boot-control
     dir: to_micom
     hdr: system_tx
@@ -947,7 +947,7 @@ messages:
     fields:
       - { name: "Display 0x880C", off: 0 }   # RAM 0x400118e8, meaning unknown; 02 in emulation
     status: code
-    ref: "micom-run: 0x080C [00] answered ff 08 8c 01 88 0c 00 02 02 fe"
+    ref: "firmware emulation: 0x080C [00] answered ff 08 8c 01 88 0c 00 02 02 fe"
   - name: "Rheostat"
     dir: from_micom
     hdr: display_rx
@@ -956,7 +956,7 @@ messages:
     fields:
       - { name: "Rheostat step", off: 0 }   # 0-21; 20 in emulation
     status: code
-    ref: "micom-run: 0x0810 [00] answered 14"
+    ref: "firmware emulation: 0x0810 [00] answered 14"
   - name: "Display 0x8813"
     dir: from_micom
     hdr: display_rx
@@ -965,7 +965,7 @@ messages:
     fields:
       - { name: "Display 0x8813", off: 0 }   # RAM 0x400172a0; 0x32 in emulation
     status: code
-    ref: "micom-run: 0x0813 [00] answered 32"
+    ref: "firmware emulation: 0x0813 [00] answered 32"
   # The answer to stock's current-brightness request (0x081B): the
   # brightness, u16, then, by stock, the light sensor's u16, not decoded
   # here as it may be absent. Sent only with the "new display option"
@@ -1201,7 +1201,7 @@ messages:
     on_change: false     # every input sends: the micom forgets it on reset
     min_interval: 1s
     status: code
-    ref: "micom-run: ff 8c 08 01 08 02 00 02 01 73 on, ... 00 72 off; eMIOS0 ch 6 PWM"
+    ref: "firmware emulation: ff 8c 08 01 08 02 00 02 01 73 on, ... 00 72 off; eMIOS0 ch 6 PWM"
   # The shutdown acks, 0x0109. Latched by the micom and not cleared on ACC
   # on, so a stale ack cuts the next ACC-off cycle short: each is sent only
   # while the last power state received is the one it answers.
@@ -1217,7 +1217,7 @@ messages:
       - { if: { stage: power_off_request }, field: "Power state", in: [ power_off_request ] }
       - { if: { stage: rail_off },          field: "Power state", in: [ rail_off ] }
     status: code
-    ref: "micom-run: 0x0109 [01] ff 8a 01 01 01 09 00 02 01 7e, [02] ... 02 7d; status bits b8, b12"
+    ref: "firmware emulation: 0x0109 [01] ff 8a 01 01 01 09 00 02 01 7e, [02] ... 02 7d; status bits b8, b12"
 
   # Persistent: the micom writes each to EEPROM (block A 0x100 and backup B
   # 0x300) on every frame. Needs -allow-persistent.
@@ -1231,7 +1231,7 @@ messages:
     persistent: true     # EEPROM 0x1b7, 0x230, 0x286
     min_interval: 1s
     status: code
-    ref: "stock MON_SET_DIMMING_MODE_C (0 auto, 1 daylight, 2 night, 3 manual); micom firmware 0x0801 handler; micom-run EEPROM trace"
+    ref: "stock MON_SET_DIMMING_MODE_C (0 auto, 1 daylight, 2 night, 3 manual); micom firmware 0x0801 handler; EEPROM trace under emulation"
   # Stock's dimming brightness: the level of one period; auto applies at
   # once, day and night at the next dim mode.
   - name: backlight-period-level
@@ -1245,7 +1245,7 @@ messages:
     persistent: true     # EEPROM 0x1b8 day, 0x1b9 night
     min_interval: 1s
     status: code
-    ref: "stock dimming brightness [period, level]; micom firmware 0x0807 handler; micom-run EEPROM trace"
+    ref: "stock dimming brightness [period, level]; micom firmware 0x0807 handler; EEPROM trace under emulation"
   # Stock's user brightness: the manual level, per mille, applied at once in dim mode manual. Stock
   # sends it from a slider: min_interval keeps that from wearing the EEPROM.
   - name: backlight-manual-level
@@ -1258,7 +1258,7 @@ messages:
     persistent: true     # EEPROM 0x286
     min_interval: 1s
     status: code
-    ref: "stock user brightness; micom firmware 0x081A handler; micom-run EEPROM trace"
+    ref: "stock user brightness; micom firmware 0x081A handler; EEPROM trace under emulation"
 
 # The power and backlight tables of the micom firmware.
 enums:

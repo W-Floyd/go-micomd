@@ -509,7 +509,7 @@ describes.
 - `TestEV6Messages`: the cluster messages' frames, whole with checksums (the
   report's worked example, the captured `ack`, the end of route), each read
   back by `DecodeInput` into an input that encodes to it again; the power
-  and backlight frames as micom-run took them; the shutdown acks refused
+  and backlight frames as the emulated firmware sent them; the shutdown acks refused
   before any power state, at 5/4/3, and after ACC returns, and sent at their
   own; which messages each gate admits.
 - The EV6 equivalence tests: what the Go tables read is read the same.
