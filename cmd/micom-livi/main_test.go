@@ -72,7 +72,12 @@ func TestLiviCar(t *testing.T) {
 		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=630000", map[string]any{"batteryConditioningMode": nil}},
 		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=790003", map[string]any{"batteryConditioningError": 3.0}},
 		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=790000", map[string]any{"batteryConditioningError": nil}},
-		{"15:04:05.000 rx hdr=0c88018c cmd=4f payload=2d3a200100000000", map[string]any{"chargerReady": true}},
+		{"15:04:05.000 rx hdr=0c88018c cmd=4f payload=2d3a200100000000", map[string]any{"chargerReady": true, "charging": false, "chargeType": nil}},
+		// Live, 2026-11-12: an AC charge at 7.2 kW, the cable in.
+		{"15:04:05.000 rx hdr=0c88018c cmd=4f payload=128e515100000000", map[string]any{"chargerReady": true, "charging": true, "chargeType": "ac"}},
+		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=5b0048", map[string]any{"chargingPowerKw": 7.2}},
+		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=1b0001", map[string]any{"chargePlugged": true}},
+		{"15:04:05.000 rx hdr=0c88018c cmd=02 payload=140280", map[string]any{"chargeTimeToFullMin": 640.0}},
 		{"15:04:05.000 rx hdr=0c88018c cmd=5c payload=15ffffffffffffffffff01b1000000000000000000000400ff00000000ff", map[string]any{"batteryHeaterW": 0.0, "lowVoltageLoad": 4.0}},
 		{"15:04:05.000 rx hdr=44c100c4 cmd=14 payload=57", map[string]any{"auxBatteryPct": 87.0}},
 		{"15:04:05.000 rx hdr=50c400d0 cmd=4a payload=07", map[string]any{"gear": "R"}},

@@ -1131,7 +1131,13 @@ messages:
     ref: "drive 2026-11-08 against Car Scanner OBD2 [BMS] State of Charge BMS (r 0.997, change 0.83): fit 0.383*raw+2.1; payloads 41 5b xx"
 
   # The EV6 is CAN DB generation 2 (boot record byte 120): the charger's
-  # ready bits are 1:0. Every captured frame has byte 3 = 01, ready.
+  # ready bits are 1:0, 01 with no plug in too. Bytes 0-2 vary frame to
+  # frame. Plugged in to a 7.2 kW wallbox, 2026-11-12, byte 3 went 01 -> 11
+  # -> 51 as current began (0.4 s), 01 for each pause and 51 again with it,
+  # 51 throughout the charge: bit 6 is set exactly while "Charging power"
+  # is above 0. Bit 4 led it by 0.4 s and is not decoded. Being the
+  # on-board charger's, bit 6 is presumably AC only; a DC session is not
+  # captured.
   - name: "Charger state"
     dir: from_micom
     hdr: "0c 88 ?? 8c"
@@ -1139,8 +1145,40 @@ messages:
     min_length: 4
     fields:
       - { name: "Charger ready", off: 3, bits: "1:0" }
+      - { name: "On-board charger charging", off: 3, bits: "6:6" }
     status: captured
-    ref: "HEVService OBC ready (CAN DB generation >= 2); boot record byte 120 = 02 and 0x8c4f byte 3 = 01 in every 2026-11 capture"
+    ref: "HEVService OBC ready (CAN DB generation >= 2); boot record byte 120 = 02; 0x8c4f byte 3 01 unplugged in every 2026-11 capture, 51 for the whole of an AC charge on 2026-11-12 (12 8e 51 51 00 00 00 00 live)"
+
+  # More HEVService items (0x8c02 [id] [u16]), seen only on the EV6, during
+  # one AC charge (2026-11-12); their stock names are not known.
+  # Item 0x5b rose 0 -> 0x48 in 4 s as charging began, back to 0 at each
+  # pause, then held 0x47-0x48: 7.2 kW at x0.1 kW, while the pack's energy
+  # (cluster 0x47) rose 5.7 kW and its charge 8 %/h, so the scale is a fit;
+  # a DC session would test it.
+  - name: "Charging power"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x5b } ]
+    fields:
+      - { name: "Charging power", off: 1, type: u16, scale: 0.1, unit: " kW" }
+    status: captured
+    ref: "AC charge 2026-11-12: 5b 00 48 against the pack's remaining energy (+1.51 kWh in 16 min) and a 30 A wallbox"
+  # Item 0x1b: 1 as the cable went in (52 s after the charge port opened),
+  # 0 for 50 s while the car's modules woke (the ranges read 0 then came
+  # back), 1 again 6 s before charging began, through the charge. An
+  # unplug is not captured: whether it then reads 0, and what it reads on DC.
+  - name: "Charging cable"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x1b } ]
+    fields:
+      - { name: "Charging cable connected", off: 2 }
+    status: captured
+    ref: "AC charge 2026-11-12: 1b 00 01 at plug-in; with it, not decoded: 0x3e (02 at plug-in, then 0d; 08 once charging), 0x3f, 0x1c, 0x3a (01 by the time it charged)"
 
   # Replies to the start-up reads. Each snapshot byte is the value its
   # single-signal frame carries (micom-livi splits them back into those).

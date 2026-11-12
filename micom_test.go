@@ -143,7 +143,14 @@ func TestDescribeLive(t *testing.T) {
 		{"0c88018c", "55", "f52c350c0c000000", "Departure timers: Departure 1 hour=12 Departure 1 minute bits=0 Departure 2 hour=12 Departure 2 minute bits=0 Departure 1 Monday=0 Departure 1 Tuesday=0 Departure 1 Wednesday=0 Departure 1 Thursday=0 Departure 1 enabled=0 Departure 1 Friday=0 Departure 1 Saturday=0 Departure 1 Sunday=0 Departure 2 Monday=0"},
 		// Synthetic, stock's layout: departure 1 07:30 Monday to Friday, on.
 		{"0c88018c", "55", "f52c35670c550500", "Departure 1 hour=7 Departure 1 minute bits=3 Departure 2 hour=12 Departure 2 minute bits=0 Departure 1 Monday=1 Departure 1 Tuesday=1 Departure 1 Wednesday=1 Departure 1 Thursday=1 Departure 1 enabled=1 Departure 1 Friday=1 Departure 1 Saturday=0 Departure 1 Sunday=0 Departure 2 Monday=0"},
-		{"0c88018c", "4f", "2d3a200100000000", "Charger ready=1"},
+		{"0c88018c", "4f", "2d3a200100000000", "Charger ready=1 On-board charger charging=0"},
+		// Live, 2026-11-12, an AC charge at 7.2 kW: starting, then charging.
+		{"0c88018c", "4f", "093a351100000000", "Charger ready=1 On-board charger charging=0"},
+		{"0c88018c", "4f", "128e515100000000", "Charger ready=1 On-board charger charging=1"},
+		{"0c88018c", "02", "5b0048", "Charging power: Charging power=7.2 kW"},
+		{"0c88018c", "02", "5b0000", "Charging power=0 kW"},
+		{"0c88018c", "02", "1b0001", "Charging cable: Charging cable connected=1"},
+		{"0c88018c", "02", "140280", "Charge time to full=640 min"},
 		{"0c88018c", "02", "140028", "Charge time to full: Charge time to full=40 min"},
 		{"0c88018c", "02", "0e001f", "Charge time estimate, DC=31 min"},
 		{"0c88018c", "02", "1300dc", "Charge time estimate, AC=220 min"},

@@ -254,6 +254,9 @@ var carFields = map[string]string{
 	"Illumination":                    "nightMode", // 0 is night, any other value day
 	"12 V battery charge (body)":      "auxBatteryPct",
 	"Charger ready":                   "chargerReady",
+	"On-board charger charging":       "charging",
+	"Charging cable connected":        "chargePlugged",
+	"Charging power":                  "chargingPowerKw",
 	"Charge time to full":             "chargeTimeToFullMin",
 	"Charge time estimate, DC":        "chargeTimeDcMin",
 	"Charge time estimate, AC":        "chargeTimeAcMin",
@@ -290,7 +293,7 @@ var condFields = map[string]string{
 
 // carBools are the carFields LIVI takes as true or false.
 var carBools = map[string]bool{
-	"chargerReady": true, "ignition": true, "vehicleReady": true, "drivingRegulation": true,
+	"chargerReady": true, "charging": true, "chargePlugged": true, "ignition": true, "vehicleReady": true, "drivingRegulation": true,
 	"drivingRegulationB": true, "parkingBrake": true, "reverse": true,
 }
 
@@ -420,6 +423,10 @@ func liviCar(fs []micom.Field) map[string]any {
 			out = map[string]any{}
 		}
 		out[key] = v
+		// The on-board charger charges from AC only; DC is not decoded.
+		if key == "charging" {
+			out["chargeType"] = map[bool]any{true: "ac", false: nil}[f.Value != 0]
+		}
 	}
 	if on != nil && added != nil {
 		if out == nil {

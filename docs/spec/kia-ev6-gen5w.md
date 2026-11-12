@@ -42,7 +42,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 
 | Status | Messages |
 | --- | --- |
-| 🟢 captured | 17 |
+| 🟢 captured | 19 |
 | 🟡 code | 62 |
 | 🟠 inferred | 3 |
 
@@ -353,7 +353,7 @@ packet-beta
 
 cmd `0x02`, length 3 · 🟢 captured
 
-> HEVService item 0x14 REAL_SC_REM_TIME (HEVFlag CHARGING_INTEGRATED_REM_TIME): the time left while charging; seen live falling 1 a minute to 0 at the end
+> HEVService item 0x14 REAL_SC_REM_TIME (HEVFlag CHARGING_INTEGRATED_REM_TIME): the time left while charging; seen live falling 1 a minute to 0 at the end; on the EV6 at 7.2 kW, sent on change in 10-minute steps (640, 630, 620), so no re-request is needed while charging
 
 | Field | At | Type | Unit |
 | --- | --- | --- | --- |
@@ -718,11 +718,12 @@ cmd `0x55`, length ≥ 8 · 🟡 code
 
 cmd `0x4f`, length ≥ 4 · 🟢 captured
 
-> HEVService OBC ready (CAN DB generation >= 2); boot record byte 120 = 02 and 0x8c4f byte 3 = 01 in every 2026-11 capture
+> HEVService OBC ready (CAN DB generation >= 2); boot record byte 120 = 02; 0x8c4f byte 3 01 unplugged in every 2026-11 capture, 51 for the whole of an AC charge on 2026-11-12 (12 8e 51 51 00 00 00 00 live)
 
 | Field | At |
 | --- | --- |
 | Charger ready | byte 3 bits 1:0 |
+| On-board charger charging | byte 3 bits 6:6 |
 
 #### Schedule settings
 
@@ -1228,6 +1229,42 @@ cmd `0xad`, length 3 · 🟢 captured
 packet-beta
 0-15: "?"
 16-23: "OBD pack remaining"
+```
+
+### 0c 88 ?? 8c
+
+
+
+#### Charging power
+
+cmd `0x02`, length 3 · 🟢 captured
+
+> AC charge 2026-11-12: 5b 00 48 against the pack's remaining energy (+1.51 kWh in 16 min) and a 30 A wallbox
+
+| Field | At | Type | Scale | Unit |
+| --- | --- | --- | --- | --- |
+| Charging power | byte 1 | u16 | 0.1 | kW |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "Charging power"
+```
+
+#### Charging cable
+
+cmd `0x02`, length 3 · 🟢 captured
+
+> AC charge 2026-11-12: 1b 00 01 at plug-in; with it, not decoded: 0x3e (02 at plug-in, then 0d; 08 once charging), 0x3f, 0x1c, 0x3a (01 by the time it charged)
+
+| Field | At |
+| --- | --- |
+| Charging cable connected | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "Charging cable connected"
 ```
 
 ### climate_panel

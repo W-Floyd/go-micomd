@@ -267,7 +267,7 @@ packet-beta
 
 cmd `0x02`, length 3 · 🟢 captured
 
-> HEVService item 0x14 REAL_SC_REM_TIME (HEVFlag CHARGING_INTEGRATED_REM_TIME): the time left while charging; seen live falling 1 a minute to 0 at the end
+> HEVService item 0x14 REAL_SC_REM_TIME (HEVFlag CHARGING_INTEGRATED_REM_TIME): the time left while charging; seen live falling 1 a minute to 0 at the end; on the EV6 at 7.2 kW, sent on change in 10-minute steps (640, 630, 620), so no re-request is needed while charging
 
 | Field | At | Type | Unit |
 | --- | --- | --- | --- |
