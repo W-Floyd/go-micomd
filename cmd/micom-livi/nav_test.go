@@ -114,7 +114,8 @@ func navOf(js string) *navigation {
 // then operating) and kept: no route is the compass pane (no_route_guide),
 // a route its maneuver and summary on change and every second, a route's
 // end stock's end frames and the compass pane again; LIVI gone is no
-// route. The day/night look goes on change, held pane or not. Release only with release()
+// route. The day/night look goes on change, held pane or not: LIVI's when it
+// gives one (held 10 s through its silence), else the car's. Release only with release()
 // (exit) or after releaseAfter without LIVI; a new micomd connection
 // claims afresh.
 func TestBridgeSequence(t *testing.T) {
@@ -123,6 +124,8 @@ func TestBridgeSequence(t *testing.T) {
 	exit := navOf(`{"active":true,"maneuverType":23,"turnSide":0,"remainDistance":70799,"distanceToDestination":78940,"timeToDestination":2733,"etaText":"16:47"}`)
 	near := navOf(`{"active":true,"maneuverType":23,"turnSide":0,"remainDistance":150,"distanceToDestination":8290,"timeToDestination":420,"etaText":"16:47"}`)
 	off := navOf(`{"active":false}`)
+	offDay := navOf(`{"active":false,"appearance":"day"}`)
+	offNight := navOf(`{"active":false,"appearance":"night"}`)
 	turn := `{"bar":null,"direction":0,"distance":44,"distance_tenths":0,"maneuver":"off_ramp_right","msg":"tbt-turn","side_street":null,"unit":"mi"}`
 	sub := `{"eta_hour":16,"eta_minute":47,"msg":"cluster-sub-info","remaining":49,"remaining_tenths":1,"remaining_unit":"mi","time_format":1,"time_type":1}`
 	idle := `{"bar":null,"direction":0,"distance":null,"distance_tenths":0,"maneuver":"no_route_guide","msg":"tbt-turn","side_street":0,"side_street_combi":0,"unit":"m"}`
@@ -163,6 +166,13 @@ func TestBridgeSequence(t *testing.T) {
 		{"still gone", nil, 70 * time.Second, ptr(true), nil},
 		{"still gone, day: told", nil, 70500 * time.Millisecond, ptr(false), []string{day, huDay, themeDay}},
 		{"LIVI back at night: claimed again", off, 71 * time.Second, ptr(true), []string{freeAlive, claimOwn, night, huNight, themeNight, idle, idleSub}},
+		{"LIVI shows day, the car night: LIVI's", offDay, 71200 * time.Millisecond, ptr(true), []string{day, huDay, themeDay}},
+		{"LIVI day again: nothing new", offDay, 71400 * time.Millisecond, ptr(true), nil},
+		{"LIVI shows night: told once", offNight, 71600 * time.Millisecond, ptr(false), []string{night, huNight, themeNight}},
+		{"LIVI unreadable a moment: its night held", nil, 71800 * time.Millisecond, ptr(false), nil},
+		{"LIVI back without a word: held", off, 75 * time.Second, ptr(false), []string{idle, idleSub}},
+		{"LIVI silent 10 s: the car's day", off, 81600 * time.Millisecond, ptr(false), []string{day, huDay, themeDay, idle, idleSub}},
+		{"the car's night", off, 82 * time.Second, ptr(true), []string{night, huNight, themeNight}},
 	} {
 		isNight = tc.night
 		got := b.step(tc.n, t0.Add(tc.at), o)
@@ -176,9 +186,9 @@ func TestBridgeSequence(t *testing.T) {
 	if got := b.release(); got != nil {
 		t.Errorf("released twice: %q", got)
 	}
-	b.step(exit, t0.Add(80*time.Second), o)
+	b.step(exit, t0.Add(90*time.Second), o)
 	b.reset()
-	if got := b.step(exit, t0.Add(81*time.Second), o); len(got) != 7 || got[0] != claimAlive || got[2] != night || got[3] != huNight || got[4] != themeNight {
+	if got := b.step(exit, t0.Add(91*time.Second), o); len(got) != 7 || got[0] != claimAlive || got[2] != night || got[3] != huNight || got[4] != themeNight {
 		t.Errorf("after a reconnection: %q", got)
 	}
 }

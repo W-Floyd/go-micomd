@@ -462,8 +462,8 @@ All on `8f 0d 01 0d` (`cluster_tx`, which was `ack_tx`), `status: code`:
 `cluster-day-night` is the navigation pane's look only. The micom puts
 `hu-day-night` and `hu-theme` on CAN; `hu-day-night` alone left the cluster
 light at night, and stock also sends `hu-theme` (black at micom ready under
-QEMU), so the cluster's dark look is expected to follow it (not yet seen in
-the car).
+QEMU), and the cluster's dark look follows it (seen in the car: `black`
+turned it dark).
 
 A navigation owns the cluster's pane with `tbt-alive` true then
 `nav-operation` operating (stock's claim, DiPO's and GPM's), and gives it
@@ -505,8 +505,10 @@ own source.
 (Android Auto's or CarPlay's, `GET /navigation` on LIVI's port 4000) twice a
 second and writes these lines. At its start (and on each new connection
 to micomd) it claims the pane, then sends `cluster-day-night`,
-`hu-day-night` and `hu-theme` from the micom's illumination (0x810d, then the light
-sensor) once known and on change, whether or not it holds the pane. With no route, or
+`hu-day-night` and `hu-theme` once known and on change, whether or not it
+holds the pane: from LIVI's `appearance` (`day` or `night`, as its screen
+shows it; stock's HU likewise sends its own look), held 10 s through LIVI's
+silence, else from the micom's illumination (0x810d, then the light sensor). With no route, or
 LIVI unreadable, the pane shows the compass: `tbt-turn` `no_route_guide`
 and the idle `cluster-sub-info` (the captured ack frame, route fields
 invalid), every second. With a route, `tbt-turn` and `cluster-sub-info` on

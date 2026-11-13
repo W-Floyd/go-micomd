@@ -61,6 +61,9 @@ type navigation struct {
 	// EvChargeRequest is LIVI's change of the car's charge limits or AC
 	// charging current, nil while none stands.
 	EvChargeRequest *writeRequest `json:"evChargeRequest"`
+	// Appearance is "day" or "night" as LIVI's shell shows it, nil while
+	// the shell has not said.
+	Appearance *string `json:"appearance"`
 }
 
 // navOptions are how the cluster shows distances and the time.
@@ -238,7 +241,8 @@ type bridge struct {
 	// position, when set, is the unit's fix in stock's arc-seconds, for the
 	// cluster (cluster-position); ok false for none, and then nothing is sent.
 	position func(time.Time) (lat, lon int, ok bool)
-	// night, when set, is the cluster's day or night look, nil while unknown.
+	// night, when set, is the car's day or night, nil while unknown: the
+	// cluster's look while LIVI does not give its own.
 	night func() *bool
 	// observe, when set, hears each read of LIVI's guidance, nil when it
 	// could not be read.
@@ -249,8 +253,11 @@ type bridge struct {
 	alive    bool // tbt-alive as last sent while owned
 	released bool // by releaseAfter: claimed again when LIVI is back
 	seen     time.Time
-	sent     map[string]string
-	at       map[string]time.Time
+	// liviNight is LIVI's day or night as it last gave it, at liviAt.
+	liviNight *bool
+	liviAt    time.Time
+	sent      map[string]string
+	at        map[string]time.Time
 }
 
 // idleTurn is tbt-turn with no route: stock's "no route guidance (compass)"
@@ -314,14 +321,27 @@ func (b *bridge) release() []string {
 	return []string{freeAlive, freeOwn}
 }
 
-// look adds the day or night lines, on change: the HU's (hu-day-night, and
-// hu-theme, which the cluster's own look is expected to follow) and the
-// navigation pane's. They go whether or not the pane is held.
-func (b *bridge) look(out []string, now time.Time) []string {
-	if b.night == nil {
-		return out
+// liviLookHold is how long LIVI's day or night outlasts its silence: a core
+// restarting, or its shell reconnecting, must not flash the car's look.
+const liviLookHold = 10 * time.Second
+
+// lookNight is the cluster's day or night: LIVI's, as on its screen (stock's
+// HU sends its own look too), else the car's.
+func (b *bridge) lookNight(now time.Time) *bool {
+	if b.liviNight != nil && now.Sub(b.liviAt) < liviLookHold {
+		return b.liviNight
 	}
-	night := b.night()
+	if b.night == nil {
+		return nil
+	}
+	return b.night()
+}
+
+// look adds the day or night lines, on change: the HU's (hu-day-night, and
+// hu-theme, which the cluster's own look follows) and the navigation
+// pane's. They go whether or not the pane is held.
+func (b *bridge) look(out []string, now time.Time) []string {
+	night := b.lookNight(now)
 	if night == nil {
 		return out
 	}
@@ -338,6 +358,10 @@ func (b *bridge) look(out []string, now time.Time) []string {
 func (b *bridge) step(n *navigation, now time.Time, o navOptions) []string {
 	if n != nil || b.seen.IsZero() {
 		b.seen = now
+	}
+	if n != nil && n.Appearance != nil && (*n.Appearance == "day" || *n.Appearance == "night") {
+		night := *n.Appearance == "night"
+		b.liviNight, b.liviAt = &night, now
 	}
 	if n == nil && b.releaseAfter > 0 && now.Sub(b.seen) >= b.releaseAfter {
 		if b.owned {
