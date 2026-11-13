@@ -131,6 +131,8 @@ func TestBridgeSequence(t *testing.T) {
 	night := `{"mode":"night","msg":"cluster-day-night"}`
 	huDay := `{"msg":"hu-day-night","state":1}`
 	huNight := `{"msg":"hu-day-night","state":2}`
+	themeDay := `{"msg":"hu-theme","theme":"white"}`
+	themeNight := `{"msg":"hu-theme","theme":"black"}`
 	var isNight *bool
 	b := newBridge(time.Second)
 	b.releaseAfter = time.Minute
@@ -144,12 +146,12 @@ func TestBridgeSequence(t *testing.T) {
 	}{
 		{"start, day/night unknown: claim, not alive, the compass pane", nil, 0, nil, []string{freeAlive, claimOwn, idle, idleSub}},
 		{"nothing new", off, 500 * time.Millisecond, nil, nil},
-		{"illumination: day", off, 700 * time.Millisecond, ptr(false), []string{day, huDay}},
+		{"illumination: day", off, 700 * time.Millisecond, ptr(false), []string{day, huDay, themeDay}},
 		{"a second on, refreshed", off, 1200 * time.Millisecond, ptr(false), []string{idle, idleSub}},
 		{"guidance starts: alive", exit, 1500 * time.Millisecond, ptr(false), []string{claimAlive, turn, sub}},
 		{"nothing new", exit, 2 * time.Second, ptr(false), nil},
 		{"a second on, refreshed", exit, 2500 * time.Millisecond, ptr(false), []string{turn, sub}},
-		{"closer, at night", near, 3 * time.Second, ptr(true), []string{night, huNight,
+		{"closer, at night", near, 3 * time.Second, ptr(true), []string{night, huNight, themeNight,
 			`{"bar":null,"direction":0,"distance":490,"distance_tenths":0,"maneuver":"off_ramp_right","msg":"tbt-turn","side_street":null,"unit":"ft"}`,
 			`{"eta_hour":16,"eta_minute":47,"msg":"cluster-sub-info","remaining":5,"remaining_tenths":2,"remaining_unit":"mi","time_format":1,"time_type":1}`,
 		}},
@@ -159,8 +161,8 @@ func TestBridgeSequence(t *testing.T) {
 		{"LIVI gone while guiding", nil, 5500 * time.Millisecond, ptr(true), []string{endGuidance, freeAlive, idle, idleSub}},
 		{"LIVI gone a minute: released", nil, 65500 * time.Millisecond, ptr(true), []string{freeAlive, freeOwn}},
 		{"still gone", nil, 70 * time.Second, ptr(true), nil},
-		{"still gone, day: told", nil, 70500 * time.Millisecond, ptr(false), []string{day, huDay}},
-		{"LIVI back at night: claimed again", off, 71 * time.Second, ptr(true), []string{freeAlive, claimOwn, night, huNight, idle, idleSub}},
+		{"still gone, day: told", nil, 70500 * time.Millisecond, ptr(false), []string{day, huDay, themeDay}},
+		{"LIVI back at night: claimed again", off, 71 * time.Second, ptr(true), []string{freeAlive, claimOwn, night, huNight, themeNight, idle, idleSub}},
 	} {
 		isNight = tc.night
 		got := b.step(tc.n, t0.Add(tc.at), o)
@@ -176,7 +178,7 @@ func TestBridgeSequence(t *testing.T) {
 	}
 	b.step(exit, t0.Add(80*time.Second), o)
 	b.reset()
-	if got := b.step(exit, t0.Add(81*time.Second), o); len(got) != 6 || got[0] != claimAlive || got[2] != night || got[3] != huNight {
+	if got := b.step(exit, t0.Add(81*time.Second), o); len(got) != 7 || got[0] != claimAlive || got[2] != night || got[3] != huNight || got[4] != themeNight {
 		t.Errorf("after a reconnection: %q", got)
 	}
 }

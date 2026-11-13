@@ -306,7 +306,7 @@ func (b *bridge) release() []string {
 	}
 	b.owned, b.routing = false, false
 	for msg := range b.sent {
-		if msg != "cluster-day-night" && msg != "hu-day-night" {
+		if msg != "cluster-day-night" && msg != "hu-day-night" && msg != "hu-theme" {
 			delete(b.sent, msg)
 			delete(b.at, msg)
 		}
@@ -314,9 +314,9 @@ func (b *bridge) release() []string {
 	return []string{freeAlive, freeOwn}
 }
 
-// look adds the day or night lines, on change: the HU's (hu-day-night,
-// which the cluster's own look follows) and the navigation pane's. They go
-// whether or not the pane is held.
+// look adds the day or night lines, on change: the HU's (hu-day-night, and
+// hu-theme, which the cluster's own look is expected to follow) and the
+// navigation pane's. They go whether or not the pane is held.
 func (b *bridge) look(out []string, now time.Time) []string {
 	if b.night == nil {
 		return out
@@ -325,12 +325,13 @@ func (b *bridge) look(out []string, now time.Time) []string {
 	if night == nil {
 		return out
 	}
-	mode, state := "day", 1
+	mode, state, theme := "day", 1, "white"
 	if *night {
-		mode, state = "night", 2
+		mode, state, theme = "night", 2, "black"
 	}
 	out = b.emit(out, map[string]any{"msg": "cluster-day-night", "mode": mode}, now, false)
-	return b.emit(out, map[string]any{"msg": "hu-day-night", "state": state}, now, false)
+	out = b.emit(out, map[string]any{"msg": "hu-day-night", "state": state}, now, false)
+	return b.emit(out, map[string]any{"msg": "hu-theme", "theme": theme}, now, false)
 }
 
 // step is the lines to send for n, which is nil when LIVI cannot be read.

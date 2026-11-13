@@ -43,7 +43,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 20 |
-| 🟡 code | 62 |
+| 🟡 code | 63 |
 | 🟠 inferred | 3 |
 
 Not yet backed by a capture:
@@ -97,7 +97,8 @@ Not yet backed by a capture:
 | Boot record (full) | `system_rx` | 0x01 | 🟡 code | stock SystemService InitialCarInfo; 149 bytes, byte 120 = 02 and byte 7 = ca in 2026-11 captures |
 | Rheostat level | `system_rx` | 0x45 | 🟡 code | stock SYS_RHEOSTAT_M (func 0x8145) |
 | System 0x819B | `system_rx` | 0x9b | 🟡 code | stock battSoc, func 0x819b byte 7 |
-| hu-day-night | `system_tx` | 0x90 | 🟡 code | stock SystemService.sendHUDayNightState (sendPacket 0x8a, 1, func 0x0190); micom firmware dispatcher 0x774a2 case 0x90 -> FUN_000d4a3a |
+| hu-day-night | `system_tx` | 0x90 | 🟡 code | stock SystemService.sendHUDayNightState (sendPacket 0x8a, 1, func 0x0190); micom firmware dispatcher 0x774a2 case 0x90 -> FUN_000d4a3a; stock under QEMU (micom-fake, 2026-11-12): 01 day, 02 night |
+| hu-theme | `system_tx` | 0x8f | 🟡 code | stock SystemService.sendGuiThemeType (sendPacket 0x8a, 1, func 0x018f) from VideoSetupService.sendThemeType (USE_ECOGUI_COMMON: uiMode night 4, else 3); micom firmware dispatcher 0x774a2 case 0x8f -> FUN_000d6568; stock under QEMU (micom-fake, 2026-11-12): 04 at micom ready, 03 and 04 as the UI mode went day and night |
 | sys-update-reservation | `system_tx` | 0x57 | 🟠 inferred | micom dispatcher cmd 0x57 -> event 0x125; emulated firmware console 2026-11-10 ('SYS_UPDATE_RESERVATION_C : 0x1, 0x20') |
 | sys-download-reservation | `system_tx` | 0x8d | 🟠 inferred | micom dispatcher cmd 0x8d -> event 0x18a; emulated firmware console 2026-11-10 ('SYS_DOWNLOAD_RESERVATION_C : 0x1, 0xFA') |
 | sys-sleep-boot-control | `system_tx` | 0x67 | 🟠 inferred | micom dispatcher cmd 0x67; name tentative (strings in the event consumers) |
@@ -171,6 +172,7 @@ Not yet backed by a capture:
 | distance_unit | **0** m<br>**1** km<br>**2** mi<br>**3** ft<br>**4** yd | tbt-turn: unit; tbt-points: p1_unit; tbt-points: p2_unit; tbt-points: p3_unit; cluster-sub-info: remaining_unit |
 | dvd_region | **0** worldwide<br>**1** us<br>**2** eur<br>**3** kor<br>**4** c_s_america<br>**5** rus<br>**6** chn | Variant code: DVD region |
 | external_amp | **0** actune<br>**1** lexicon | Variant code: External amp |
+| gui_theme | **0** default<br>**1** hyundai<br>**2** kia<br>**3** white<br>**4** black<br>**5** genesis | hu-theme: theme |
 | hu_type | **0** daudio<br>**1** daudio_plus | Variant code: HU type |
 | illumination | **0** night<br>**1** day | Illumination: Illumination; Boot record (full): Illumination; Boot record: Illumination |
 | maneuver | 40 values, below | tbt-turn: maneuver |
@@ -1666,7 +1668,7 @@ packet-beta
 
 cmd `0x90`, length 1 · 🟡 code
 
-> stock SystemService.sendHUDayNightState (sendPacket 0x8a, 1, func 0x0190); micom firmware dispatcher 0x774a2 case 0x90 -> FUN_000d4a3a
+> stock SystemService.sendHUDayNightState (sendPacket 0x8a, 1, func 0x0190); micom firmware dispatcher 0x774a2 case 0x90 -> FUN_000d4a3a; stock under QEMU (micom-fake, 2026-11-12): 01 day, 02 night
 
 | Field | At | Range |
 | --- | --- | --- |
@@ -1675,6 +1677,21 @@ cmd `0x90`, length 1 · 🟡 code
 ```mermaid
 packet-beta
 0-7: "state"
+```
+
+#### hu-theme
+
+cmd `0x8f`, length 1 · 🟡 code
+
+> stock SystemService.sendGuiThemeType (sendPacket 0x8a, 1, func 0x018f) from VideoSetupService.sendThemeType (USE_ECOGUI_COMMON: uiMode night 4, else 3); micom firmware dispatcher 0x774a2 case 0x8f -> FUN_000d6568; stock under QEMU (micom-fake, 2026-11-12): 04 at micom ready, 03 and 04 as the UI mode went day and night
+
+| Field | At | Enum |
+| --- | --- | --- |
+| theme | byte 0 | gui_theme |
+
+```mermaid
+packet-beta
+0-7: "theme"
 ```
 
 #### sys-update-reservation

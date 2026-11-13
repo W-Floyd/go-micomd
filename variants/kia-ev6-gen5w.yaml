@@ -921,12 +921,11 @@ messages:
     status: code
     ref: "stock battSoc, func 0x819b byte 7"
 
-  # The HU's day or night, func 0x0190: the cluster's light or dark look
-  # follows it, not 0x0D0F (0x0D0F night went out at dusk on 2026-11-12 and
-  # the cluster stayed light). The micom keeps the byte (0x4000056c) and
-  # puts it in a 2-bit CAN signal (0x40015aa4 bits 4-5). Stock's caller and
-  # values are not traced: 1 day, 2 night is a guess (the micom's other
-  # day/night codes), so the field is a number.
+  # The HU's day or night, func 0x0190, from the illumination: the micom
+  # keeps the byte (0x4000056c) and puts it in a 2-bit CAN signal
+  # (0x40015aa4 bits 4-5). Stock under QEMU sends 1 day, 2 night, on every
+  # 0x810d/0x8195 and 2 at micom ready. It alone did not darken the cluster
+  # (2026-11-12, 00-03 all tried).
   - name: hu-day-night
     dir: to_micom
     hdr: system_tx
@@ -935,7 +934,22 @@ messages:
     fields:
       - { name: state, off: 0, max: 3 }
     status: code
-    ref: "stock SystemService.sendHUDayNightState (sendPacket 0x8a, 1, func 0x0190); micom firmware dispatcher 0x774a2 case 0x90 -> FUN_000d4a3a"
+    ref: "stock SystemService.sendHUDayNightState (sendPacket 0x8a, 1, func 0x0190); micom firmware dispatcher 0x774a2 case 0x90 -> FUN_000d4a3a; stock under QEMU (micom-fake, 2026-11-12): 01 day, 02 night"
+  # The HU's GUI theme, func 0x018F: the likeliest source of the cluster's
+  # dark look, which 0x0D0F and 0x0190 did not give (unconfirmed in the car).
+  # Stock sends it at micom ready and on Android's UI night mode, not on the
+  # illumination: white by day, black at night on this car's GUI (the other
+  # values are other brands' GUIs). The micom puts it in a CAN signal as it
+  # does 0x0190's (case 0x8f -> FUN_000d6568), not in EEPROM.
+  - name: hu-theme
+    dir: to_micom
+    hdr: system_tx
+    cmd: 0x8f
+    length: 1
+    fields:
+      - { name: theme, off: 0, enum: gui_theme }
+    status: code
+    ref: "stock SystemService.sendGuiThemeType (sendPacket 0x8a, 1, func 0x018f) from VideoSetupService.sendThemeType (USE_ECOGUI_COMMON: uiMode night 4, else 3); micom firmware dispatcher 0x774a2 case 0x8f -> FUN_000d6568; stock under QEMU (micom-fake, 2026-11-12): 04 at micom ready, 03 and 04 as the UI mode went day and night"
 
   # SoC→micom system service commands confirmed from the micom firmware command
   # dispatcher (0x774a2; jump table at 0x77526) and emulation (watching the
@@ -1383,3 +1397,5 @@ enums:
   illumination: { night: 0, day: 1 }   # stock: any non-zero is day
   operation: { released: 0, operating: 1 }   # 2 and 3 exist; their meaning is unknown
   day_night: { day: 0, night: 1 }
+  # Stock VideoSetupService.sendThemeType: one value per brand GUI; this car takes white and black.
+  gui_theme: { default: 0, hyundai: 1, kia: 2, white: 3, black: 4, genesis: 5 }

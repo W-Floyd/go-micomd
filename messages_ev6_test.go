@@ -47,6 +47,9 @@ func TestEV6Messages(t *testing.T) {
 			[]string{"ff 8f 0d 01 0d 0f 00 02 01 7d", "ff 8f 0d 01 0d 0f 00 02 00 7c"}},
 		{"the HU's night, then day", []string{`{"msg":"hu-day-night","state":2}`, `{"msg":"hu-day-night","state":1}`},
 			[]string{"ff 8a 01 01 01 90 00 02 02 e4", "ff 8a 01 01 01 90 00 02 01 e7"}},
+		// Stock under QEMU sends these bytes.
+		{"the HU's theme: black, then white", []string{`{"msg":"hu-theme","theme":"black"}`, `{"msg":"hu-theme","theme":"white"}`},
+			[]string{"ff 8a 01 01 01 8f 00 02 04 fd", "ff 8a 01 01 01 8f 00 02 03 fa"}},
 		{"no route: the compass pane", []string{`{"msg":"tbt-turn","maneuver":"no_route_guide","side_street":0,"distance":null,"unit":"m","bar":null,"distance_tenths":0}`},
 			[]string{"ff 8f 0d 01 0d 04 00 09 08 00 00 00 ff ff 00 f0 84"}},
 		// GPM's releaseGuidance, bytes as stock; the pane stays claimed.
@@ -202,9 +205,9 @@ func TestEV6Messages(t *testing.T) {
 		{InputGates{Persistent: true}, nil},
 		// -allow-dangerous-msg: the named only, and still -allow-inferred.
 		{InputGates{DangerousMsgs: []string{"ev-departures", "ev-off-peak"}}, nil},
-		{InputGates{Inferred: true, DangerousMsgs: []string{"ev-departures", "ev-off-peak"}}, []string{"backlight", "batt-cond-ev-station", "batt-cond-mode", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-position", "cluster-sub-info", "ev-departures", "ev-off-peak", "hu-day-night", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
-		{InputGates{Inferred: true}, []string{"backlight", "batt-cond-ev-station", "batt-cond-mode", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-position", "cluster-sub-info", "hu-day-night", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
-		{InputGates{Inferred: true, Persistent: true}, []string{"backlight", "backlight-dim-mode", "backlight-manual-level", "backlight-period-level", "batt-cond-ev-station", "batt-cond-mode", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-position", "cluster-sub-info", "hu-day-night", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
+		{InputGates{Inferred: true, DangerousMsgs: []string{"ev-departures", "ev-off-peak"}}, []string{"backlight", "batt-cond-ev-station", "batt-cond-mode", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-position", "cluster-sub-info", "ev-departures", "ev-off-peak", "hu-day-night", "hu-theme", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
+		{InputGates{Inferred: true}, []string{"backlight", "batt-cond-ev-station", "batt-cond-mode", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-position", "cluster-sub-info", "hu-day-night", "hu-theme", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
+		{InputGates{Inferred: true, Persistent: true}, []string{"backlight", "backlight-dim-mode", "backlight-manual-level", "backlight-period-level", "batt-cond-ev-station", "batt-cond-mode", "batt-cond-remain-time", "batt-cond-route-distance", "cluster-day-night", "cluster-position", "cluster-sub-info", "hu-day-night", "hu-theme", "nav-operation", "shutdown-ack", "tbt-alive", "tbt-points", "tbt-turn"}},
 	} {
 		e := newInputEngine(v, tc.g, func(Frame) error { return nil }, func([]string, bool) {}, time.Now, t.Logf)
 		if ok, _ := e.enabled(); !slices.Equal(ok, tc.want) {
