@@ -17,72 +17,156 @@ match:
   ref: "stock /proc/cmdline, 2026-11-07 (ro.product.device=wp_daudioplus_cvev_us)"
 
 expect:
-  climate_variant: 2   # persist.sys.climate.variant on the stock unit
-  amp_type: 2          # persist.sys.amptype on the stock unit (0 is the internal amp)
+  climate_variant: 2 # persist.sys.climate.variant on the stock unit
+  amp_type: 2 # persist.sys.amptype on the stock unit (0 is the internal amp)
 
 # The micom relays these from other nodes of the car, each with its own header.
 headers:
-  keys:          { hdr: "07 84 01 87", dir: from_micom, status: captured }
+  keys: { hdr: "07 84 01 87", dir: from_micom, status: captured }
   climate_panel: { hdr: "43 c2 00 c3", dir: from_micom, status: captured }
-  seat_node:     { hdr: "55 ca 00 d5", dir: from_micom, status: captured, ref: "seat heat; the driver's door switches" }
-  body:          { hdr: "44 c1 00 c4", dir: from_micom, status: captured, ref: "doors; repeats seat heat and windows" }
-  camera:        { hdr: "01 c4 01 81", dir: from_micom, status: captured }
-  cluster_rx:    { hdr: "0d 8f 01 8d", dir: from_micom, status: captured, ref: "battery and cruise; cluster_tx's reverse" }
+  seat_node:
+    {
+      hdr: "55 ca 00 d5",
+      dir: from_micom,
+      status: captured,
+      ref: "seat heat; the driver's door switches",
+    }
+  body:
+    {
+      hdr: "44 c1 00 c4",
+      dir: from_micom,
+      status: captured,
+      ref: "doors; repeats seat heat and windows",
+    }
+  camera: { hdr: "01 c4 01 81", dir: from_micom, status: captured }
+  cluster_rx:
+    {
+      hdr: "0d 8f 01 8d",
+      dir: from_micom,
+      status: captured,
+      ref: "battery and cruise; cluster_tx's reverse",
+    }
   # Not a BMS broadcast: the micom relays diagnostic (OBD-II / UDS) replies
   # it sees on the bus (stock passes them raw to its hscand), present only
   # while an external tester polls.
-  diag_relay:    { hdr: "40 c7 80 c0", dir: from_micom, status: captured, ref: "stock HscanMicomService (rcvId 0xc7); seen only in logs taken while Car Scanner polled over OBD" }
-  poll_tx:       { hdr: "88 0c 01 0c", dir: to_micom, status: captured }
+  diag_relay:
+    {
+      hdr: "40 c7 80 c0",
+      dir: from_micom,
+      status: captured,
+      ref: "stock HscanMicomService (rcvId 0xc7); seen only in logs taken while Car Scanner polled over OBD",
+    }
+  poll_tx: { hdr: "88 0c 01 0c", dir: to_micom, status: captured }
   # ClusterService.sendPacket: sndId 0x8f, rcvId 0x0d, type 1, funcH 0x0d.
-  cluster_tx:    { hdr: "8f 0d 01 0d", dir: to_micom, status: captured, ref: "the ack profile frame; stock ClusterService" }
-  status_tx:     { hdr: "c3 4d 00 4d", dir: to_micom, status: captured }
-  clock_tx:      { hdr: "c2 43 00 43", dir: to_micom, status: captured }
+  cluster_tx:
+    {
+      hdr: "8f 0d 01 0d",
+      dir: to_micom,
+      status: captured,
+      ref: "the ack profile frame; stock ClusterService",
+    }
+  status_tx: { hdr: "c3 4d 00 4d", dir: to_micom, status: captured }
+  clock_tx: { hdr: "c2 43 00 43", dir: to_micom, status: captured }
   # The micom's display node (backlight): micom firmware, in emulation.
-  display_rx:    { hdr: "08 8c 01 88", dir: from_micom, status: code, ref: "EV6 micom firmware V002.208, firmware emulation" }
-  display_tx:    { hdr: "8c 08 01 08", dir: to_micom, status: code, ref: "EV6 micom firmware V002.208, firmware emulation" }
+  display_rx:
+    {
+      hdr: "08 8c 01 88",
+      dir: from_micom,
+      status: code,
+      ref: "EV6 micom firmware V002.208, firmware emulation",
+    }
+  display_tx:
+    {
+      hdr: "8c 08 01 08",
+      dir: to_micom,
+      status: code,
+      ref: "EV6 micom firmware V002.208, firmware emulation",
+    }
   # A node not otherwise captured: only ever seen reporting the gear.
-  gear_node:     { hdr: "50 c4 00 d0", dir: from_micom, status: captured, ref: "micomd capture, 2026-11-10, P/D/N/R shifts" }
+  gear_node:
+    {
+      hdr: "50 c4 00 d0",
+      dir: from_micom,
+      status: captured,
+      ref: "micomd capture, 2026-11-10, P/D/N/R shifts",
+    }
   # Stock's start-up reads, never sent by micomd unless asked (the
   # -*-status-request flags): the body's B-CAN validity check (BCMService on
   # rcvId 0x8e), its bulk request, and the settings' (USMService).
-  tele_tx:       { hdr: "8e 0b 01 0b", dir: to_micom,   status: code, ref: "stock BCMService CAN validity requests (sendPacket(0x8e, 0x0b, func 0x0bxx))" }
-  tele_rx:       { hdr: "0b 8e 01 8b", dir: from_micom, status: captured, ref: "stock BCMService 0x8bc3/0x8bc7; 0x8bc3 seen unasked" }
-  body_tx:       { hdr: "c1 44 00 44", dir: to_micom,   status: code, ref: "stock BCMService sendPacket(0xc1, 0x44, 0, 0x44, ordinal)" }
-  usm_tx:        { hdr: "92 11 01 11", dir: to_micom,   status: code, ref: "stock USMService sendPacket(0x92, 0x11, func 0x11xx)" }
-  usm_rx:        { hdr: "11 92 01 91", dir: from_micom, status: captured, ref: "stock USMService; deltas seen at IGN on" }
+  tele_tx:
+    {
+      hdr: "8e 0b 01 0b",
+      dir: to_micom,
+      status: code,
+      ref: "stock BCMService CAN validity requests (sendPacket(0x8e, 0x0b, func 0x0bxx))",
+    }
+  tele_rx:
+    {
+      hdr: "0b 8e 01 8b",
+      dir: from_micom,
+      status: captured,
+      ref: "stock BCMService 0x8bc3/0x8bc7; 0x8bc3 seen unasked",
+    }
+  body_tx:
+    {
+      hdr: "c1 44 00 44",
+      dir: to_micom,
+      status: code,
+      ref: "stock BCMService sendPacket(0xc1, 0x44, 0, 0x44, ordinal)",
+    }
+  usm_tx:
+    {
+      hdr: "92 11 01 11",
+      dir: to_micom,
+      status: code,
+      ref: "stock USMService sendPacket(0x92, 0x11, func 0x11xx)",
+    }
+  usm_rx:
+    {
+      hdr: "11 92 01 91",
+      dir: from_micom,
+      status: captured,
+      ref: "stock USMService; deltas seen at IGN on",
+    }
 
 keys:
-  frame: { hdr: keys, cmd: 0x01 }   # Func 0x8701
+  frame: { hdr: keys, cmd: 0x01 } # Func 0x8701
   # Labels from pressing each; the keys are the LIVI mapping of the unit's
   # -keymap (LIVI's scancode table has no phone or voice keys, so those are
   # F13-F22). They are injected only with -keys; -keymap still wins.
   push:
-    - { type: 0, code: 1,  label: "Volume knob",       key: KEY_MUTE }
-    - { type: 0, code: 2,  label: "Seek <",            key: KEY_PREVIOUSSONG }
-    - { type: 0, code: 3,  label: "Track >",           key: KEY_NEXTSONG }
-    - { type: 0, code: 4,  label: "Map",               key: KEY_F17 }
-    - { type: 0, code: 5,  label: "Nav",               key: KEY_HOME }
-    - { type: 1, code: 1,  label: "Tune knob",         key: KEY_ENTER }
-    - { type: 1, code: 2,  label: "Radio",             key: KEY_F18 }
-    - { type: 1, code: 3,  label: "Media",             key: KEY_F19 }
-    - { type: 1, code: 4,  label: "Star",              key: KEY_F20 }
-    - { type: 1, code: 5,  label: "Setup",             key: KEY_F22 }
+    - { type: 0, code: 1, label: "Volume knob", key: KEY_MUTE }
+    - { type: 0, code: 2, label: "Seek <", key: KEY_PREVIOUSSONG }
+    - { type: 0, code: 3, label: "Track >", key: KEY_NEXTSONG }
+    - { type: 0, code: 4, label: "Map", key: KEY_F17 }
+    - { type: 0, code: 5, label: "Nav", key: KEY_HOME }
+    - { type: 1, code: 1, label: "Tune knob", key: KEY_ENTER }
+    - { type: 1, code: 2, label: "Radio", key: KEY_F18 }
+    - { type: 1, code: 3, label: "Media", key: KEY_F19 }
+    - { type: 1, code: 4, label: "Star", key: KEY_F20 }
+    - { type: 1, code: 5, label: "Setup", key: KEY_F22 }
     # The steering wheel.
-    - { type: 2, code: 2,  label: "Wheel up",          key: KEY_NEXTSONG }
-    - { type: 2, code: 3,  label: "Wheel down",        key: KEY_PREVIOUSSONG }
-    - { type: 2, code: 4,  label: "Wheel mode",        key: KEY_PLAYPAUSE }
-    - { type: 2, code: 5,  label: "Wheel volume push", key: KEY_MUTE }
-    - { type: 2, code: 6,  label: "Wheel volume up",   key: KEY_VOLUMEUP }
-    - { type: 2, code: 7,  label: "Wheel volume down", key: KEY_VOLUMEDOWN }
-    - { type: 2, code: 8,  label: "Wheel voice",       key: KEY_F13 }
-    - { type: 2, code: 10, label: "Wheel call",        key: KEY_F14 }
-    - { type: 2, code: 11, label: "Wheel star",        key: KEY_F21 }
+    - { type: 2, code: 2, label: "Wheel up", key: KEY_NEXTSONG }
+    - { type: 2, code: 3, label: "Wheel down", key: KEY_PREVIOUSSONG }
+    - { type: 2, code: 4, label: "Wheel mode", key: KEY_PLAYPAUSE }
+    - { type: 2, code: 5, label: "Wheel volume push", key: KEY_MUTE }
+    - { type: 2, code: 6, label: "Wheel volume up", key: KEY_VOLUMEUP }
+    - { type: 2, code: 7, label: "Wheel volume down", key: KEY_VOLUMEDOWN }
+    - { type: 2, code: 8, label: "Wheel voice", key: KEY_F13 }
+    - { type: 2, code: 10, label: "Wheel call", key: KEY_F14 }
+    - { type: 2, code: 11, label: "Wheel star", key: KEY_F21 }
   # A knob turn: the high nibble of the second byte 1 up, 0 down, the low
   # nibble the detents turned (stock KnobKeyFromMicom), one tap each. A knob
   # is named by its one-detent frame, code 1.
   knobs:
-    - { type: 8, code: 1, label: "Tune knob",   up: KEY_F15,      down: KEY_F16 }
-    - { type: 9, code: 1, label: "Volume knob", up: KEY_VOLUMEUP, down: KEY_VOLUMEDOWN }
+    - { type: 8, code: 1, label: "Tune knob", up: KEY_F15, down: KEY_F16 }
+    - {
+        type: 9,
+        code: 1,
+        label: "Volume knob",
+        up: KEY_VOLUMEUP,
+        down: KEY_VOLUMEDOWN,
+      }
 
 signals:
   # The climate panel. One change arrives as a burst of fields, 1b 01 ... 1b 00.
@@ -100,7 +184,12 @@ signals:
     cmd: 0x05
     label: "Climate driver set point"
     number: { add: 28, div: 2, range: [2, 36], format: "%g C" }
-    values: &setc { 0x00: { text: "off", state: 0 }, 0x01: { text: "LO", state: -1 }, 0xfe: { text: "HI", state: -2 } }
+    values:
+      &setc {
+        0x00: { text: "off", state: 0 },
+        0x01: { text: "LO", state: -1 },
+        0xfe: { text: "HI", state: -2 },
+      }
     state: driver_set_half_c
     ref: "DATCService DrTempDispC / PsTempDispC (C = raw * 0.5 + 14; 1 LO, 254 HI)"
   - name: climate-driver-set
@@ -128,36 +217,95 @@ signals:
     hdr: climate_panel
     cmd: 0x0d
     label: "Climate airflow"
-    enum: { 0: "off", 1: "face", 2: "face and feet", 3: "feet", 4: "feet and defrost", 5: "defrost", 8: "auto" }
+    enum:
+      {
+        0: "off",
+        1: "face",
+        2: "face and feet",
+        3: "feet",
+        4: "feet and defrost",
+        5: "defrost",
+        8: "auto",
+      }
     state: airflow
-  - { name: climate-auto,        hdr: climate_panel, cmd: 0x0f, label: "Climate auto",        flag: { on: 1, off: 0 }, state: auto }
-  - { name: climate-ac,          hdr: climate_panel, cmd: 0x11, label: "Climate A/C",         flag: { on: 1, off: 0 }, state: ac }
+  - {
+      name: climate-auto,
+      hdr: climate_panel,
+      cmd: 0x0f,
+      label: "Climate auto",
+      flag: { on: 1, off: 0 },
+      state: auto,
+    }
+  - {
+      name: climate-ac,
+      hdr: climate_panel,
+      cmd: 0x11,
+      label: "Climate A/C",
+      flag: { on: 1, off: 0 },
+      state: ac,
+    }
   - name: climate-fan
     hdr: climate_panel
     cmd: 0x15
     label: "Climate fan"
-    fan: { off: 0x00, auto: 0x0a, levels: [2, 9] }   # levels 1 to 8
+    fan: { off: 0x00, auto: 0x0a, levels: [2, 9] } # levels 1 to 8
     state: fan
-  - { name: climate-driver-only, hdr: climate_panel, cmd: 0x19, label: "Climate driver only", flag: { on: 1, off: 0 }, state: driver_only }
+  - {
+      name: climate-driver-only,
+      hdr: climate_panel,
+      cmd: 0x19,
+      label: "Climate driver only",
+      flag: { on: 1, off: 0 },
+      state: driver_only,
+    }
   # Recirculation off is the car's 2.
-  - { name: climate-recirculation, hdr: climate_panel, cmd: [0x1e, 0x43], label: "Climate recirculation", flag: { on: 1, off: 2 }, state: recirculation }
+  - {
+      name: climate-recirculation,
+      hdr: climate_panel,
+      cmd: [0x1e, 0x43],
+      label: "Climate recirculation",
+      flag: { on: 1, off: 2 },
+      state: recirculation,
+    }
   - name: climate-zones
     hdr: climate_panel
     cmd: 0x27
     label: "Climate zones"
     flag: { on: 1, off: "*", on_text: "synced", off_text: "independent" }
     state: zones_synced
-  - { name: climate-heat, hdr: climate_panel, cmd: 0x33, label: "Climate heat", flag: { on: 1, off: 0 } }
+  - {
+      name: climate-heat,
+      hdr: climate_panel,
+      cmd: 0x33,
+      label: "Climate heat",
+      flag: { on: 1, off: 0 },
+    }
   # The climate system on or off (stock DATC_OpSts: 0 power off, 1 on,
   # 2 off), and the panel's climate key asking the HU for its climate
   # screen (DATC_ClimateScnDisp, 1).
-  - { name: climate-on,  hdr: climate_panel, cmd: 0x12, label: "Climate", flag: { on: 1, off: "*" }, state: "on", ref: "stock DATCService DATC_OpSts; 00 and 01 seen" }
-  - { name: climate-key, hdr: climate_panel, cmd: 0x16, label: "Climate key", flag: { on: 1, off: 0, on_text: "pressed", off_text: "released" }, status: code, ref: "stock DATCService DATC_ClimateScnDisp -> the climate screen" }
+  - {
+      name: climate-on,
+      hdr: climate_panel,
+      cmd: 0x12,
+      label: "Climate",
+      flag: { on: 1, off: "*" },
+      state: "on",
+      ref: "stock DATCService DATC_OpSts; 00 and 01 seen",
+    }
+  - {
+      name: climate-key,
+      hdr: climate_panel,
+      cmd: 0x16,
+      label: "Climate key",
+      flag: { on: 1, off: 0, on_text: "pressed", off_text: "released" },
+      status: code,
+      ref: "stock DATCService DATC_ClimateScnDisp -> the climate screen",
+    }
   - name: climate-auto-level
     hdr: climate_panel
     cmd: 0x4f
     label: "Climate auto level"
-    number: { add: -1, format: "%d", wrap: true }   # 00 reads as 255, as it always did
+    number: { add: -1, format: "%d", wrap: true } # 00 reads as 255, as it always did
     values: { 0x01: "off" }
   - name: climate-auto-level-inverse
     hdr: climate_panel
@@ -168,50 +316,274 @@ signals:
 
   # Seat heat: 02 off, 06 to 08 levels 1 to 3; repeated on the body node.
   # Read from the first byte whatever the length (len: 0), as it always was.
-  - { name: seat-heat-driver,            hdr: seat_node, cmd: 0x20, len: 0, label: "Seat heat, driver",             number: &seat { add: -5, range: [6, 8], format: "heat level %d" }, values: &seatoff { 0x02: { text: "off", state: 0 } }, state: driver_seat_heat }
-  - { name: seat-heat-passenger,         hdr: seat_node, cmd: 0x21, len: 0, label: "Seat heat, passenger",         number: *seat, values: *seatoff, state: passenger_seat_heat }
-  - { name: seat-heat-driver-repeat,     hdr: body,      cmd: 0x19, len: 0, label: "Seat heat, driver (repeat)",   number: *seat, values: *seatoff, state: driver_seat_heat }
-  - { name: seat-heat-passenger-repeat,  hdr: body,      cmd: 0x1b, len: 0, label: "Seat heat, passenger (repeat)",number: *seat, values: *seatoff, state: passenger_seat_heat }
+  - {
+      name: seat-heat-driver,
+      hdr: seat_node,
+      cmd: 0x20,
+      len: 0,
+      label: "Seat heat, driver",
+      number: &seat { add: -5, range: [6, 8], format: "heat level %d" },
+      values: &seatoff { 0x02: { text: "off", state: 0 } },
+      state: driver_seat_heat,
+    }
+  - {
+      name: seat-heat-passenger,
+      hdr: seat_node,
+      cmd: 0x21,
+      len: 0,
+      label: "Seat heat, passenger",
+      number: *seat,
+      values: *seatoff,
+      state: passenger_seat_heat,
+    }
+  - {
+      name: seat-heat-driver-repeat,
+      hdr: body,
+      cmd: 0x19,
+      len: 0,
+      label: "Seat heat, driver (repeat)",
+      number: *seat,
+      values: *seatoff,
+      state: driver_seat_heat,
+    }
+  - {
+      name: seat-heat-passenger-repeat,
+      hdr: body,
+      cmd: 0x1b,
+      len: 0,
+      label: "Seat heat, passenger (repeat)",
+      number: *seat,
+      values: *seatoff,
+      state: passenger_seat_heat,
+    }
   # The rear seats', on the body node beside the front ones (stock
   # C_RLSeatHeatState, C_RRSeatHeatState), read as the front ones: never
   # seen, so the levels are a guess.
-  - { name: seat-heat-rear-left,  hdr: body, cmd: 0x1d, len: 0, label: "Seat heat, rear left",  number: *seat, values: *seatoff, status: code, ref: "stock BODY C_RLSeatHeatState" }
-  - { name: seat-heat-rear-right, hdr: body, cmd: 0x1f, len: 0, label: "Seat heat, rear right", number: *seat, values: *seatoff, status: code, ref: "stock BODY C_RRSeatHeatState" }
+  - {
+      name: seat-heat-rear-left,
+      hdr: body,
+      cmd: 0x1d,
+      len: 0,
+      label: "Seat heat, rear left",
+      number: *seat,
+      values: *seatoff,
+      status: code,
+      ref: "stock BODY C_RLSeatHeatState",
+    }
+  - {
+      name: seat-heat-rear-right,
+      hdr: body,
+      cmd: 0x1f,
+      len: 0,
+      label: "Seat heat, rear right",
+      number: *seat,
+      values: *seatoff,
+      status: code,
+      ref: "stock BODY C_RRSeatHeatState",
+    }
   # The steering wheel's heat (C_StrgWhlHeatedState; its levels are not
   # known, 0 is likely off) and the rear defroster's relay (C_DefoggerRly).
-  - { name: steering-wheel-heat, hdr: body, cmd: 0x0d, label: "Steering wheel heat", number: { format: "state %d" }, status: code, ref: "stock BODY C_StrgWhlHeatedState" }
-  - { name: rear-defrost,        hdr: body, cmd: 0x0e, label: "Rear defrost", flag: { on: 1, off: 0 }, state: rear_defrost, status: code, ref: "stock BODY C_DefoggerRly" }
+  - {
+      name: steering-wheel-heat,
+      hdr: body,
+      cmd: 0x0d,
+      label: "Steering wheel heat",
+      number: { format: "state %d" },
+      status: code,
+      ref: "stock BODY C_StrgWhlHeatedState",
+    }
+  - {
+      name: rear-defrost,
+      hdr: body,
+      cmd: 0x0e,
+      label: "Rear defrost",
+      flag: { on: 1, off: 0 },
+      state: rear_defrost,
+      status: code,
+      ref: "stock BODY C_DefoggerRly",
+    }
 
   # Power windows of the driver and front passenger, from the driver's door
   # switches. "Switch" is stock's *WindowActState, the motor's action as the
   # switch drives it. Switch: 0 released, 1 and 2 held down and up, 5 and 6 pressed
   # hard (auto down and up). Position: coarse, 0 closed (top) to 3 fully
   # down, sent when it crosses a step. The rear windows were not tried.
-  - { name: window-driver-switch,    hdr: seat_node, cmd: 0x08, label: "Window driver",    enum: &winsw { 0: "switch released", 1: "switch down", 2: "switch up", 5: "switch hard down (auto)", 6: "switch hard up (auto)" }, unknown: "switch code %#02x" }
-  - { name: window-passenger-switch, hdr: seat_node, cmd: 0x0b, label: "Window passenger", enum: *winsw, unknown: "switch code %#02x" }
-  - { name: window-driver-position,    hdr: seat_node, cmd: 0x06, label: "Window driver",    enum: &winpos { 0: "position 0 of 3 (closed)", 1: "position 1 of 3", 2: "position 2 of 3", 3: "position 3 of 3 (fully down)" }, unknown: "position code %#02x" }
-  - { name: window-passenger-position, hdr: seat_node, cmd: 0x09, label: "Window passenger", enum: *winpos, unknown: "position code %#02x" }
-  - { name: window-driver-switch-repeat,      hdr: body, cmd: 0x26, label: "Window driver",    enum: *winsw,  unknown: "switch code %#02x",   suffix: " (repeat)" }
-  - { name: window-passenger-switch-repeat,   hdr: body, cmd: 0x27, label: "Window passenger", enum: *winsw,  unknown: "switch code %#02x",   suffix: " (repeat)" }
-  - { name: window-driver-position-repeat,    hdr: body, cmd: 0x24, label: "Window driver",    enum: *winpos, unknown: "position code %#02x", suffix: " (repeat)" }
-  - { name: window-passenger-position-repeat, hdr: body, cmd: 0x25, label: "Window passenger", enum: *winpos, unknown: "position code %#02x", suffix: " (repeat)" }
+  - {
+      name: window-driver-switch,
+      hdr: seat_node,
+      cmd: 0x08,
+      label: "Window driver",
+      enum:
+        &winsw {
+          0: "switch released",
+          1: "switch down",
+          2: "switch up",
+          5: "switch hard down (auto)",
+          6: "switch hard up (auto)",
+        },
+      unknown: "switch code %#02x",
+    }
+  - {
+      name: window-passenger-switch,
+      hdr: seat_node,
+      cmd: 0x0b,
+      label: "Window passenger",
+      enum: *winsw,
+      unknown: "switch code %#02x",
+    }
+  - {
+      name: window-driver-position,
+      hdr: seat_node,
+      cmd: 0x06,
+      label: "Window driver",
+      enum:
+        &winpos {
+          0: "position 0 of 3 (closed)",
+          1: "position 1 of 3",
+          2: "position 2 of 3",
+          3: "position 3 of 3 (fully down)",
+        },
+      unknown: "position code %#02x",
+    }
+  - {
+      name: window-passenger-position,
+      hdr: seat_node,
+      cmd: 0x09,
+      label: "Window passenger",
+      enum: *winpos,
+      unknown: "position code %#02x",
+    }
+  - {
+      name: window-driver-switch-repeat,
+      hdr: body,
+      cmd: 0x26,
+      label: "Window driver",
+      enum: *winsw,
+      unknown: "switch code %#02x",
+      suffix: " (repeat)",
+    }
+  - {
+      name: window-passenger-switch-repeat,
+      hdr: body,
+      cmd: 0x27,
+      label: "Window passenger",
+      enum: *winsw,
+      unknown: "switch code %#02x",
+      suffix: " (repeat)",
+    }
+  - {
+      name: window-driver-position-repeat,
+      hdr: body,
+      cmd: 0x24,
+      label: "Window driver",
+      enum: *winpos,
+      unknown: "position code %#02x",
+      suffix: " (repeat)",
+    }
+  - {
+      name: window-passenger-position-repeat,
+      hdr: body,
+      cmd: 0x25,
+      label: "Window passenger",
+      enum: *winpos,
+      unknown: "position code %#02x",
+      suffix: " (repeat)",
+    }
 
   # Doors, on the body node: each door has a lock command (00 locked, 01
   # unlocked) and the next number is its open one (01 open, 00 closed).
   # The trunk and the hood have no lock command. Other values: no line.
-  - { name: door-front-right-lock, hdr: body, cmd: 0x00, label: "Door front right", enum: &lock { 0: "locked", 1: "unlocked" }, unknown: "" }
-  - { name: door-front-right-open, hdr: body, cmd: 0x01, label: "Door front right", enum: &open { 0: "closed", 1: "open" }, unknown: "" }
-  - { name: door-driver-lock,      hdr: body, cmd: 0x02, label: "Door driver",      enum: *lock, unknown: "" }
-  - { name: door-driver-open,      hdr: body, cmd: 0x03, label: "Door driver",      enum: *open, unknown: "" }
-  - { name: door-rear-left-lock,   hdr: body, cmd: 0x04, label: "Door rear left",   enum: *lock, unknown: "" }
-  - { name: door-rear-left-open,   hdr: body, cmd: 0x05, label: "Door rear left",   enum: *open, unknown: "" }
-  - { name: door-rear-right-lock,  hdr: body, cmd: 0x07, label: "Door rear right",  enum: *lock, unknown: "" }
-  - { name: door-rear-right-open,  hdr: body, cmd: 0x08, label: "Door rear right",  enum: *open, unknown: "" }
-  - { name: trunk,                 hdr: body, cmd: 0x06, label: "Trunk",            enum: *open, unknown: "" }
-  - { name: hood,                  hdr: body, cmd: 0x11, label: "Hood",             enum: *open, unknown: "" }
+  - {
+      name: door-front-right-lock,
+      hdr: body,
+      cmd: 0x00,
+      label: "Door front right",
+      enum: &lock { 0: "locked", 1: "unlocked" },
+      unknown: "",
+    }
+  - {
+      name: door-front-right-open,
+      hdr: body,
+      cmd: 0x01,
+      label: "Door front right",
+      enum: &open { 0: "closed", 1: "open" },
+      unknown: "",
+    }
+  - {
+      name: door-driver-lock,
+      hdr: body,
+      cmd: 0x02,
+      label: "Door driver",
+      enum: *lock,
+      unknown: "",
+    }
+  - {
+      name: door-driver-open,
+      hdr: body,
+      cmd: 0x03,
+      label: "Door driver",
+      enum: *open,
+      unknown: "",
+    }
+  - {
+      name: door-rear-left-lock,
+      hdr: body,
+      cmd: 0x04,
+      label: "Door rear left",
+      enum: *lock,
+      unknown: "",
+    }
+  - {
+      name: door-rear-left-open,
+      hdr: body,
+      cmd: 0x05,
+      label: "Door rear left",
+      enum: *open,
+      unknown: "",
+    }
+  - {
+      name: door-rear-right-lock,
+      hdr: body,
+      cmd: 0x07,
+      label: "Door rear right",
+      enum: *lock,
+      unknown: "",
+    }
+  - {
+      name: door-rear-right-open,
+      hdr: body,
+      cmd: 0x08,
+      label: "Door rear right",
+      enum: *open,
+      unknown: "",
+    }
+  - {
+      name: trunk,
+      hdr: body,
+      cmd: 0x06,
+      label: "Trunk",
+      enum: *open,
+      unknown: "",
+    }
+  - {
+      name: hood,
+      hdr: body,
+      cmd: 0x11,
+      label: "Hood",
+      enum: *open,
+      unknown: "",
+    }
   # The charge port door (stock CDM_HS_OpnClsState: 1 open, 2 closed,
   # 3 invalid); 02 seen.
-  - { name: charge-port,           hdr: body, cmd: 0x49, label: "Charge port",      enum: { 1: "open", 2: "closed" }, unknown: "", ref: "stock BODY CDM_HS_OpnClsState" }
+  - {
+      name: charge-port,
+      hdr: body,
+      cmd: 0x49,
+      label: "Charge port",
+      enum: { 1: "open", 2: "closed" },
+      unknown: "",
+      ref: "stock BODY CDM_HS_OpnClsState",
+    }
 
   # The system node's bitmask of what keeps the micom awake: bit 0 always
   # set, then one bit per open door and the trunk. Other bits not known.
@@ -219,7 +591,19 @@ signals:
     hdr: system_rx
     cmd: 0x2f
     label: "Open doors"
-    bits: { always: 0x01, none: "none", names: { 1: "trunk", 2: "front right", 3: "driver", 4: "rear right", 5: "rear left" } }
+    bits:
+      {
+        always: 0x01,
+        none: "none",
+        names:
+          {
+            1: "trunk",
+            2: "front right",
+            3: "driver",
+            4: "rear right",
+            5: "rear left",
+          },
+      }
 
   # The gear, from a node (gear_node) not seen reporting anything else.
   # Captured directly: every shift among P/D/N/R, 2026-11-10, each more
@@ -239,23 +623,79 @@ signals:
   # tied to P and the parking brake), 0x8126 the gear status, whose stock
   # codes (P 0, D 5, N 6, R 7) this micom does not use: it sends 0 in P and
   # 1 out of it. The body node's 0x10 is the P position (C_PpositionClutch).
-  - { name: driving-regulation,   hdr: system_rx, cmd: 0x03, label: "Driving regulation",   flag: { on: 1, off: 0 }, unknown: "", ref: "stock SYS_REGULATOIN_STATUS_M (0x8103) -> RegulationService" }
-  - { name: gear-status,          hdr: system_rx, cmd: 0x26, label: "Out of park",          flag: { on: 1, off: 0 }, unknown: "", suffix: " (gear status)", ref: "stock SYS_GEAR_STATUS_M (0x8126); 0/1 on this car" }
-  - { name: driving-regulation-b, hdr: system_rx, cmd: 0x9a, label: "Driving regulation B", flag: { on: 1, off: 0 }, unknown: "", ref: "stock SYS_REGULATION_B_STATUS_M (0x819a) -> RegulationService" }
-  - { name: out-of-park-body,     hdr: body,      cmd: 0x10, label: "Out of park",          flag: { on: 1, off: 0 }, unknown: "", suffix: " (body node)", ref: "stock BODY C_PpositionClutch" }
+  - {
+      name: driving-regulation,
+      hdr: system_rx,
+      cmd: 0x03,
+      label: "Driving regulation",
+      flag: { on: 1, off: 0 },
+      unknown: "",
+      ref: "stock SYS_REGULATOIN_STATUS_M (0x8103) -> RegulationService",
+    }
+  - {
+      name: gear-status,
+      hdr: system_rx,
+      cmd: 0x26,
+      label: "Out of park",
+      flag: { on: 1, off: 0 },
+      unknown: "",
+      suffix: " (gear status)",
+      ref: "stock SYS_GEAR_STATUS_M (0x8126); 0/1 on this car",
+    }
+  - {
+      name: driving-regulation-b,
+      hdr: system_rx,
+      cmd: 0x9a,
+      label: "Driving regulation B",
+      flag: { on: 1, off: 0 },
+      unknown: "",
+      ref: "stock SYS_REGULATION_B_STATUS_M (0x819a) -> RegulationService",
+    }
+  - {
+      name: out-of-park-body,
+      hdr: body,
+      cmd: 0x10,
+      label: "Out of park",
+      flag: { on: 1, off: 0 },
+      unknown: "",
+      suffix: " (body node)",
+      ref: "stock BODY C_PpositionClutch",
+    }
 
   # Reverse specifically (not just out-of-park): on exactly when the camera
   # (rear-camera, code 01) and gear (0x4a = 0x07) are.
-  - { name: reverse-active, hdr: system_rx, cmd: 0x1b, label: "Reverse", flag: { on: 1, off: 0 }, unknown: "" }
+  - {
+      name: reverse-active,
+      hdr: system_rx,
+      cmd: 0x1b,
+      label: "Reverse",
+      flag: { on: 1, off: 0 },
+      unknown: "",
+    }
 
   # Stock's day or night from the two-way light sensor (0x8195: 1 day, else
   # night). Stock takes it over 0x810d when boot record byte 130 says the
   # sensor is fitted, as on this car; the two flipped together in captures.
-  - { name: light-sensor, hdr: system_rx, cmd: 0x95, label: "Light sensor", flag: { on: 1, off: "*", on_text: "day", off_text: "night" }, ref: "stock SYS 0x8195 -> VideoSetupService onIlluminateStatus" }
+  - {
+      name: light-sensor,
+      hdr: system_rx,
+      cmd: 0x95,
+      label: "Light sensor",
+      flag: { on: 1, off: "*", on_text: "day", off_text: "night" },
+      ref: "stock SYS 0x8195 -> VideoSetupService onIlluminateStatus",
+    }
   # Stock's parking status (0x8129, > 0 applied). Here 0 1-5 s after leaving
   # Park and 1 1-5 s after returning to it, as the electric parking brake
   # releases and applies itself; never seen with the brake set by hand.
-  - { name: parking-brake, hdr: system_rx, cmd: 0x29, label: "Parking brake", flag: { on: 1, off: 0 }, unknown: "", ref: "stock SYS_PARKING_STATUS_M (0x8129) -> onParkingStatus" }
+  - {
+      name: parking-brake,
+      hdr: system_rx,
+      cmd: 0x29,
+      label: "Parking brake",
+      flag: { on: 1, off: 0 },
+      unknown: "",
+      ref: "stock SYS_PARKING_STATUS_M (0x8129) -> onParkingStatus",
+    }
 
   # The rear camera button: 09 when pressed on, 00 off, with cmd 52 (six
   # bytes) following, its last byte 02 on / 00 off; other values unknown.
@@ -276,7 +716,7 @@ signals:
 # it carries state. The 1 s status frame Android sent beside them is the
 # cluster's position (cluster-position, below): not routine, never replayed.
 profile:
-  - name: poll        # answered by the 31-byte EV power block
+  - name: poll # answered by the 31-byte EV power block
     every: 1s
     frame: "ff 88 0c 01 0c 5c 00 01 2b"
     status: captured
@@ -326,10 +766,30 @@ profile:
 # which the micom answers with 0x820B. The 0x0201 modes are stock's
 # AudioMode: 01 AM, 0e Bluetooth streaming, 09 USB, 12 MUSIC.
 send:
-  - { name: av-mute-set,     frame: "ff 85 02 01 02 0b 00 03 02 01 70", status: captured, ref: "stock micomd strace, source switch" }
-  - { name: mode-bt-stream,  frame: "ff 85 02 01 02 01 00 03 0e 00 77", status: captured, ref: "stock micomd strace, source switch (Media); AudioMode BT_STREAM" }
-  - { name: mode-am,         frame: "ff 85 02 01 02 01 00 03 01 00 78", status: captured, ref: "stock micomd strace, source switch (Radio); AudioMode AM" }
-  - { name: av-mute-release, frame: "ff 85 02 01 02 38 00 03 02 00 42", status: captured, ref: "stock micomd strace, source switch" }
+  - {
+      name: av-mute-set,
+      frame: "ff 85 02 01 02 0b 00 03 02 01 70",
+      status: captured,
+      ref: "stock micomd strace, source switch",
+    }
+  - {
+      name: mode-bt-stream,
+      frame: "ff 85 02 01 02 01 00 03 0e 00 77",
+      status: captured,
+      ref: "stock micomd strace, source switch (Media); AudioMode BT_STREAM",
+    }
+  - {
+      name: mode-am,
+      frame: "ff 85 02 01 02 01 00 03 01 00 78",
+      status: captured,
+      ref: "stock micomd strace, source switch (Radio); AudioMode AM",
+    }
+  - {
+      name: av-mute-release,
+      frame: "ff 85 02 01 02 38 00 03 02 00 42",
+      status: captured,
+      ref: "stock micomd strace, source switch",
+    }
   - name: main-volume
     pattern: "ff 85 02 01 02 03 00 02 [00-23] .."
     status: captured
@@ -337,23 +797,83 @@ send:
     note: "levels 0-35: the maximum is unknown, 35 is the cap (the I2S card's control)"
   # The link-up: until a SoC sends it after the micom's own reset, the micom
   # sends the SoC nothing (-boot-mode-request sends it without waiting).
-  - { name: boot-mode-request,  frame: "ff 8a 01 01 01 01 00 01 74", status: code, ref: "SystemService.requestBootMode: sendPacket(-118, 1, 0x101), again after 2000 ms; EV6 micom firmware: dispatcher cmd 0x01 sets the link flag and answers 0x8101 with its last mode, mute and volume (firmware emulation)" }
+  - {
+      name: boot-mode-request,
+      frame: "ff 8a 01 01 01 01 00 01 74",
+      status: code,
+      ref: "SystemService.requestBootMode: sendPacket(-118, 1, 0x101), again after 2000 ms; EV6 micom firmware: dispatcher cmd 0x01 sets the link flag and answers 0x8101 with its last mode, mute and volume (firmware emulation)",
+    }
   # Stock's start-up reads (status only; each sent by its own micomd flag):
   # the climate's All_Datc_Req, the body's B-CAN validity check then its
   # All_B_CAN_Req, and the settings' read-all of the units group.
-  - { name: climate-status-request, frame: "ff c2 43 00 43 00 00 02 01 3e", status: inferred, ref: "DATCService All_Datc_Req (TE_TX_IL 0x00, [01]) 500 ms after IGN1 on, once more 1.5 s later; answered by All_Datc_Resp (0x00)" }
-  - { name: bcan-valid-request,     frame: "ff 8e 0b 01 0b c7 00 02 c7 72", status: inferred, ref: "BCMService B-CAN validity request (0x0bc7 [c7]) at micom ready, every 1 s until 0x8bc7 [1] = 1" }
-  - { name: body-status-request,    frame: "ff c1 44 00 44 05 00 01 3a",    status: inferred, ref: "BCMService All_B_CAN_Req (TE_TX_IL 0x05, empty) once B-CAN is valid; answered by ALL_BCM_Resp (0xc40c)" }
-  - { name: usm-units-request,      frame: "ff 92 11 01 11 11 00 03 fa fa 7e", status: inferred, ref: "USMService read-all (0x1111 Unit_SET_C_REQ [fa fa]) 2 s after IGN on; answered by 0x9111 with [0] = fa" }
+  - {
+      name: climate-status-request,
+      frame: "ff c2 43 00 43 00 00 02 01 3e",
+      status: inferred,
+      ref: "DATCService All_Datc_Req (TE_TX_IL 0x00, [01]) 500 ms after IGN1 on, once more 1.5 s later; answered by All_Datc_Resp (0x00)",
+    }
+  - {
+      name: bcan-valid-request,
+      frame: "ff 8e 0b 01 0b c7 00 02 c7 72",
+      status: inferred,
+      ref: "BCMService B-CAN validity request (0x0bc7 [c7]) at micom ready, every 1 s until 0x8bc7 [1] = 1",
+    }
+  - {
+      name: body-status-request,
+      frame: "ff c1 44 00 44 05 00 01 3a",
+      status: inferred,
+      ref: "BCMService All_B_CAN_Req (TE_TX_IL 0x05, empty) once B-CAN is valid; answered by ALL_BCM_Resp (0xc40c)",
+    }
+  - {
+      name: usm-units-request,
+      frame: "ff 92 11 01 11 11 00 03 fa fa 7e",
+      status: inferred,
+      ref: "USMService read-all (0x1111 Unit_SET_C_REQ [fa fa]) 2 s after IGN on; answered by 0x9111 with [0] = fa",
+    }
   # Two of HEVService's CAN DB generation > 0 reads (it also reads 0x0c4a-
   # 0x0c52 and 0x0c55): the schedules, otherwise sent only on change.
-  - { name: ev-schedule-settings-request, frame: "ff 88 0c 01 0c 53 00 01 24", status: inferred, ref: "HEVService requestInitG3Messages (CAN DB generation > 0, at micom ready): func 0x0c53, empty payload; answered by 0x8c53" }
-  - { name: ev-charge-window-request,     frame: "ff 88 0c 01 0c 54 00 01 23", status: inferred, ref: "HEVService requestInitG3Messages (CAN DB generation > 0, at micom ready): func 0x0c54, empty payload; answered by 0x8c54" }
-  - { name: mode-usb,           frame: "ff 85 02 01 02 01 00 03 09 00 70", status: inferred, ref: "MicomAudioService audio mode USB" }
-  - { name: mode-music,         frame: "ff 85 02 01 02 01 00 03 12 00 6b", status: inferred, ref: "MicomAudioService audio mode MUSIC" }
-  - { name: av-mute-release-0b, frame: "ff 85 02 01 02 0b 00 03 02 00 71", status: inferred, ref: "0x020B mute control: AV, RELEASE" }
-  - { name: amp-mute-release,   frame: "ff 85 02 01 02 0b 00 03 01 00 72", status: inferred, ref: "0x020B mute control: AMP, RELEASE" }
-  - { name: amp-mute-set,       frame: "ff 85 02 01 02 0b 00 03 01 01 73", status: inferred, ref: "0x020B mute control: AMP, SET" }
+  - {
+      name: ev-schedule-settings-request,
+      frame: "ff 88 0c 01 0c 53 00 01 24",
+      status: inferred,
+      ref: "HEVService requestInitG3Messages (CAN DB generation > 0, at micom ready): func 0x0c53, empty payload; answered by 0x8c53",
+    }
+  - {
+      name: ev-charge-window-request,
+      frame: "ff 88 0c 01 0c 54 00 01 23",
+      status: inferred,
+      ref: "HEVService requestInitG3Messages (CAN DB generation > 0, at micom ready): func 0x0c54, empty payload; answered by 0x8c54",
+    }
+  - {
+      name: mode-usb,
+      frame: "ff 85 02 01 02 01 00 03 09 00 70",
+      status: inferred,
+      ref: "MicomAudioService audio mode USB",
+    }
+  - {
+      name: mode-music,
+      frame: "ff 85 02 01 02 01 00 03 12 00 6b",
+      status: inferred,
+      ref: "MicomAudioService audio mode MUSIC",
+    }
+  - {
+      name: av-mute-release-0b,
+      frame: "ff 85 02 01 02 0b 00 03 02 00 71",
+      status: inferred,
+      ref: "0x020B mute control: AV, RELEASE",
+    }
+  - {
+      name: amp-mute-release,
+      frame: "ff 85 02 01 02 0b 00 03 01 00 72",
+      status: inferred,
+      ref: "0x020B mute control: AMP, RELEASE",
+    }
+  - {
+      name: amp-mute-set,
+      frame: "ff 85 02 01 02 0b 00 03 01 01 73",
+      status: inferred,
+      ref: "0x020B mute control: AMP, SET",
+    }
 
 # The cluster's turn-by-turn guidance and compass, filled in from -input
 # (docs/messages.md). Layouts are the stock packers', never captured, so
@@ -370,16 +890,24 @@ messages:
     cmd: 0x04
     length: 8
     fields:
-      - { name: maneuver,          off: 0, enum: maneuver }
-      - { name: side_street,       off: 1, type: u16, invalid: 0xffff }
-      - { name: direction,         off: 3, scale: 7.5, min: 0, max: 360, default: 0 }   # degrees
-      - { name: distance,          off: 4, type: u16, invalid: 0xffff }                 # its integer part
-      - { name: unit,              off: 6, bits: "7:4", enum: distance_unit, invalid: 15 }
+      - { name: maneuver, off: 0, enum: maneuver }
+      - { name: side_street, off: 1, type: u16, invalid: 0xffff }
+      - { name: direction, off: 3, scale: 7.5, min: 0, max: 360, default: 0 } # degrees
+      - { name: distance, off: 4, type: u16, invalid: 0xffff } # its integer part
+      - { name: unit, off: 6, bits: "7:4", enum: distance_unit, invalid: 15 }
       - { name: side_street_combi, off: 6, bits: "3:0", default: 0 }
       # The progress bar, percent, in tenths. 0xE ("err -2") is not modelled.
-      - { name: bar,               off: 7, bits: "7:4", scale: 10, min: 0, max: 100, invalid: 15 }
-      - { name: distance_tenths,   off: 7, bits: "3:0", max: 9, invalid: 15 }
-    every: 1s          # a guess: stock sends on change
+      - {
+          name: bar,
+          off: 7,
+          bits: "7:4",
+          scale: 10,
+          min: 0,
+          max: 100,
+          invalid: 15,
+        }
+      - { name: distance_tenths, off: 7, bits: "3:0", max: 9, invalid: 15 }
+    every: 1s # a guess: stock sends on change
     timeout: 30s
     # Stock's end of route (GPM releaseGuidance: updateTBTInfo(0, 0, 0, 0,
     # -1, 0, 0, 0, -1) and updateTBTSubInfo(0, -1, 0, ...)): 0x0D04
@@ -387,11 +915,51 @@ messages:
     # 00 00, but the compass kept, as it has its own source. It does not
     # release the pane (nav-operation and tbt-alive): stock does that apart.
     end:
-      - { msg: tbt-turn, set: { maneuver: none, side_street: 0, direction: 0, distance: null, unit: m, side_street_combi: 0, bar: null, distance_tenths: 0 } }
-      - { msg: tbt-points, set: { p1_unit: null, p1_tenths: null, p1_distance: null, p2_unit: null, p2_tenths: null, p2_distance: null, p3_unit: null, p3_tenths: null, p3_distance: null } }
-      - { msg: cluster-sub-info, set: { remaining_unit: m, remaining_tenths: 0, eta_hour: 0, eta_minute: 0, time_type: 0, remaining: null, time_format: 0, est_point_type: 0 } }
+      - {
+          msg: tbt-turn,
+          set:
+            {
+              maneuver: none,
+              side_street: 0,
+              direction: 0,
+              distance: null,
+              unit: m,
+              side_street_combi: 0,
+              bar: null,
+              distance_tenths: 0,
+            },
+        }
+      - {
+          msg: tbt-points,
+          set:
+            {
+              p1_unit: null,
+              p1_tenths: null,
+              p1_distance: null,
+              p2_unit: null,
+              p2_tenths: null,
+              p2_distance: null,
+              p3_unit: null,
+              p3_tenths: null,
+              p3_distance: null,
+            },
+        }
+      - {
+          msg: cluster-sub-info,
+          set:
+            {
+              remaining_unit: m,
+              remaining_tenths: 0,
+              eta_hour: 0,
+              eta_minute: 0,
+              time_type: 0,
+              remaining: null,
+              time_format: 0,
+              est_point_type: 0,
+            },
+        }
     status: code
-    ref: "stock ClusterService$NaviCluster TBTInfo packer (byte 0 straight from the caller); GPM GpmNaviTBTManager.releaseGuidance; nemesis-report worked example \"turn right, 0.3 km\""
+    ref: 'stock ClusterService$NaviCluster TBTInfo packer (byte 0 straight from the caller); GPM GpmNaviTBTManager.releaseGuidance; nemesis-report worked example "turn right, 0.3 km"'
 
   # TBTSubInfo2C, func 0x0D02: the distances to the next three points.
   - name: tbt-points
@@ -400,19 +968,33 @@ messages:
     cmd: 0x02
     length: 9
     fields:
-      - { name: p1_unit,     off: 0, bits: "7:4", enum: distance_unit, invalid: 15 }
-      - { name: p1_tenths,   off: 0, bits: "3:0", max: 9, invalid: 15 }
+      - { name: p1_unit, off: 0, bits: "7:4", enum: distance_unit, invalid: 15 }
+      - { name: p1_tenths, off: 0, bits: "3:0", max: 9, invalid: 15 }
       - { name: p1_distance, off: 1, type: u16, invalid: 0xffff }
-      - { name: p2_unit,     off: 3, bits: "7:4", enum: distance_unit, invalid: 15 }
-      - { name: p2_tenths,   off: 3, bits: "3:0", max: 9, invalid: 15 }
+      - { name: p2_unit, off: 3, bits: "7:4", enum: distance_unit, invalid: 15 }
+      - { name: p2_tenths, off: 3, bits: "3:0", max: 9, invalid: 15 }
       - { name: p2_distance, off: 4, type: u16, invalid: 0xffff }
-      - { name: p3_unit,     off: 6, bits: "7:4", enum: distance_unit, invalid: 15 }
-      - { name: p3_tenths,   off: 6, bits: "3:0", max: 9, invalid: 15 }
+      - { name: p3_unit, off: 6, bits: "7:4", enum: distance_unit, invalid: 15 }
+      - { name: p3_tenths, off: 6, bits: "3:0", max: 9, invalid: 15 }
       - { name: p3_distance, off: 7, type: u16, invalid: 0xffff }
     every: 1s
     timeout: 30s
     end:
-      - { msg: tbt-points, set: { p1_unit: null, p1_tenths: null, p1_distance: null, p2_unit: null, p2_tenths: null, p2_distance: null, p3_unit: null, p3_tenths: null, p3_distance: null } }
+      - {
+          msg: tbt-points,
+          set:
+            {
+              p1_unit: null,
+              p1_tenths: null,
+              p1_distance: null,
+              p2_unit: null,
+              p2_tenths: null,
+              p2_distance: null,
+              p3_unit: null,
+              p3_tenths: null,
+              p3_distance: null,
+            },
+        }
     status: code
     ref: "stock ClusterService$NaviCluster TBTSubInfo2C packer"
 
@@ -426,19 +1008,25 @@ messages:
     cmd: 0x03
     length: 9
     fields:
-      - { name: remaining_unit,   off: 0, bits: "7:4", enum: distance_unit, invalid: 15 }
+      - {
+          name: remaining_unit,
+          off: 0,
+          bits: "7:4",
+          enum: distance_unit,
+          invalid: 15,
+        }
       - { name: remaining_tenths, off: 0, bits: "3:0", max: 9, invalid: 15 }
-      - { name: eta_hour,         off: 1, max: 23, invalid: 0xff }
-      - { name: eta_minute,       off: 2, max: 59, invalid: 0xff }
-      - { name: compass,          off: 3, scale: 7.5, min: 0, max: 360, invalid: 0x3f }   # heading, degrees
+      - { name: eta_hour, off: 1, max: 23, invalid: 0xff }
+      - { name: eta_minute, off: 2, max: 59, invalid: 0xff }
+      - { name: compass, off: 3, scale: 7.5, min: 0, max: 360, invalid: 0x3f } # heading, degrees
       # Stock code: 0 no time, 1 ETA. The default is the captured 3 (the
       # stock system's idle frame on the wire), meaning unknown.
-      - { name: time_type,        off: 4, default: 3 }
-      - { name: remaining,        off: 5, type: u16, invalid: 0xffff }
+      - { name: time_type, off: 4, default: 3 }
+      - { name: remaining, off: 5, type: u16, invalid: 0xffff }
       # Stock code: 0 none, 1 12 h, 2 24 h; the captured 3 likewise.
-      - { name: time_format,      off: 7, default: 3 }
-      - { name: est_point_type,   off: 8, invalid: 0xff }
-    every: 600ms       # the captured ack rate
+      - { name: time_format, off: 7, default: 3 }
+      - { name: est_point_type, off: 8, invalid: 0xff }
+    every: 600ms # the captured ack rate
     owns: ack
     timeout: 5s
     status: code
@@ -496,8 +1084,24 @@ messages:
     cmd: 0x17
     length: 8
     fields:
-      - { name: lat_arcsec, off: 0, type: u32, scale: 0.01, offset: -1342177.27, min: -324000, max: 324000 }
-      - { name: lon_arcsec, off: 4, type: u32, scale: 0.01, offset: -1342177.27, min: -648000, max: 648000 }
+      - {
+          name: lat_arcsec,
+          off: 0,
+          type: u32,
+          scale: 0.01,
+          offset: -1342177.27,
+          min: -324000,
+          max: 324000,
+        }
+      - {
+          name: lon_arcsec,
+          off: 4,
+          type: u32,
+          scale: 0.01,
+          offset: -1342177.27,
+          min: -648000,
+          max: 648000,
+        }
     every: 1s
     timeout: 5s
     status: code
@@ -517,7 +1121,7 @@ messages:
     cmd: 0x66
     length: 2
     fields:
-      - { name: km, off: 0, type: u16, max: 2047 }   # 2047: none
+      - { name: km, off: 0, type: u16, max: 2047 } # 2047: none
     on_change: false
     status: code
     ref: "stock HEVService.setBattCondRouteDis: sendPacket(0x88, 0x0c, 0x0c66, [hi, lo])"
@@ -527,7 +1131,7 @@ messages:
     cmd: 0x65
     length: 2
     fields:
-      - { name: minutes, off: 0, type: u16, max: 1023 }   # 1023: none
+      - { name: minutes, off: 0, type: u16, max: 1023 } # 1023: none
     on_change: false
     status: code
     ref: "stock HEVService.setBattCondRemainTime: sendPacket(0x88, 0x0c, 0x0c65, [hi, lo])"
@@ -537,8 +1141,8 @@ messages:
     cmd: 0x68
     length: 2
     fields:
-      - { name: flag, off: 0, max: 15 }   # 2 start, 0 stop, 7 invalid
-      - { name: type, off: 1, max: 15 }   # 3 start, 0 stop, 7 invalid
+      - { name: flag, off: 0, max: 15 } # 2 start, 0 stop, 7 invalid
+      - { name: type, off: 1, max: 15 } # 3 start, 0 stop, 7 invalid
     on_change: false
     status: code
     ref: "stock HEVService.setBattCondEvStation: sendPacket(0x88, 0x0c, 0x0c68, [flag & 0xf, type & 0xf]), then HEVService$6 [7, 7] after 120 ms; github.com/paytondevs/gen5w-preconditioning PreconditioningProfile"
@@ -552,7 +1156,17 @@ messages:
     cmd: 0x62
     length: 1
     fields:
-      - { name: mode, off: 0, enum: batt_cond_mode, reflects: { msg: "Battery conditioning mode", field: "Battery conditioning mode", unless: [0] } }
+      - {
+          name: mode,
+          off: 0,
+          enum: batt_cond_mode,
+          reflects:
+            {
+              msg: "Battery conditioning mode",
+              field: "Battery conditioning mode",
+              unless: [0],
+            },
+        }
     timeout: 120ms
     end:
       - { msg: batt-cond-mode, set: { mode: default } }
@@ -575,22 +1189,22 @@ messages:
     cmd: 0x55
     min_length: 8
     fields:
-      - { name: "Departure 1 hour",        off: 3, bits: "4:0" }
+      - { name: "Departure 1 hour", off: 3, bits: "4:0" }
       - { name: "Departure 1 minute bits", off: 3, bits: "7:5" }
-      - { name: "Departure 2 hour",        off: 4, bits: "4:0" }
+      - { name: "Departure 2 hour", off: 4, bits: "4:0" }
       - { name: "Departure 2 minute bits", off: 4, bits: "7:5" }
-      - { name: "Departure 1 Monday",    off: 5, bits: "1:0" }
-      - { name: "Departure 1 Tuesday",   off: 5, bits: "3:2" }
+      - { name: "Departure 1 Monday", off: 5, bits: "1:0" }
+      - { name: "Departure 1 Tuesday", off: 5, bits: "3:2" }
       - { name: "Departure 1 Wednesday", off: 5, bits: "5:4" }
-      - { name: "Departure 1 Thursday",  off: 5, bits: "7:6" }
-      - { name: "Departure 1 enabled",   off: 6, bits: "1:0" }
-      - { name: "Departure 1 Friday",    off: 6, bits: "3:2" }
-      - { name: "Departure 1 Saturday",  off: 6, bits: "5:4" }
-      - { name: "Departure 1 Sunday",    off: 6, bits: "7:6" }
-      - { name: "Departure 2 Monday",    off: 7, bits: "1:0" }
-      - { name: "Departure 2 Tuesday",   off: 7, bits: "3:2" }
+      - { name: "Departure 1 Thursday", off: 5, bits: "7:6" }
+      - { name: "Departure 1 enabled", off: 6, bits: "1:0" }
+      - { name: "Departure 1 Friday", off: 6, bits: "3:2" }
+      - { name: "Departure 1 Saturday", off: 6, bits: "5:4" }
+      - { name: "Departure 1 Sunday", off: 6, bits: "7:6" }
+      - { name: "Departure 2 Monday", off: 7, bits: "1:0" }
+      - { name: "Departure 2 Tuesday", off: 7, bits: "3:2" }
       - { name: "Departure 2 Wednesday", off: 7, bits: "5:4" }
-      - { name: "Departure 2 Thursday",  off: 7, bits: "7:6" }
+      - { name: "Departure 2 Thursday", off: 7, bits: "7:6" }
     status: code
     ref: "HEVService G3CAN_VCU_04_1_M (func 0x8c55, gen > 0); 0 in all 43k frames of a 2026-11 capture (nothing set)"
   - name: "Schedule settings"
@@ -599,17 +1213,22 @@ messages:
     cmd: 0x53
     min_length: 8
     fields:
-      - { name: "Departure 2 enabled",  off: 0, bits: "1:0" }
-      - { name: "Departure 2 Friday",   off: 0, bits: "3:2" }
+      - { name: "Departure 2 enabled", off: 0, bits: "1:0" }
+      - { name: "Departure 2 Friday", off: 0, bits: "3:2" }
       - { name: "Departure 2 Saturday", off: 0, bits: "5:4" }
-      - { name: "Departure 2 Sunday",   off: 0, bits: "7:6" }
-      - { name: "Off-peak start hour",        off: 1, bits: "4:0" }
+      - { name: "Departure 2 Sunday", off: 0, bits: "7:6" }
+      - { name: "Off-peak start hour", off: 1, bits: "4:0" }
       - { name: "Off-peak start minute bits", off: 1, bits: "7:5" }
-      - { name: "Off-peak end hour",          off: 2, bits: "4:0" }
-      - { name: "Off-peak end minute bits",   off: 2, bits: "7:5" }
-      - { name: "Scheduled charging mode",    off: 5, bits: "1:0", enum: sched_charge_mode }
-      - { name: "Scheduled climate",             off: 7, bits: "1:0" }
-      - { name: "Scheduled climate temperature", off: 7, bits: "7:2" }   # encoding unknown; 0x14 (20) at the default
+      - { name: "Off-peak end hour", off: 2, bits: "4:0" }
+      - { name: "Off-peak end minute bits", off: 2, bits: "7:5" }
+      - {
+          name: "Scheduled charging mode",
+          off: 5,
+          bits: "1:0",
+          enum: sched_charge_mode,
+        }
+      - { name: "Scheduled climate", off: 7, bits: "1:0" }
+      - { name: "Scheduled climate temperature", off: 7, bits: "7:2" } # encoding unknown; 0x14 (20) at the default
     status: code
     ref: "HEVService G3CAN_VCU_04_2_M (func 0x8c53); seen 8 times as 00 14 10 02 00 40 00 50 (20:00-16:00, mode 0, climate off)"
   - name: "Scheduled charge window"
@@ -619,13 +1238,13 @@ messages:
     min_length: 8
     fields:
       - { name: "Scheduled climate defrost", off: 0, bits: "1:0" }
-      - { name: "Temperature unit",          off: 3, bits: "7:6" }
+      - { name: "Temperature unit", off: 3, bits: "7:6" }
       # The window the car computed (7 days, 31 hours, 63 minutes: none).
       # Its end day and minute straddle bytes 5-7 and are left out.
-      - { name: "Scheduled charge start day",    off: 4, bits: "2:0" }
-      - { name: "Scheduled charge start hour",   off: 4, bits: "7:3" }
+      - { name: "Scheduled charge start day", off: 4, bits: "2:0" }
+      - { name: "Scheduled charge start hour", off: 4, bits: "7:3" }
       - { name: "Scheduled charge start minute", off: 5, bits: "5:0" }
-      - { name: "Scheduled charge end hour",     off: 6, bits: "5:1" }
+      - { name: "Scheduled charge end hour", off: 6, bits: "5:1" }
     status: code
     ref: "HEVService G3CAN_VCU_04_3_M (func 0x8c54); seen 13 times as 00 01 00 40 ff ff ff 0f (no window)"
 
@@ -641,15 +1260,46 @@ messages:
     cmd: 0x05
     length: 5
     fields:
-      - { name: start_hour,     off: 0, bits: "7:3", max: 23, reflects: { msg: "Schedule settings", field: "Off-peak start hour" } }
-      - { name: start_min_bits, off: 0, bits: "2:0",          reflects: { msg: "Schedule settings", field: "Off-peak start minute bits" } }
-      - { name: end_hour,       off: 1, bits: "7:3", max: 23, reflects: { msg: "Schedule settings", field: "Off-peak end hour" } }
-      - { name: end_min_bits,   off: 1, bits: "2:0",          reflects: { msg: "Schedule settings", field: "Off-peak end minute bits" } }
+      - {
+          name: start_hour,
+          off: 0,
+          bits: "7:3",
+          max: 23,
+          reflects: { msg: "Schedule settings", field: "Off-peak start hour" },
+        }
+      - {
+          name: start_min_bits,
+          off: 0,
+          bits: "2:0",
+          reflects:
+            { msg: "Schedule settings", field: "Off-peak start minute bits" },
+        }
+      - {
+          name: end_hour,
+          off: 1,
+          bits: "7:3",
+          max: 23,
+          reflects: { msg: "Schedule settings", field: "Off-peak end hour" },
+        }
+      - {
+          name: end_min_bits,
+          off: 1,
+          bits: "2:0",
+          reflects:
+            { msg: "Schedule settings", field: "Off-peak end minute bits" },
+        }
       - { name: weekend_start_hour_low, off: 2, bits: "7:5", default: 0 }
       - { name: weekend_start_min_bits, off: 2, bits: "2:0", default: 0 }
-      - { name: weekend_end_hour_low,   off: 3, bits: "7:5", default: 0 }
-      - { name: weekend_end_min_bits,   off: 3, bits: "2:0", default: 0 }
-      - { name: mode, off: 4, bits: "7:6", enum: sched_charge_mode, reflects: { msg: "Schedule settings", field: "Scheduled charging mode" } }
+      - { name: weekend_end_hour_low, off: 3, bits: "7:5", default: 0 }
+      - { name: weekend_end_min_bits, off: 3, bits: "2:0", default: 0 }
+      - {
+          name: mode,
+          off: 4,
+          bits: "7:6",
+          enum: sched_charge_mode,
+          reflects:
+            { msg: "Schedule settings", field: "Scheduled charging mode" },
+        }
     on_change: false
     dangerous: "sets the car's off-peak charging window, which it acts on unattended"
     status: code
@@ -667,36 +1317,179 @@ messages:
     cmd: 0x06
     length: 7
     fields:
-      - { name: d1_hour,     off: 0, bits: "7:3", max: 23, reflects: { msg: "Departure timers", field: "Departure 1 hour" } }
-      - { name: d1_min_bits, off: 0, bits: "2:0",          reflects: { msg: "Departure timers", field: "Departure 1 minute bits" } }
-      - { name: d1_mon, off: 1, bits: "7", reflects: { msg: "Departure timers", field: "Departure 1 Monday" } }
-      - { name: d1_tue, off: 1, bits: "6", reflects: { msg: "Departure timers", field: "Departure 1 Tuesday" } }
-      - { name: d1_wed, off: 1, bits: "5", reflects: { msg: "Departure timers", field: "Departure 1 Wednesday" } }
-      - { name: d1_thu, off: 1, bits: "4", reflects: { msg: "Departure timers", field: "Departure 1 Thursday" } }
-      - { name: d1_fri, off: 1, bits: "3", reflects: { msg: "Departure timers", field: "Departure 1 Friday" } }
-      - { name: d1_sat, off: 1, bits: "2", reflects: { msg: "Departure timers", field: "Departure 1 Saturday" } }
-      - { name: d1_sun, off: 1, bits: "1", reflects: { msg: "Departure timers", field: "Departure 1 Sunday" } }
-      - { name: d1_on,  off: 1, bits: "0", reflects: { msg: "Departure timers", field: "Departure 1 enabled" } }
-      - { name: d2_hour,     off: 2, bits: "7:3", max: 23, reflects: { msg: "Departure timers", field: "Departure 2 hour" } }
-      - { name: d2_min_bits, off: 2, bits: "2:0",          reflects: { msg: "Departure timers", field: "Departure 2 minute bits" } }
-      - { name: d2_mon, off: 3, bits: "7", reflects: { msg: "Departure timers", field: "Departure 2 Monday" } }
-      - { name: d2_tue, off: 3, bits: "6", reflects: { msg: "Departure timers", field: "Departure 2 Tuesday" } }
-      - { name: d2_wed, off: 3, bits: "5", reflects: { msg: "Departure timers", field: "Departure 2 Wednesday" } }
-      - { name: d2_thu, off: 3, bits: "4", reflects: { msg: "Departure timers", field: "Departure 2 Thursday" } }
-      - { name: d2_fri, off: 3, bits: "3", reflects: { msg: "Schedule settings", field: "Departure 2 Friday" } }
-      - { name: d2_sat, off: 3, bits: "2", reflects: { msg: "Schedule settings", field: "Departure 2 Saturday" } }
-      - { name: d2_sun, off: 3, bits: "1", reflects: { msg: "Schedule settings", field: "Departure 2 Sunday" } }
-      - { name: d2_on,  off: 3, bits: "0", reflects: { msg: "Schedule settings", field: "Departure 2 enabled" } }
-      - { name: d1_climate,   off: 4, bits: "7",   reflects: { msg: "Schedule settings", field: "Scheduled climate" } }
-      - { name: d1_temp,      off: 4, bits: "6:1", reflects: { msg: "Schedule settings", field: "Scheduled climate temperature" } }
-      - { name: d1_temp_unit, off: 4, bits: "0",   reflects: { msg: "Scheduled charge window", field: "Temperature unit" } }
-      - { name: d1_defrost,   off: 5, bits: "7",   reflects: { msg: "Scheduled charge window", field: "Scheduled climate defrost" } }
-      - { name: d2_climate,   off: 5, bits: "6", default: 0 }
+      - {
+          name: d1_hour,
+          off: 0,
+          bits: "7:3",
+          max: 23,
+          reflects: { msg: "Departure timers", field: "Departure 1 hour" },
+        }
+      - {
+          name: d1_min_bits,
+          off: 0,
+          bits: "2:0",
+          reflects:
+            { msg: "Departure timers", field: "Departure 1 minute bits" },
+        }
+      - {
+          name: d1_mon,
+          off: 1,
+          bits: "7",
+          reflects: { msg: "Departure timers", field: "Departure 1 Monday" },
+        }
+      - {
+          name: d1_tue,
+          off: 1,
+          bits: "6",
+          reflects: { msg: "Departure timers", field: "Departure 1 Tuesday" },
+        }
+      - {
+          name: d1_wed,
+          off: 1,
+          bits: "5",
+          reflects: { msg: "Departure timers", field: "Departure 1 Wednesday" },
+        }
+      - {
+          name: d1_thu,
+          off: 1,
+          bits: "4",
+          reflects: { msg: "Departure timers", field: "Departure 1 Thursday" },
+        }
+      - {
+          name: d1_fri,
+          off: 1,
+          bits: "3",
+          reflects: { msg: "Departure timers", field: "Departure 1 Friday" },
+        }
+      - {
+          name: d1_sat,
+          off: 1,
+          bits: "2",
+          reflects: { msg: "Departure timers", field: "Departure 1 Saturday" },
+        }
+      - {
+          name: d1_sun,
+          off: 1,
+          bits: "1",
+          reflects: { msg: "Departure timers", field: "Departure 1 Sunday" },
+        }
+      - {
+          name: d1_on,
+          off: 1,
+          bits: "0",
+          reflects: { msg: "Departure timers", field: "Departure 1 enabled" },
+        }
+      - {
+          name: d2_hour,
+          off: 2,
+          bits: "7:3",
+          max: 23,
+          reflects: { msg: "Departure timers", field: "Departure 2 hour" },
+        }
+      - {
+          name: d2_min_bits,
+          off: 2,
+          bits: "2:0",
+          reflects:
+            { msg: "Departure timers", field: "Departure 2 minute bits" },
+        }
+      - {
+          name: d2_mon,
+          off: 3,
+          bits: "7",
+          reflects: { msg: "Departure timers", field: "Departure 2 Monday" },
+        }
+      - {
+          name: d2_tue,
+          off: 3,
+          bits: "6",
+          reflects: { msg: "Departure timers", field: "Departure 2 Tuesday" },
+        }
+      - {
+          name: d2_wed,
+          off: 3,
+          bits: "5",
+          reflects: { msg: "Departure timers", field: "Departure 2 Wednesday" },
+        }
+      - {
+          name: d2_thu,
+          off: 3,
+          bits: "4",
+          reflects: { msg: "Departure timers", field: "Departure 2 Thursday" },
+        }
+      - {
+          name: d2_fri,
+          off: 3,
+          bits: "3",
+          reflects: { msg: "Schedule settings", field: "Departure 2 Friday" },
+        }
+      - {
+          name: d2_sat,
+          off: 3,
+          bits: "2",
+          reflects: { msg: "Schedule settings", field: "Departure 2 Saturday" },
+        }
+      - {
+          name: d2_sun,
+          off: 3,
+          bits: "1",
+          reflects: { msg: "Schedule settings", field: "Departure 2 Sunday" },
+        }
+      - {
+          name: d2_on,
+          off: 3,
+          bits: "0",
+          reflects: { msg: "Schedule settings", field: "Departure 2 enabled" },
+        }
+      - {
+          name: d1_climate,
+          off: 4,
+          bits: "7",
+          reflects: { msg: "Schedule settings", field: "Scheduled climate" },
+        }
+      - {
+          name: d1_temp,
+          off: 4,
+          bits: "6:1",
+          reflects:
+            {
+              msg: "Schedule settings",
+              field: "Scheduled climate temperature",
+            },
+        }
+      - {
+          name: d1_temp_unit,
+          off: 4,
+          bits: "0",
+          reflects:
+            { msg: "Scheduled charge window", field: "Temperature unit" },
+        }
+      - {
+          name: d1_defrost,
+          off: 5,
+          bits: "7",
+          reflects:
+            {
+              msg: "Scheduled charge window",
+              field: "Scheduled climate defrost",
+            },
+        }
+      - { name: d2_climate, off: 5, bits: "6", default: 0 }
       # Set 2's climate has no readback; stock sends set 1's temperature and
       # unit in it (both captures above), so they are copied, never guessed.
-      - { name: d2_temp,      off: 5, bits: "5:0", from: { field: "Scheduled climate temperature" } }
-      - { name: d2_temp_unit, off: 6, bits: "7",   from: { field: "Temperature unit" } }
-      - { name: d2_defrost,   off: 6, bits: "6", default: 0 }
+      - {
+          name: d2_temp,
+          off: 5,
+          bits: "5:0",
+          from: { field: "Scheduled climate temperature" },
+        }
+      - {
+          name: d2_temp_unit,
+          off: 6,
+          bits: "7",
+          from: { field: "Temperature unit" },
+        }
+      - { name: d2_defrost, off: 6, bits: "6", default: 0 }
     on_change: false
     dangerous: "sets the car's departure timers and scheduled climate, which it acts on unattended"
     status: code
@@ -719,9 +1512,33 @@ messages:
     cmd: 0x18
     length: 7
     fields:
-      - { name: winter_mode, off: 2, bits: "7:6", invalid: 3, reflects: { msg: "Winter mode", field: "Winter mode" } }
-      - { name: ac_limit,    off: 4, scale: 0.5, unit: " %", invalid: 0xff, min: 50, max: 100, reflects: { msg: "Charge limit, AC", field: "Charge limit, AC" } }
-      - { name: dc_limit,    off: 5, scale: 0.5, unit: " %", invalid: 0xff, min: 50, max: 100, reflects: { msg: "Charge limit, DC", field: "Charge limit, DC" } }
+      - {
+          name: winter_mode,
+          off: 2,
+          bits: "7:6",
+          invalid: 3,
+          reflects: { msg: "Winter mode", field: "Winter mode" },
+        }
+      - {
+          name: ac_limit,
+          off: 4,
+          scale: 0.5,
+          unit: " %",
+          invalid: 0xff,
+          min: 50,
+          max: 100,
+          reflects: { msg: "Charge limit, AC", field: "Charge limit, AC" },
+        }
+      - {
+          name: dc_limit,
+          off: 5,
+          scale: 0.5,
+          unit: " %",
+          invalid: 0xff,
+          min: 50,
+          max: 100,
+          reflects: { msg: "Charge limit, DC", field: "Charge limit, DC" },
+        }
       - { name: route_limit, off: 6, scale: 0.5, unit: " %", invalid: 0xff }
     on_change: false
     merge: false
@@ -741,7 +1558,17 @@ messages:
     cmd: 0x5b
     length: 1
     fields:
-      - { name: current, off: 0, enum: ac_current, reflects: { msg: "AC charging current", field: "AC charging current", unless: [0] } }
+      - {
+          name: current,
+          off: 0,
+          enum: ac_current,
+          reflects:
+            {
+              msg: "AC charging current",
+              field: "AC charging current",
+              unless: [0],
+            },
+        }
     timeout: 120ms
     end:
       - { msg: ev-charging-current, set: { current: default } }
@@ -754,7 +1581,13 @@ messages:
     cmd: 0x5a
     length: 1
     fields:
-      - { name: limit, off: 0, invalid: 0xff, reflects: { msg: "V2L discharge limit", field: "V2L discharge limit" } }
+      - {
+          name: limit,
+          off: 0,
+          invalid: 0xff,
+          reflects:
+            { msg: "V2L discharge limit", field: "V2L discharge limit" },
+        }
     timeout: 120ms
     end:
       - { msg: ev-v2l-limit, set: { limit: null } }
@@ -772,7 +1605,7 @@ messages:
     hdr: system_rx
     cmd: 0x08
     length: 3
-    when: [ { off: 0, eq: 0x00 } ]
+    when: [{ off: 0, eq: 0x00 }]
     fields:
       - { name: "Power state", off: 1, enum: power_state }
     status: code
@@ -782,7 +1615,7 @@ messages:
     hdr: system_rx
     cmd: 0x08
     length: 2
-    when: [ { off: 0, eq: 0x01 } ]
+    when: [{ off: 0, eq: 0x01 }]
     fields:
       - { name: "Power state", off: 1, enum: power_state }
     status: code
@@ -825,7 +1658,7 @@ messages:
     cmd: 0x0c
     length: 1
     fields:
-      - { name: "Charge warning", off: 0, type: bool }   # always 0 on this micom build (FUN_00073e46)
+      - { name: "Charge warning", off: 0, type: bool } # always 0 on this micom build (FUN_00073e46)
     status: code
     ref: "stock SYS_FUELWARNING_STATUS_M (0x810c); micom firmware FUN_00073e46"
   # Stock's SYS_ILLUMINATION_STATUS_M: any non-zero is day ("illuminate
@@ -852,8 +1685,8 @@ messages:
     cmd: 0x01
     min_length: 149
     fields:
-      - { name: "Boot mode", off: 0 }
-      - { name: "Reset reason", off: 1 }
+      - { name: "Boot mode", off: 0, enum: boot_mode }
+      - { name: "Reset reason", off: 1, enum: reset_reason }
       - { name: "Driving regulation", off: 2, type: bool }
       - { name: "Illumination", off: 4, enum: illumination }
       - { name: "ACC", off: 7, bits: "7", type: bool }
@@ -893,8 +1726,8 @@ messages:
     cmd: 0x01
     min_length: 0x13
     fields:
-      - { name: "Boot mode", off: 0 }
-      - { name: "Reset reason", off: 1 }
+      - { name: "Boot mode", off: 0, enum: boot_mode }
+      - { name: "Reset reason", off: 1, enum: reset_reason }
       - { name: "Illumination", off: 4, enum: illumination }
       - { name: "Dim mode", off: 0x12, enum: dim_mode }
     status: captured
@@ -983,7 +1816,7 @@ messages:
     cmd: 0x67
     length: 2
     fields:
-      - { name: mode, off: 0 }   # 0/1/2 -> events 0xc5 / 0x146 / 0x147
+      - { name: mode, off: 0 } # 0/1/2 -> events 0xc5 / 0x146 / 0x147
       - { name: flag, off: 1 }
     on_change: false
     status: inferred
@@ -1005,7 +1838,7 @@ messages:
     cmd: 0x0c
     min_length: 1
     fields:
-      - { name: "Display 0x880C", off: 0 }   # RAM 0x400118e8, meaning unknown; 02 in emulation
+      - { name: "Display 0x880C", off: 0 } # RAM 0x400118e8, meaning unknown; 02 in emulation
     status: code
     ref: "firmware emulation: 0x080C [00] answered ff 08 8c 01 88 0c 00 02 02 fe"
   - name: "Rheostat"
@@ -1014,7 +1847,7 @@ messages:
     cmd: 0x10
     min_length: 1
     fields:
-      - { name: "Rheostat step", off: 0 }   # 0-21; 20 in emulation
+      - { name: "Rheostat step", off: 0 } # 0-21; 20 in emulation
     status: code
     ref: "firmware emulation: 0x0810 [00] answered 14"
   - name: "Display 0x8813"
@@ -1023,7 +1856,7 @@ messages:
     cmd: 0x13
     min_length: 1
     fields:
-      - { name: "Display 0x8813", off: 0 }   # RAM 0x400172a0; 0x32 in emulation
+      - { name: "Display 0x8813", off: 0 } # RAM 0x400172a0; 0x32 in emulation
     status: code
     ref: "firmware emulation: 0x0813 [00] answered 32"
   # The answer to stock's current-brightness request (0x081B): the
@@ -1050,8 +1883,8 @@ messages:
     cmd: 0x20
     min_length: 2
     fields:
-      - { name: "Vehicle speed",       off: 1, scale: 0.804672, unit: " km/h" }   # 0.5 mph
-      - { name: "Vehicle speed (mph)", off: 1, scale: 0.5,      unit: " mph" }
+      - { name: "Vehicle speed", off: 1, scale: 0.804672, unit: " km/h" } # 0.5 mph
+      - { name: "Vehicle speed (mph)", off: 1, scale: 0.5, unit: " mph" }
     status: captured
     ref: "drive 2026-11, micomd snapshots against Car Scanner OBD2 speed (r >= 0.99)"
   # The state of charge as the car displays it, and the remaining energy.
@@ -1060,18 +1893,30 @@ messages:
     dir: from_micom
     hdr: cluster_rx
     cmd: 0x47
-    min_length: 7   # always 11 in the captures
+    min_length: 7 # always 11 in the captures
     fields:
-      - { name: "State of charge",          off: 0, scale: 0.5,   unit: " %" }
+      - { name: "State of charge", off: 0, scale: 0.5, unit: " %" }
       # Signed is a guess: only 20-24 °C seen.
       - { name: "Battery minimum temperature", off: 1, type: i8, unit: " °C" }
-      - { name: "Battery remaining energy", off: 2, type: u16, scale: 0.002, unit: " kWh" }
+      - {
+          name: "Battery remaining energy",
+          off: 2,
+          type: u16,
+          scale: 0.002,
+          unit: " kWh",
+        }
       # Likely, not certain: r 0.97/0.88 driving, 0.84/0.67 charging.
       # TODO: stock names byte 6 DATC_OutTempSnsr, the climate's outside air
       # sensor, which the fit (0.53 * raw - 44) is also near. Check against
       # the outdoor temperature (climate_panel 0x02) on a day the pack and
       # the air differ.
-      - { name: "Battery inlet temperature", off: 6, scale: 0.5, offset: -40, unit: " °C" }
+      - {
+          name: "Battery inlet temperature",
+          off: 6,
+          scale: 0.5,
+          offset: -40,
+          unit: " °C",
+        }
     status: captured
     ref: "drive 2026-11, micomd snapshots against Car Scanner OBD2 displayed SoC, minimum battery temperature (r 0.998), remaining energy (r >= 0.99) and battery inlet temperature (fit 0.53*raw-44)"
   # Battery conditioning running: 1 from 68 s after micom-precondition's
@@ -1111,8 +1956,8 @@ messages:
     cmd: 0x43
     min_length: 5
     fields:
-      - { name: "Range",        off: 3, type: u16, unit: " km" }
-      - { name: "Range (mi)",   off: 1, type: u16, unit: " mi" }
+      - { name: "Range", off: 3, type: u16, unit: " km" }
+      - { name: "Range (mi)", off: 1, type: u16, unit: " mi" }
     status: captured
     ref: "02 00 75 00 bc against the cluster's 117 mi"
   # The sign the cluster shows, 5 Hz; 0 when none. Byte 4 repeats at 5 and is
@@ -1134,7 +1979,13 @@ messages:
     cmd: 0x22
     min_length: 3
     fields:
-      - { name: "Odometer", start_bit: 7, bit_length: 24, scale: 0.1, unit: " km" }
+      - {
+          name: "Odometer",
+          start_bit: 7,
+          bit_length: 24,
+          scale: 0.1,
+          unit: " km",
+        }
     status: captured
     ref: "06 c4 0c (44340.4 km) against the cluster's 27551 mi"
   # °F + 40 in one byte.
@@ -1144,8 +1995,14 @@ messages:
     cmd: 0x02
     min_length: 1
     fields:
-      - { name: "Outdoor temperature",      off: 0, scale: 0.5555555555555556, offset: -40, unit: " C" }
-      - { name: "Outdoor temperature (F)",  off: 0, offset: -40, unit: " F" }
+      - {
+          name: "Outdoor temperature",
+          off: 0,
+          scale: 0.5555555555555556,
+          offset: -40,
+          unit: " C",
+        }
+      - { name: "Outdoor temperature (F)", off: 0, offset: -40, unit: " F" }
     status: captured
     ref: "5e against the cluster's 54 F"
   # A second speed, in whole km/h; it follows the one Car Scanner reads
@@ -1171,9 +2028,14 @@ messages:
     hdr: diag_relay
     cmd: 0xad
     length: 3
-    when: [ { off: 0, eq: 0x41 }, { off: 1, eq: 0x5b } ]
+    when: [{ off: 0, eq: 0x41 }, { off: 1, eq: 0x5b }]
     fields:
-      - { name: "OBD pack remaining", off: 2, scale: 0.39215686274509803, unit: " %" }
+      - {
+          name: "OBD pack remaining",
+          off: 2,
+          scale: 0.39215686274509803,
+          unit: " %",
+        }
     status: captured
     ref: "drive 2026-11-08 against Car Scanner OBD2 [BMS] State of Charge BMS (r 0.997, change 0.83): fit 0.383*raw+2.1; payloads 41 5b xx"
 
@@ -1207,17 +2069,17 @@ messages:
     cmd: 0x01
     min_length: 130
     fields:
-      - { name: "Range, climate on",        off: 0x3c, type: u16, unit: " km" }
-      - { name: "Range added, climate off", off: 0x36,            unit: " km" }
-      - { name: "Average efficiency",        off: 9,  type: u16, scale: 0.1 }
-      - { name: "Charge time estimate, DC",  off: 19, type: u16, unit: " min" }
-      - { name: "Charge time estimate, AC",  off: 29, type: u16, unit: " min" }
-      - { name: "Charge time to full",       off: 31, type: u16, unit: " min" }
+      - { name: "Range, climate on", off: 0x3c, type: u16, unit: " km" }
+      - { name: "Range added, climate off", off: 0x36, unit: " km" }
+      - { name: "Average efficiency", off: 9, type: u16, scale: 0.1 }
+      - { name: "Charge time estimate, DC", off: 19, type: u16, unit: " min" }
+      - { name: "Charge time estimate, AC", off: 29, type: u16, unit: " min" }
+      - { name: "Charge time to full", off: 31, type: u16, unit: " min" }
       - { name: "Range at charge limit, AC", off: 46, type: u16, unit: " km" }
       - { name: "Range at charge limit, DC", off: 48, type: u16, unit: " km" }
-      - { name: "Charge limit, AC",          off: 50, scale: 0.5, unit: " %" }
-      - { name: "Charge limit, DC",          off: 51, scale: 0.5, unit: " %" }
-      - { name: "Charging power",            off: 129, scale: 0.1, unit: " kW" }
+      - { name: "Charge limit, AC", off: 50, scale: 0.5, unit: " %" }
+      - { name: "Charge limit, DC", off: 51, scale: 0.5, unit: " %" }
+      - { name: "Charging power", off: 129, scale: 0.1, unit: " kW" }
     status: captured
     ref: "HEVService DATA_M_RESP (hkmc-gen5w-ev); byte 129 from six 182-byte replies, 2026-11-11/12, one while charging"
 
@@ -1232,7 +2094,7 @@ messages:
     hdr: "0c 88 ?? 8c"
     cmd: 0x02
     length: 3
-    when: [ { off: 0, eq: 0x5b } ]
+    when: [{ off: 0, eq: 0x5b }]
     fields:
       - { name: "Charging power", off: 1, type: u16, scale: 0.1, unit: " kW" }
     status: captured
@@ -1246,7 +2108,7 @@ messages:
     hdr: "0c 88 ?? 8c"
     cmd: 0x02
     length: 3
-    when: [ { off: 0, eq: 0x1b } ]
+    when: [{ off: 0, eq: 0x1b }]
     fields:
       - { name: "Charging cable connected", off: 2 }
     status: captured
@@ -1274,7 +2136,7 @@ messages:
     min_length: 3
     fields:
       - { name: "B-CAN valid", off: 1, type: bool }
-      - { name: "MM-CAN",      off: 2, type: bool }
+      - { name: "MM-CAN", off: 2, type: bool }
     status: code
     ref: "stock BCMService BCAN_VALID (0x8bc7)"
   # ALL_BCM_Resp: up to 100 bytes; bytes 0-8 the doors (lock, open, as
@@ -1300,10 +2162,10 @@ messages:
     hdr: usm_rx
     cmd: 0x11
     min_length: 8
-    when: [ { off: 0, eq: 0xfa } ]
+    when: [{ off: 0, eq: 0xfa }]
     fields:
-      - { name: "Distance unit code",      off: 1 }
-      - { name: "Temperature unit code",   off: 2 }
+      - { name: "Distance unit code", off: 1 }
+      - { name: "Temperature unit code", off: 2 }
       - { name: "Efficiency unit code (km)", off: 3 }
       - { name: "Efficiency unit code (mi)", off: 4 }
       - { name: "Tire pressure unit code", off: 5 }
@@ -1321,7 +2183,7 @@ messages:
     length: 1
     fields:
       - { name: "on", off: 0, bits: "0", type: bool }
-    on_change: false     # every input sends: the micom forgets it on reset
+    on_change: false # every input sends: the micom forgets it on reset
     min_interval: 1s
     status: code
     ref: "firmware emulation: ff 8c 08 01 08 02 00 02 01 73 on, ... 00 72 off; eMIOS0 ch 6 PWM"
@@ -1335,10 +2197,14 @@ messages:
     length: 1
     fields:
       - { name: stage, off: 0, enum: shutdown_ack }
-    on_change: false     # an ack repeated is still an ack
+    on_change: false # an ack repeated is still an ack
     requires:
-      - { if: { stage: power_off_request }, field: "Power state", in: [ power_off_request ] }
-      - { if: { stage: rail_off },          field: "Power state", in: [ rail_off ] }
+      - {
+          if: { stage: power_off_request },
+          field: "Power state",
+          in: [power_off_request],
+        }
+      - { if: { stage: rail_off }, field: "Power state", in: [rail_off] }
     status: code
     ref: "firmware emulation: 0x0109 [01] ff 8a 01 01 01 09 00 02 01 7e, [02] ... 02 7d; status bits b8, b12"
 
@@ -1351,7 +2217,7 @@ messages:
     length: 1
     fields:
       - { name: mode, off: 0, enum: dim_mode }
-    persistent: true     # EEPROM 0x1b7, 0x230, 0x286
+    persistent: true # EEPROM 0x1b7, 0x230, 0x286
     min_interval: 1s
     status: code
     ref: "stock MON_SET_DIMMING_MODE_C (0 auto, 1 daylight, 2 night, 3 manual); micom firmware 0x0801 handler; EEPROM trace under emulation"
@@ -1364,8 +2230,8 @@ messages:
     length: 2
     fields:
       - { name: period, off: 0, enum: period }
-      - { name: level,  off: 1, max: 10 }   # the micom does not check: 11 reads the next table row
-    persistent: true     # EEPROM 0x1b8 day, 0x1b9 night
+      - { name: level, off: 1, max: 10 } # the micom does not check: 11 reads the next table row
+    persistent: true # EEPROM 0x1b8 day, 0x1b9 night
     min_interval: 1s
     status: code
     ref: "stock dimming brightness [period, level]; micom firmware 0x0807 handler; EEPROM trace under emulation"
@@ -1378,7 +2244,7 @@ messages:
     length: 2
     fields:
       - { name: level, off: 0, type: u16, min: 10, max: 1000 }
-    persistent: true     # EEPROM 0x286
+    persistent: true # EEPROM 0x286
     min_interval: 1s
     status: code
     ref: "stock user brightness; micom firmware 0x081A handler; EEPROM trace under emulation"
@@ -1388,14 +2254,23 @@ enums:
   # The off-peak mode: 0 with nothing scheduled (stock's start-up write), 2
   # prioritize off-peak, 3 charge only off-peak (stock under QEMU); 1 unseen.
   sched_charge_mode: { "off": 0, prioritize_off_peak: 2, off_peak_only: 3 }
-  power_state: { rail_off: 0, power_off_request: 1, bus_sleep: 3, acc_off_hold: 4, acc_on: 5, stop: 6, standby: 7 }
+  power_state:
+    {
+      rail_off: 0,
+      power_off_request: 1,
+      bus_sleep: 3,
+      acc_off_hold: 4,
+      acc_on: 5,
+      stop: 6,
+      standby: 7,
+    }
   acc_edge: { "off": 1, "on": 2 }
   shutdown_ack: { power_off_request: 1, rail_off: 2 }
   dim_mode: { auto: 0, day: 1, night: 2, manual: 3 }
   period: { day: 1, night: 2 }
   cruise: { inactive: 0, active: 2 }
-  illumination: { night: 0, day: 1 }   # stock: any non-zero is day
-  operation: { released: 0, operating: 1 }   # 2 and 3 exist; their meaning is unknown
+  illumination: { night: 0, day: 1 } # stock: any non-zero is day
+  operation: { released: 0, operating: 1 } # 2 and 3 exist; their meaning is unknown
   day_night: { day: 0, night: 1 }
   # Stock VideoSetupService.sendThemeType: one value per brand GUI; this car takes white and black.
   gui_theme: { default: 0, hyundai: 1, kia: 2, white: 3, black: 4, genesis: 5 }

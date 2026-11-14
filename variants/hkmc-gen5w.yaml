@@ -12,10 +12,28 @@ abstract: true
 headers:
   # sendPacket(0x8a, module 1, func 0x01xx), the framing of the captured
   # 0x010F alive reply.
-  system_tx: { hdr: "8a 01 01 01", dir: to_micom, status: captured, ref: "the CPU-alive reply" }
-  system_rx: { hdr: "01 8a 01 81", dir: from_micom, status: captured, ref: "the CPU-alive request" }
+  system_tx:
+    {
+      hdr: "8a 01 01 01",
+      dir: to_micom,
+      status: captured,
+      ref: "the CPU-alive reply",
+    }
+  system_rx:
+    {
+      hdr: "01 8a 01 81",
+      dir: from_micom,
+      status: captured,
+      ref: "the CPU-alive request",
+    }
   # MicomAudioService.sendCommand: sndId 0x85, rcvId 2, type 1.
-  audio_tx: { hdr: "85 02 01 02", dir: to_micom, status: captured, ref: "stock micomd strace, source switch" }
+  audio_tx:
+    {
+      hdr: "85 02 01 02",
+      dir: to_micom,
+      status: captured,
+      ref: "stock micomd strace, source switch",
+    }
 
 identify:
   # Asks the micom for its variant coding. Sent only with -identify-request,
@@ -46,21 +64,21 @@ enums:
   # those (0, 2, 32, 33) and its own 64-176 beside them, which this car's
   # stock firmware shipped with, so the cluster takes both.
   maneuver:
-    none: 0                # NO_SYMBOL; the end of route
-    no_info: 1             # NO_INFO
-    depart: 2              # DIRECT_TO_DEST; GPM's depart, sent with no distance
-    dest_reached: 3        # ARRIVED
-    near_dest: 4           # NEAR_DEST
-    arrived_off_map: 5     # ARRIVED_DEST_OFF_MAP
-    off_road: 6            # OFF_ROAD
-    off_map: 7             # OFF_MAP
-    no_route_guide: 8      # NO_ROUTE_GUIDE, "NO ROUTE GUIDANCE(COMPASS)"
-    calc_route: 9          # CALC_ROUTE
-    recalc_route: 10       # RECALC_ROUTE
-    roundabout_exit_right: 32   # EXIT_ROUNDABOUT_TRS_RIGHT
-    roundabout_exit_left: 33    # EXIT_ROUNDABOUT_TRS_LEFT
+    none: 0 # NO_SYMBOL; the end of route
+    no_info: 1 # NO_INFO
+    depart: 2 # DIRECT_TO_DEST; GPM's depart, sent with no distance
+    dest_reached: 3 # ARRIVED
+    near_dest: 4 # NEAR_DEST
+    arrived_off_map: 5 # ARRIVED_DEST_OFF_MAP
+    off_road: 6 # OFF_ROAD
+    off_map: 7 # OFF_MAP
+    no_route_guide: 8 # NO_ROUTE_GUIDE, "NO ROUTE GUIDANCE(COMPASS)"
+    calc_route: 9 # CALC_ROUTE
+    recalc_route: 10 # RECALC_ROUTE
+    roundabout_exit_right: 32 # EXIT_ROUNDABOUT_TRS_RIGHT
+    roundabout_exit_left: 33 # EXIT_ROUNDABOUT_TRS_LEFT
     unknown: 64
-    straight: 65           # also a merge
+    straight: 65 # also a merge
     slight_right: 66
     turn_right: 67
     sharp_right: 68
@@ -87,25 +105,226 @@ enums:
     # a guess. The others are left unnamed.
     destination: 112
     arrived: 115
-    on_ramp: 172           # also a fork
+    on_ramp: 172 # also a fork
     on_ramp_right: 173
     on_ramp_left: 174
     ferry: 176
   # The distance scale nibble; 15 is invalid.
   distance_unit: { m: 0, km: 1, mi: 2, ft: 3, yd: 4 }
 
-  # The variant code's tables (automotive.jar VariantCoding). Vehicle codes
-  # known by name only for these three; others read as numbers.
-  vehicle: { cvev: 0xcc, neev: 0xbd, dn8: 0x6e }
-  country: { korea: 0, us: 1, china: 2, general: 3, middleeast: 4, europe: 5, canada: 6, russia: 7, malaysia: 0x16 }
+  # The variant code's tables (automotive.jar VariantCoding.getVehicle and
+  # getRegion, EV6 V015.011), also the vehicle and region bytes of the version
+  # info. Vehicle names are the code's, lower-cased, except cvev, neev and dn8
+  # which this repo already used; the code's own names for those are CV_E,
+  # NEEV and DN8. Codes the table maps to "NONE" are left out.
+  vehicle:
+    {
+      sk3: 0x53,
+      sk3ev: 0x54,
+      jsn: 0x57,
+      tlfl: 0x58,
+      on: 0x63,
+      adpe: 0x65,
+      lx2: 0x66,
+      sq: 0x67,
+      dn8: 0x6e,
+      oshev: 0x72,
+      dn8hev: 0x73,
+      dn8phev: 0x74,
+      sp2i: 0x7a,
+      aepeev: 0x7e,
+      aepehev: 0x7f,
+      aepephev: 0x80,
+      depehev: 0x82,
+      depephev: 0x83,
+      osev20: 0x85,
+      ygpe: 0x86,
+      ygpehev: 0x87,
+      dl3: 0x88,
+      dl3hev: 0x89,
+      qlcpe: 0x8c,
+      bdc: 0x8d,
+      bdcphev: 0x8e,
+      igpe: 0x8f,
+      igpehev: 0x90,
+      sqcev: 0x93,
+      adfl: 0x94,
+      hmpe2: 0x95,
+      mq4: 0x96,
+      mq4hev: 0x97,
+      adipe: 0x98,
+      tl20my: 0x9a,
+      cn7: 0x9b,
+      cn7hev: 0x9d,
+      bi3: 0x9e,
+      tam20: 0x9f,
+      jape: 0xa1,
+      nx4: 0xa2,
+      nx4hev: 0xa3,
+      ka4: 0xa4,
+      ybpe: 0xa5,
+      ckpe: 0xa7,
+      de20ev: 0xa8,
+      csev: 0xa9,
+      bdcev: 0xaa,
+      pdenpe: 0xab,
+      gzfl: 0xac,
+      tmfl: 0xad,
+      tmhev: 0xae,
+      tmphev: 0xaf,
+      ikfl: 0xb1,
+      qx20my: 0xb2,
+      csfl: 0xb3,
+      nx4phev: 0xb4,
+      mq4_p_22: 0xb5,
+      ospe: 0xb6,
+      hm21: 0xb7,
+      qy: 0xb9,
+      sk321: 0xba,
+      sk3ev21: 0xbb,
+      us4: 0xbc,
+      neev: 0xbd,
+      gl3: 0xbe,
+      gl3hev: 0xbf,
+      osn_pe: 0xc0,
+      su2b: 0xc1,
+      ospeev: 0xc2,
+      ospehev: 0xc3,
+      cv: 0xc4,
+      qx21: 0xc5,
+      sp2_21: 0xc6,
+      bdpe: 0xc7,
+      de_e_22: 0xc8,
+      de_h_22: 0xc9,
+      de_p_22: 0xca,
+      sg2_h: 0xcb,
+      cvev: 0xcc,
+      qx21my: 0xcd,
+      nq5: 0xce,
+      nq5_h: 0xcf,
+      sg2_p: 0xd0,
+      nq5_p: 0xd1,
+      cn7n: 0xd2,
+      ax1: 0xd3,
+      sp2_22: 0xd6,
+      nx4ob: 0xd7,
+      sk3_22: 0xd8,
+      sk3_e_22: 0xd9,
+      ky1: 0xda,
+      dn8_22: 0xdb,
+      dn8_h_22: 0xdc,
+      dl3_22: 0xdd,
+      dl3_h_22: 0xde,
+      mq4_22: 0xdf,
+      mq4_h_22: 0xe0,
+      igpe_22: 0xe1,
+      igpe_h_22: 0xe2,
+      on_22: 0xe3,
+      gz_22: 0xe4,
+      sg2_e: 0xe5,
+      hr_e_22: 0xe6,
+      pu_e: 0xe7,
+      ce_e: 0xe8,
+      lx2pe: 0xe9,
+      tam_22: 0xea,
+      jape_22: 0xeb,
+      igpe_21: 0xec,
+      igpe_h_21: 0xed,
+      ka4_22: 0xee,
+      ckpe_22: 0xef,
+      tm_22: 0xf0,
+      tm_h_22: 0xf1,
+      hmpe2_22: 0xf2,
+    }
+  country:
+    {
+      korea: 0,
+      us: 1,
+      china: 2,
+      general: 3,
+      middleeast: 4,
+      europe: 5,
+      canada: 6,
+      russia: 7,
+      turkey: 8,
+      australia: 9,
+      guam: 10,
+      india: 11,
+      mexico: 12,
+      brazil: 13,
+      iran: 14,
+      ge: 15,
+      japan: 16,
+      indonesia: 17,
+      singapore: 18,
+      thailand: 19,
+      vietnam: 20,
+      philippines: 21,
+      malaysia: 22,
+    }
   # Tuning steps, kHz: FM/AM.
-  radio_region: { khz_9_100: 0, khz_10_200: 1, khz_9_50: 2, khz_10_100: 3, khz_9_200: 4 }
+  radio_region:
+    { khz_9_100: 0, khz_10_200: 1, khz_9_50: 2, khz_10_100: 3, khz_9_200: 4 }
   external_amp: { actune: 0, lexicon: 1 }
   camera: { r_cam: 0, r_cam_old: 1, lvs: 2, avm: 3 }
   hu_type: { daudio: 0, daudio_plus: 1 }
   camera_mode: { analog: 0, digital: 1 }
-  dvd_region: { worldwide: 0, us: 1, eur: 2, kor: 3, c_s_america: 4, rus: 5, chn: 6 }
+  dvd_region:
+    { worldwide: 0, us: 1, eur: 2, kor: 3, c_s_america: 4, rus: 5, chn: 6 }
   adm: { "off": 0, "on": 1 }
+  # Value tables of the micom protocol (automotive.jar com.hkmc.micom.protocol,
+  # EV6 V015.011), names lower-cased.
+  boot_mode:
+    {
+      boot_normal: 1,
+      door_unlock: 2,
+      balarm_status: 3,
+      panic: 4,
+      sms_message: 5,
+      cd_eject: 6,
+      door_open: 7,
+      charging: 8,
+      update_reservation: 9,
+      rrseatremand_alarm: 10,
+      wlight_on: 11,
+      bat_soc_alert: 12,
+      trunk_open: 13,
+      rmt_eng_run: 14,
+      batt_status_alarm: 15,
+      dvrs_rec_crash_prk_alarm: 16,
+      modem_96_168_end: 17,
+      reservation_download: 18,
+      rtc_wakeup: 255,
+    }
+  reset_reason:
+    {
+      normal: 0,
+      micom_watch_dog: 1,
+      reset_request_pin: 2,
+      reset_protocol: 3,
+      manual_reset: 4,
+      cpu_alive_not_recv: 5,
+      fram_init: 6,
+      self_diag: 7,
+      variant_save: 8,
+      reset_packet_log_dump: 9,
+      ket_reset: 10,
+      factory_reset: 11,
+      uart_dma_deactive: 12,
+      batt_4_5_off: 13,
+      micom_internal: 14,
+      cpu_only_reset: 15,
+      shutdown_reserve_update: 16,
+      dsp_init_error: 17,
+      stuck_cpu_boot_pin: 18,
+      stuck_cpu_boot_msg: 19,
+    }
+  fuel_type: { none: 0, gas: 1, lpg: 2, diesel: 3, ffv: 4 }
+  hvac_type: { mtc: 0, fatc: 1, none: 255 }
+  trip_unit: { km: 1, mile: 2 }
+  dct_warning:
+    { normal_display: 0, clutch_off: 1, none_eol: 2, start_hold: 3, none: 255 }
+  camera_status: { cameraoff: 0, front_camera_on: 1, rear_camera_on: 2 }
 
 messages:
   # The micom's variant record (RAM 0x40011964, EEPROM 0x0000), 13 bytes.
@@ -131,62 +350,443 @@ messages:
     cmd: 0x17
     min_length: 13
     fields:
-      - { name: "Vehicle",          off: 0, enum: vehicle }
-      - { name: "Country",          off: 1, enum: country }
-      - { name: "Navigation",       off: 2, bits: "7" }   # W31
-      - { name: "Modem",            off: 2, bits: "6" }
-      - { name: "Internal amp",     off: 2, bits: "5" }   # 0: external
-      - { name: "Rear monitor",     off: 2, bits: "4" }
-      - { name: "Radio region",     off: 2, bits: "3:1", enum: radio_region }
-      - { name: "DMB",              off: 2, bits: "0" }
-      - { name: "RHD",              off: 3, bits: "7" }
-      - { name: "Limo",             off: 3, bits: "6" }
-      - { name: "External amp",     off: 3, bits: "5", enum: external_amp }
-      - { name: "Camera",           off: 3, bits: "4:3", enum: camera }
+      - { name: "Vehicle", off: 0, enum: vehicle }
+      - { name: "Country", off: 1, enum: country }
+      - { name: "Navigation", off: 2, bits: "7" } # W31
+      - { name: "Modem", off: 2, bits: "6" }
+      - { name: "Internal amp", off: 2, bits: "5" } # 0: external
+      - { name: "Rear monitor", off: 2, bits: "4" }
+      - { name: "Radio region", off: 2, bits: "3:1", enum: radio_region }
+      - { name: "DMB", off: 2, bits: "0" }
+      - { name: "RHD", off: 3, bits: "7" }
+      - { name: "Limo", off: 3, bits: "6" }
+      - { name: "External amp", off: 3, bits: "5", enum: external_amp }
+      - { name: "Camera", off: 3, bits: "4:3", enum: camera }
       - { name: "Advanced cluster", off: 3, bits: "2" }
-      - { name: "HUD",              off: 3, bits: "1" }
-      - { name: "Rear USB",         off: 3, bits: "0" }
-      - { name: "RRC",              off: 4, bits: "7" }
-      - { name: "CDC",              off: 4, bits: "6" }
-      - { name: "ISDB",             off: 4, bits: "5" }   # "rearMIC" in logs and micomd
-      - { name: "HD Radio",         off: 4, bits: "4" }
-      - { name: "CMMB",             off: 4, bits: "3" }
-      - { name: "Internal CDP",     off: 4, bits: "2" }
-      - { name: "External CDP",     off: 4, bits: "1" }
-      - { name: "Telematics",       off: 4, bits: "0" }
-      - { name: "Diranarom",        off: 5, bits: "7" }
-      - { name: "DAB",              off: 5, bits: "6" }
-      - { name: "HU type",          off: 5, bits: "5", enum: hu_type }
-      - { name: "Camera mode",      off: 5, bits: "4", enum: camera_mode }
-      - { name: "GPS",              off: 5, bits: "3" }
-      - { name: "Ext CDP feature",  off: 5, bits: "2" }
-      - { name: "Sub board",        off: 5, bits: "1" }
-      - { name: "RDS",              off: 5, bits: "0" }   # W0
-      - { name: "DVD region",       off: 6, enum: dvd_region }
+      - { name: "HUD", off: 3, bits: "1" }
+      - { name: "Rear USB", off: 3, bits: "0" }
+      - { name: "RRC", off: 4, bits: "7" }
+      - { name: "CDC", off: 4, bits: "6" }
+      - { name: "ISDB", off: 4, bits: "5" } # "rearMIC" in logs and micomd
+      - { name: "HD Radio", off: 4, bits: "4" }
+      - { name: "CMMB", off: 4, bits: "3" }
+      - { name: "Internal CDP", off: 4, bits: "2" }
+      - { name: "External CDP", off: 4, bits: "1" }
+      - { name: "Telematics", off: 4, bits: "0" }
+      - { name: "Diranarom", off: 5, bits: "7" }
+      - { name: "DAB", off: 5, bits: "6" }
+      - { name: "HU type", off: 5, bits: "5", enum: hu_type }
+      - { name: "Camera mode", off: 5, bits: "4", enum: camera_mode }
+      - { name: "GPS", off: 5, bits: "3" }
+      - { name: "Ext CDP feature", off: 5, bits: "2" }
+      - { name: "Sub board", off: 5, bits: "1" }
+      - { name: "RDS", off: 5, bits: "0" } # W0
+      - { name: "DVD region", off: 6, enum: dvd_region }
       # "en" in US and global builds, "ko" in Korean ones.
-      - { name: "Language",         off: 7, type: str, size: 2 }
+      - { name: "Language", off: 7, type: str, size: 2 }
       # Opaque to Android: echoed in the 0x0118 save; Engineering Mode writes
       # them with 0x0194.
-      - { name: "CPU variant 9",    off: 9 }
-      - { name: "CPU variant 10",   off: 10 }
-      - { name: "CPU variant 11",   off: 11 }
+      - { name: "CPU variant 9", off: 9 }
+      - { name: "CPU variant 10", off: 10 }
+      - { name: "CPU variant 11", off: 11 }
       # Android reads 0 off, 1 on; the firmware sets bit 7, which reads as 128.
-      - { name: "ADM",              off: 12, enum: adm }
+      - { name: "ADM", off: 12, enum: adm }
     status: code
     ref: "micom firmware 0x0117 handler; 61 S5W_M micom builds in emulation (en/ko, country 01/00); EV6 V015.012 automotive-service SystemService.onVariantCode/sendVariantCodeSave, automotive VariantCoding tables"
+
+  # The module-version table Engineering Mode lists (VersionModule.g, EV6
+  # V015.011): the software version of each other module on the car's buses,
+  # not the micom's own (the "main micom", CAN DB and monitor micom lines of
+  # its Micom version screen are not in this reply). 33 reads in order, 96
+  # bytes; stock gates on 42 bytes, but a shorter frame throws in the parser.
+  #
+  # Field labels are the module names the screen shows (ver_module_*); the
+  # rest from the decompiled formatters. A module whose first byte is 0x00,
+  # 0x7f or 0xff reads as not present. "str" ones are ASCII ("%c.%c%c");
+  # the others are one byte each, printed as the format in the comment.
+  # Split fields: DATC is "%c.%c%c.%c%c" over a (3) then b (2); VESS (2 + 6)
+  # and ADP (5 + 3) are joined the same way; HCU and VCU are one byte each,
+  # "%d.%02d". Which bytes mean what is read from the formatters, not seen.
+  - name: "Module versions"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x74
+    min_length: 96
+    fields:
+      - { name: "HUD", off: 0, type: str, size: 7 }
+      - { name: "Cluster", off: 7, type: str, size: 7 }
+      - { name: "PSM", off: 14, type: str, size: 3 }
+      - { name: "APSM", off: 17, type: str, size: 3 }
+      - { name: "IBU", off: 20, type: str, size: 3 }
+      - { name: "WPC", off: 23, type: str, size: 3 }
+      - { name: "RWPC", off: 26, type: str, size: 3 }
+      - { name: "IAU", off: 29, type: str, size: 3 }
+      - { name: "DVRS", off: 32, type: str, size: 3 }
+      - { name: "DATC a", off: 35, type: str, size: 3 }
+      - { name: "RVM 0", off: 38 } # %03d.%03d, or %02x.%02x
+      - { name: "RVM 1", off: 39 }
+      - { name: "AVM 0", off: 40 } # %d.%02d.%02d, or %02x.%02x
+      - { name: "AVM 1", off: 41 }
+      - { name: "SCM", off: 42, type: str, size: 3 }
+      - { name: "VESS a 0", off: 45 }
+      - { name: "VESS a 1", off: 46 }
+      - { name: "ADP a 0", off: 47 }
+      - { name: "ADP a 1", off: 48 }
+      - { name: "ADP a 2", off: 49 }
+      - { name: "ADP a 3", off: 50 }
+      - { name: "ADP a 4", off: 51 }
+      - { name: "MKBD 0", off: 52 } # %02d.%02d, GUI.%02d
+      - { name: "MKBD 1", off: 53 }
+      - { name: "MKBD 2", off: 54 }
+      - { name: "AMP Binary 0", off: 55 } # %02x.%02x.%02x
+      - { name: "AMP Binary 1", off: 56 }
+      - { name: "AMP Binary 2", off: 57 }
+      - { name: "VESS Binary 0", off: 58 } # %02x.%02x
+      - { name: "VESS Binary 1", off: 59 }
+      - { name: "ADP Binary 0", off: 60 } # %02x.%02x.%02x
+      - { name: "ADP Binary 1", off: 61 }
+      - { name: "ADP Binary 2", off: 62 }
+      - { name: "FR_CMR 0", off: 63 } # %x.%02x
+      - { name: "FR_CMR 1", off: 64 }
+      - { name: "ADAS_DRV 0", off: 65 } # %x.%02x
+      - { name: "ADAS_DRV 1", off: 66 }
+      - { name: "HCU", off: 67 }
+      - { name: "ECS 0", off: 68 } # %d.%02d
+      - { name: "ECS 1", off: 69 }
+      - { name: "TCU", off: 70, type: str, size: 3 }
+      - { name: "SML 0", off: 73 } # %d.%02d
+      - { name: "SML 1", off: 74 }
+      - { name: "Unused", off: 75 } # read, never shown
+      - { name: "VCU", off: 76 }
+      - { name: "AMP 0", off: 77 } # %02d%02d%02d, with a prefix and a mode byte
+      - { name: "AMP 1", off: 78 }
+      - { name: "AMP 2", off: 79 }
+      - { name: "ADP b 0", off: 80 }
+      - { name: "ADP b 1", off: 81 }
+      - { name: "ADP b 2", off: 82 }
+      - { name: "RRC 0", off: 83 } # %02x.%02x
+      - { name: "RRC 1", off: 84 }
+      - { name: "RDC", off: 85, type: str, size: 3 }
+      - { name: "DATC b", off: 88, type: str, size: 2 }
+      - { name: "VESS b 0", off: 90 }
+      - { name: "VESS b 1", off: 91 }
+      - { name: "VESS b 2", off: 92 }
+      - { name: "VESS b 3", off: 93 }
+      - { name: "VESS b 4", off: 94 }
+      - { name: "VESS b 5", off: 95 }
+    status: code
+    ref: 'EV6 V015.011 HKMC_EngineerMode VersionModule: registerCallback("MicomDataSVM", 0x8a), onEvent accepts func 0x8174 with 42+ bytes (parser needs 96), parsed by g([B); labels from res string ver_module_*; never captured'
+
+  # The versions Engineering Mode's "Micom version" screen shows
+  # (EngineeringModeVersion.checkVersion, EV6 V015.011), answer to func 0x0116.
+  # The head is 86 bytes; stock reads the rest only if the frame is long
+  # enough, in this order: Arkamys 4 (86), a flag byte (90), Arkamys DSP and
+  # HiFi2 4 + 4 (91, 95), serial date 6 and serial number 32 (99, 105), MKBD 3
+  # (137), 6 unread bytes (140), a flag byte and 40 bytes of radio DSP (146,
+  # 147). Not fields: a field must lie within the length the message promises.
+  #
+  # The screen's lines: main_micom_version is the micom block below
+  # ("<vehicle>.<region>.<number>.<date>.MICOM.D"), can_db_version joins the
+  # MM and body CAN DB, monitor_micom_version is the monitor. The vehicle
+  # byte is the same code as in the variant code.
+  - name: "Version info"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x16
+    min_length: 86
+    fields:
+      - { name: "Board HW", off: 0 }
+      - { name: "Board HW 1", off: 1 }
+      - { name: "Board HW 2", off: 2 }
+      - { name: "Micom vehicle", off: 3, enum: vehicle }
+      - { name: "Micom region", off: 4, enum: country }
+      # Printed "%03d." after the region.
+      - { name: "Micom number", off: 5, type: u16 }
+      # "Mmm dd yyyy": the build date, shown as yyyy.mm.dd-ish by parseBuildDate.
+      - { name: "Micom build date", off: 7, type: str, size: 11 }
+      # BCD, byte 0 skipped by the formatter: bytes 1-3 print "dd.dd.dd".
+      - { name: "MM CAN DB 0", off: 18 }
+      - { name: "MM CAN DB 1", off: 19 }
+      - { name: "MM CAN DB 2", off: 20 }
+      - { name: "MM CAN DB 3", off: 21 }
+      - { name: "Body CAN DB 0", off: 22 }
+      - { name: "Body CAN DB 1", off: 23 }
+      - { name: "Body CAN DB 2", off: 24 }
+      - { name: "Body CAN DB 3", off: 25 }
+      - { name: "External amp 0", off: 26 }
+      - { name: "External amp 1", off: 27 }
+      - { name: "External amp tuning 0", off: 28 }
+      - { name: "External amp tuning 1", off: 29 }
+      # "V%02d.%02d" is this one's format in the decompile, which is garbled here.
+      - { name: "External monitor 0", off: 30 }
+      - { name: "External monitor 1", off: 31 }
+      - { name: "External CD 0", off: 32 }
+      - { name: "External CD 1", off: 33 }
+      - { name: "Audio DSP tuning", off: 34, type: str, size: 8 }
+      - { name: "Radio DSP tuning", off: 42, type: str, size: 8 }
+      - { name: "HD module", off: 50, type: str, size: 36 }
+    status: code
+    ref: "EV6 V015.011 automotive EngineeringModeVersion.checkVersion; EngineeringModeService.onVersion; SystemService func 0x8116 -> onVersion; HKMC_EngineerMode MicomVersionInfo (indices 1, 4, 5, 8); never captured"
+
+  # Answers to the part-number and trim requests below (regulation type B is
+  # already in kia-ev6-gen5w, captured). All are
+  # read from EV6 V015.011 SystemService, never captured.
+  #
+  # Part number: the whole payload, US-ASCII, any length; stock stores it in
+  # sys.product.partnumber. Shown as its first byte only: a field needs a size.
+  - name: "Part number"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x99
+    min_length: 1
+    fields:
+      - { name: "Part number", off: 0, type: str, size: 1 }
+    status: code
+    ref: "EV6 V015.011 SystemService$MicomEventHandler SYS_PART_NUMBER_M_RESP: new String(data, US-ASCII) -> sys.product.partnumber"
+  # Vehicle trim: byte 0, kept as InitialCarInfo.mVehicleTrim and broadcast as
+  # "trimInfo". Values seen in code: 1 selects the "dr1" display set in
+  # BlackScreenService and the dual-light data in USMService; others are not
+  # named there.
+  - name: "Vehicle trim"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x75
+    min_length: 1
+    fields:
+      - { name: "Trim", off: 0 }
+    status: code
+    ref: "EV6 V015.011 SystemService func 0x8175 -> InitialCarInfo.setVehicleTrimInfo, USMService/BlackScreenService readers"
+
+  # Status frames SystemService.MicomEventHandler reads (EV6 V015.011), all
+  # `system_rx` replies to nothing in particular: the micom sends them as the
+  # state changes, and each can be asked for where a request exists. Layouts
+  # are what the handler reads; none was captured. Names are stock's SYS_*.
+  # Not here: gear (0x26) and parking brake (0x29), which kia-ev6-gen5w has
+  # from live frames: the EV6 sends 0/1 there, not stock's GearStatus codes.
+  - name: "Front/rear camera status"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x04
+    min_length: 1
+    fields:
+      - { name: "Camera", off: 0, enum: camera_status }
+    status: code
+    ref: "SYS_FRONT_REAR_CAMERA_STATUS_M 0x8104 -> onFRCameraStatus"
+  - name: "Distance to empty"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x2a
+    min_length: 3
+    fields:
+      - { name: "Unit", off: 0, enum: trip_unit }
+      - { name: "Distance", off: 1, type: u16 }
+    status: code
+    ref: "SYS_DISTANCE_TO_EMPTY_STATUS_M 0x812a -> onDTEInfoChanged(unit, bytesToInt(data, 1, 2))"
+  - name: "Ambient temperature (C)"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x2b
+    min_length: 1
+    fields:
+      - { name: "Temperature", off: 0 }
+    status: code
+    ref: "SYS_AMBIENT_TEMP_C_STATUS_M 0x812b -> onAmbientCelciusTempChanged; scaling not read"
+  - name: "Ambient temperature (F)"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x2c
+    min_length: 1
+    fields:
+      - { name: "Temperature", off: 0 }
+    status: code
+    ref: "SYS_AMBIENT_TEMP_F_STATUS_M 0x812c -> onAmbientFahrenheitTempChanged; scaling not read"
+  - name: "Vehicle warning"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x34
+    min_length: 2
+    fields:
+      - { name: "Warning 0", off: 0 }
+      - { name: "Warning 1", off: 1 }
+    status: code
+    ref: "SYS_VEHICLE_WARNING_M 0x8134 -> onVehicleWarningStatus(b0, b1); meaning not read"
+  - name: "IGN3 status"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x35
+    min_length: 1
+    fields:
+      - { name: "On", off: 0, type: bool }
+    status: code
+    ref: "SYS_IGN3_STATUS_M 0x8135: 1 is on -> onIGNStatus"
+  - name: "DCT warning"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x38
+    min_length: 1
+    fields:
+      - { name: "Warning", off: 0, enum: dct_warning }
+    status: code
+    ref: "SYS_DCT_WARNING_M 0x8138 -> onDctWarning"
+  - name: "HVAC type"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x3a
+    min_length: 1
+    fields:
+      - { name: "Type", off: 0, enum: hvac_type }
+    status: code
+    ref: "SYS_HVAC_TYPE_M 0x813a: stock keeps it in persist.sys.hvactype"
+  - name: "Fuel type"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x3b
+    min_length: 1
+    fields:
+      - { name: "Type", off: 0, enum: fuel_type }
+    status: code
+    ref: "SYS_FUEL_TYPE_M 0x813b -> SystemService.getFuelType"
+  - name: "FSOC check result"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x59
+    min_length: 2
+    fields:
+      - { name: "FSOC result", off: 0 }
+      - { name: "BSOC result", off: 1 }
+    status: code
+    ref: "SYS_FSOC_M_RESP 0x8159 -> broadcast com.mobis.action.FSOC_CHECK_RESULT with extras FSOC_CHECK_RESULT and BSOC_CHECK_RESULT; answer to fsoc request 0x0159"
+  - name: "Eco coasting status"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x5c
+    min_length: 1
+    fields:
+      - { name: "Status", off: 0 }
+    status: code
+    ref: "SYS_ECO_COASTING_STATUS_M_RESP 0x815c -> SystemService.getEcoCoastingStatus"
+  - name: "Terrain mode"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x64
+    min_length: 2
+    fields:
+      - { name: "Mode", off: 0 }
+      - { name: "Supported", off: 1, type: bool }
+    status: code
+    ref: "SYS_TERRAIN_MODE_M 0x8164 -> broadcast com.mobis.action.TERRAIN_MODE_STATUS (terrainMode, support: byte 1 > 0)"
+  - name: "WPC status"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x70
+    min_length: 1
+    fields:
+      - { name: "Status", off: 0 }
+    status: code
+    ref: "SYS_WPCWARNING_M_RESP 0x8170 -> broadcast com.mobis.intent.action.WPC_STATUS_CHANGED (WPC_STATUS); answer to wpc request 0x0170"
+  - name: "Class status"
+    dir: from_micom
+    hdr: system_rx
+    cmd: 0x98
+    min_length: 1
+    fields:
+      - { name: "Class", off: 0 }
+    status: code
+    ref: "SYS_CLASS_STA_M_RESP 0x8198 -> onClassStatus(byteToInt(b0)); answer to class request 0x0198"
 
 # SystemService requests that reset, rewrite or reconfigure the micom. They are
 # on the system header (sendPacket(0x8a, 1, func)); the `dangerous` string marks
 # each so it is documented here yet refused on every path unless -allow-dangerous
 # (this replaces the old hardcoded Go denylist). From jadx SystemService.java.
 send:
-  - { name: sys-power-config,  pattern: "ff 8a 01 01 01 02 00 02 [00-ff] ..", status: inferred, dangerous: "func 0x0102 SYS_POWER_C: writes the micom's power configuration (EEPROM 0x1ad); value 0 makes ACC-off skip straight to bus sleep", ref: "jadx SystemService; EV6 micom dispatcher cmd 0x02, firmware emulation" }
-  - { name: rear-camera-reset, frame: "ff 8a 01 01 01 05 00 01 70", status: inferred, dangerous: "func 0x0105 requestRearCameraReset", ref: "jadx SystemService" }
-  - { name: last-info-init,    frame: "ff 8a 01 01 01 07 00 01 72", status: inferred, dangerous: "func 0x0107 requestLastInfoInitialization (also requestMicomFactoryReset)", ref: "jadx SystemService" }
-  - { name: variant-code-save, pattern: "ff 8a 01 01 01 18 00 02 [00-ff] ..", status: inferred, dangerous: "func 0x0118 requestVariantCodeSave: writes the variant coding", ref: "jadx SystemService" }
-  - { name: spi-sending-stop,  frame: "ff 8a 01 01 01 1e 00 01 6b", status: inferred, dangerous: "func 0x011e requestSPISendingStop", ref: "jadx SystemService" }
-  - { name: vbus-off-on,       frame: "ff 8a 01 01 01 28 00 01 5d", status: inferred, dangerous: "func 0x0128 requestVBusOffOn", ref: "jadx SystemService" }
+  - {
+      name: sys-power-config,
+      pattern: "ff 8a 01 01 01 02 00 02 [00-ff] ..",
+      status: inferred,
+      dangerous: "func 0x0102 SYS_POWER_C: writes the micom's power configuration (EEPROM 0x1ad); value 0 makes ACC-off skip straight to bus sleep",
+      ref: "jadx SystemService; EV6 micom dispatcher cmd 0x02, firmware emulation",
+    }
+  - {
+      name: rear-camera-reset,
+      frame: "ff 8a 01 01 01 05 00 01 70",
+      status: inferred,
+      dangerous: "func 0x0105 requestRearCameraReset",
+      ref: "jadx SystemService",
+    }
+  - {
+      name: last-info-init,
+      frame: "ff 8a 01 01 01 07 00 01 72",
+      status: inferred,
+      dangerous: "func 0x0107 requestLastInfoInitialization (also requestMicomFactoryReset)",
+      ref: "jadx SystemService",
+    }
+  - {
+      name: variant-code-save,
+      pattern: "ff 8a 01 01 01 18 00 02 [00-ff] ..",
+      status: inferred,
+      dangerous: "func 0x0118 requestVariantCodeSave: writes the variant coding",
+      ref: "jadx SystemService",
+    }
+  - {
+      name: spi-sending-stop,
+      frame: "ff 8a 01 01 01 1e 00 01 6b",
+      status: inferred,
+      dangerous: "func 0x011e requestSPISendingStop",
+      ref: "jadx SystemService",
+    }
+  - {
+      name: vbus-off-on,
+      frame: "ff 8a 01 01 01 28 00 01 5d",
+      status: inferred,
+      dangerous: "func 0x0128 requestVBusOffOn",
+      ref: "jadx SystemService",
+    }
   # The micom's CPU-alive requests, on and off: boot leaves them off; on, the
   # micom resets a SoC that stops answering them.
-  - { name: cpu-alive-start,   frame: "ff 8a 01 01 01 11 00 01 64", status: code, ref: "SystemService.requestCPUAliveTransStart: sendPacket(-118, 1, 0x111); EV6 micom firmware: dispatcher cmd 0x11 clears its alive-off flag, alive requests follow (firmware emulation)" }
-  - { name: cpu-alive-stop,    frame: "ff 8a 01 01 01 10 00 01 65", status: code, ref: "SystemService.requestCPUAliveTransStop: sendPacket(-118, 1, 0x110); EV6 micom firmware: dispatcher cmd 0x10 sets the flag again" }
+  - {
+      name: cpu-alive-start,
+      frame: "ff 8a 01 01 01 11 00 01 64",
+      status: code,
+      ref: "SystemService.requestCPUAliveTransStart: sendPacket(-118, 1, 0x111); EV6 micom firmware: dispatcher cmd 0x11 clears its alive-off flag, alive requests follow (firmware emulation)",
+    }
+  - {
+      name: cpu-alive-stop,
+      frame: "ff 8a 01 01 01 10 00 01 65",
+      status: code,
+      ref: "SystemService.requestCPUAliveTransStop: sendPacket(-118, 1, 0x110); EV6 micom firmware: dispatcher cmd 0x10 sets the flag again",
+    }
+  # Asks for the module-version table (VersionModule.requestVersion:
+  # sendMicomData(0x8a, 1, 1, 1, 0x74, [0]), one payload byte 00). Read-only.
+  - {
+      name: module-version-request,
+      frame: "ff 8a 01 01 01 74 00 02 00 02",
+      status: code,
+      ref: "EV6 V015.011 HKMC_EngineerMode VersionModule.requestVersion; never captured",
+    }
+  # Asks for the version info (SystemService.requestDeviceVersion:
+  # sendPacket(-118, 1, 0x116)). Read-only.
+  - {
+      name: version-info-request,
+      frame: "ff 8a 01 01 01 16 00 01 63",
+      status: code,
+      ref: "EV6 V015.011 SystemService.requestVersion -> requestDeviceVersion; never captured",
+    }
+  # Read-only status requests, no payload; the reply has the same cmd on system_rx.
+  - {
+      name: part-number-request,
+      frame: "ff 8a 01 01 01 99 00 01 ec",
+      status: code,
+      ref: "SystemService.requestPartNumber: sendPacket(-118, 1, 0x199); never captured",
+    }
+  - {
+      name: vehicle-trim-request,
+      frame: "ff 8a 01 01 01 75 00 01 00",
+      status: code,
+      ref: "SystemService.requestVehiceTrimInfo: sendPacket(-118, 1, 0x175); never captured",
+    }
+  - {
+      name: regulation-type-request,
+      frame: "ff 8a 01 01 01 89 00 01 fc",
+      status: code,
+      ref: "SystemService.requestRegulationTypeBStatus: sendPacket(-118, 1, 0x189); its 0x8189 answer is captured unprompted, the request itself is not",
+    }

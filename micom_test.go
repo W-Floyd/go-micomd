@@ -126,7 +126,7 @@ func TestDescribeLive(t *testing.T) {
 		{"018a0181", "17", "cc01a2180080 00 656e 00000000", "External amp=actune Camera=avm"},
 		{"018a0181", "17", "cc01a2180080 00 656e 00000000", "Telematics=0 Diranarom=1 DAB=0 HU type=daudio Camera mode=analog"},
 		{"018a0181", "17", "cc01a2180080 00 656e 00000000", "RDS=0 DVD region=worldwide Language=en CPU variant 9=0 CPU variant 10=0 CPU variant 11=0 ADM=off"},
-		{"018a0181", "17", "c800a0180080 00 656e 00000080", "Vehicle=200 Country=korea"},
+		{"018a0181", "17", "f500a0180080 00 656e 00000080", "Vehicle=245 Country=korea"},
 		{"018a0181", "17", "c800a0180080 00 656e 00000080", "ADM=128"},
 		{"018a0181", "17", "c800a0180080 00 6b6f 00000000", "Language=ko"},
 		{"018a0181", "17", "c800a0180080 00 0000 00000000", "Language=n/a"},
@@ -187,9 +187,9 @@ func TestDescribeLive(t *testing.T) {
 		{"018a0181", "0d", "01", "Illumination=day"},
 		{"018a0181", "0d", "05", "Illumination=5"},
 		// The EV6's, captured at night, its first 0x13 bytes.
-		{"018a0181", "01", "0100000000010eca020519222e06544b4b1500", "Boot record: Boot mode=1 Reset reason=0 Illumination=night Dim mode=auto"},
+		{"018a0181", "01", "0100000000010eca020519222e06544b4b1500", "Boot record: Boot mode=boot_normal Reset reason=normal Illumination=night Dim mode=auto"},
 		// Synthetic: a whole boot record, woken to charge, in D at night.
-		{"018a0181", "01", "08000100010000ca020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000001000000000000000000000000000000000001", "Boot record (full): Boot mode=8 Reset reason=0 Driving regulation=1 Illumination=day ACC=1 IGN1=1 Vehicle ready=0 IGN3=1 Reverse=0 Parking brake=1 Dim mode=auto CAN DB generation=2 Light sensor fitted=1 Driving regulation B=1"},
+		{"018a0181", "01", "08000100010000ca020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000001000000000000000000000000000000000001", "Boot record (full): Boot mode=charging Reset reason=normal Driving regulation=1 Illumination=day ACC=1 IGN1=1 Vehicle ready=0 IGN3=1 Reverse=0 Parking brake=1 Dim mode=auto CAN DB generation=2 Light sensor fitted=1 Driving regulation B=1"},
 		{"018a0181", "89", "000002ff", "Regulation inputs: In P=0 Parking brake lever=0 EPB state=2"},
 		// Synthetic: the start-up reads' replies.
 		{"43c200c3", "00", "0000100000000000000000000000000100000500000000000000000000000000000000000000000000000000000000000000000000000000000000", "Climate snapshot: Snapshot climate on (OpSts)=1 Snapshot driver set point (C raw)=16 Snapshot fan (raw)=5"},

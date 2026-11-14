@@ -221,6 +221,8 @@ func TestEV6VariantSendsAsService(t *testing.T) {
 		"ffc14400440500013a", "ff92110111110003fafa7e", // body-status-request, usm-units-request
 		"ff880c010c53000124", "ff880c010c54000123", // ev-schedule-settings-request, ev-charge-window-request
 		"ff8a01010111000164", "ff8a01010110000165", // cpu-alive-start, cpu-alive-stop
+		"ff8a0101017400020002", "ff8a01010116000163", // module-version-request, version-info-request
+		"ff8a010101990001ec", "ff8a01010175000100", "ff8a010101890001fc", // part-number-request, vehicle-trim-request, regulation-type-request
 	}
 	for _, s := range append(serviceAllow, added...) {
 		if err := al.Set(s); err != nil {
