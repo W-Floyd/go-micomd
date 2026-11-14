@@ -334,7 +334,7 @@ messages:
 
 send:
   # Inferred statically, never seen sent; -hev-status-request sends it.
-  - { name: hev-status-request, frame: "ff 88 0c 01 0c 01 00 01 76", status: inferred, ref: "HEVService requestInitHevStatus: func 0x0c01, empty payload; answered by 0x8c01" }
+  - { name: hev-status-request, frame: "ff 88 0c 01 0c 01 00 01 76", status: inferred, ref: "HEVService requestInitHevStatus: func 0x0c01, empty payload; answered by 0x8c01; the EV6 micom firmware answers it in emulation (cmd 0x01, 182 bytes)" }
 
 enums:
   # HEVManager.setBatteryConditioning's mode; "default" is what stock sends

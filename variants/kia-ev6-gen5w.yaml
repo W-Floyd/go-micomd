@@ -810,25 +810,25 @@ send:
       name: climate-status-request,
       frame: "ff c2 43 00 43 00 00 02 01 3e",
       status: inferred,
-      ref: "DATCService All_Datc_Req (TE_TX_IL 0x00, [01]) 500 ms after IGN1 on, once more 1.5 s later; answered by All_Datc_Resp (0x00)",
+      ref: "DATCService All_Datc_Req (TE_TX_IL 0x00, [01]) 500 ms after IGN1 on, once more 1.5 s later; answered by All_Datc_Resp (0x00); the EV6 micom firmware answers it in emulation (cmd 0x00, 90 bytes)",
     }
   - {
       name: bcan-valid-request,
       frame: "ff 8e 0b 01 0b c7 00 02 c7 72",
       status: inferred,
-      ref: "BCMService B-CAN validity request (0x0bc7 [c7]) at micom ready, every 1 s until 0x8bc7 [1] = 1",
+      ref: "BCMService B-CAN validity request (0x0bc7 [c7]) at micom ready, every 1 s until 0x8bc7 [1] = 1; the EV6 micom firmware answers it in emulation (cmd 0xc7, 3 bytes)",
     }
   - {
       name: body-status-request,
       frame: "ff c1 44 00 44 05 00 01 3a",
       status: inferred,
-      ref: "BCMService All_B_CAN_Req (TE_TX_IL 0x05, empty) once B-CAN is valid; answered by ALL_BCM_Resp (0xc40c)",
+      ref: "BCMService All_B_CAN_Req (TE_TX_IL 0x05, empty) once B-CAN is valid; answered by ALL_BCM_Resp (0xc40c); the EV6 micom firmware answers it in emulation (cmd 0x0c, 102 bytes)",
     }
   - {
       name: usm-units-request,
       frame: "ff 92 11 01 11 11 00 03 fa fa 7e",
       status: inferred,
-      ref: "USMService read-all (0x1111 Unit_SET_C_REQ [fa fa]) 2 s after IGN on; answered by 0x9111 with [0] = fa",
+      ref: "USMService read-all (0x1111 Unit_SET_C_REQ [fa fa]) 2 s after IGN on; answered by 0x9111 with [0] = fa; the EV6 micom firmware answers it in emulation (cmd 0x11, 8 bytes)",
     }
   # Two of HEVService's CAN DB generation > 0 reads (it also reads 0x0c4a-
   # 0x0c52 and 0x0c55): the schedules, otherwise sent only on change.
@@ -836,13 +836,13 @@ send:
       name: ev-schedule-settings-request,
       frame: "ff 88 0c 01 0c 53 00 01 24",
       status: inferred,
-      ref: "HEVService requestInitG3Messages (CAN DB generation > 0, at micom ready): func 0x0c53, empty payload; answered by 0x8c53",
+      ref: "HEVService requestInitG3Messages (CAN DB generation > 0, at micom ready): func 0x0c53, empty payload; answered by 0x8c53; the EV6 micom firmware answers it in emulation (cmd 0x53, 8 bytes)",
     }
   - {
       name: ev-charge-window-request,
       frame: "ff 88 0c 01 0c 54 00 01 23",
       status: inferred,
-      ref: "HEVService requestInitG3Messages (CAN DB generation > 0, at micom ready): func 0x0c54, empty payload; answered by 0x8c54",
+      ref: "HEVService requestInitG3Messages (CAN DB generation > 0, at micom ready): func 0x0c54, empty payload; answered by 0x8c54; the EV6 micom firmware answers it in emulation (cmd 0x54, 8 bytes)",
     }
   - {
       name: mode-usb,

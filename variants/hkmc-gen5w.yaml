@@ -380,9 +380,9 @@ messages:
     fields:
       - { name: "Vehicle", off: 0, enum: vehicle }
       - { name: "Country", off: 1, enum: country }
-      - { name: "Navigation", off: 2, bits: "7" } # W31
+      - { name: "Navigation", off: 2, bits: "7" } # W31; follows pin 118 in emulation (active low)
       - { name: "Modem", off: 2, bits: "6" }
-      - { name: "Internal amp", off: 2, bits: "5" } # 0: external
+      - { name: "Internal amp", off: 2, bits: "5" } # 0: external; follows pin 67 in emulation (active low)
       - { name: "Rear monitor", off: 2, bits: "4" }
       - { name: "Radio region", off: 2, bits: "3:1", enum: radio_region }
       - { name: "DMB", off: 2, bits: "0" }
@@ -766,7 +766,7 @@ send:
       pattern: "ff 8a 01 01 01 18 00 02 [00-ff] ..",
       status: inferred,
       dangerous: "func 0x0118 requestVariantCodeSave: writes the variant coding",
-      ref: "jadx SystemService",
+      ref: "jadx SystemService. The micom's cmd 0x18 handler (V002.208 build, 0x7892a) overwrites payload bytes 0-1 with the build's own vehicle and country (0xcc, 6 on the EV6 CAN build), copies bytes 2-12 into the variant record in RAM (0x40011964) and stores 20 bytes through its key-value routine (0xa52f0). The store is an SPI memory on DSPI 0xFFFA0000, chip select 0 (write enable 0x06, then write 0x02 with a 16-bit address, the record at 0x0000). In emulation the micom writes the new record there, then writes the previous values back (options a2 00 00 80, language en) a moment later, then zero-fills a table of 28-byte entries from address 0x0800 up. That second write is the handler's own follow-up: after the first save it calls 0x399a(2, 0), a configuration (re)initialisation routine whose modes 0 and 2 skip its signature checks (version 301, vehicle 0xcc, country 6, a build signature) and go through 0x3320, which saves the record again; the handler then posts event 0xc3 with 8, the VARIANT_SAVE boot reason, and resumes. No CPU-driven SPI read follows (DMA reads would not show in the trace), and the flag byte at 0x40016cbd does not change it. The second record is not a reload: 0x3320 reads hardware inputs through the peripheral driver (pins 0x76 and 0x43 among them) and rebuilds the record from those and ROM defaults. In emulation raising pin 118 clears bit 7 of the first option byte (a2 becomes 22), pin 67 clears bit 5 (a2 becomes 82), both give 02: the Navigation and Internal amp bits follow those two pins (active low), the language and the rest are defaults.",
     }
   - {
       name: spi-sending-stop,
