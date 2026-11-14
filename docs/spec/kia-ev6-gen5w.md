@@ -207,7 +207,7 @@ Not yet backed by a capture:
 | sched_charge_mode | **0** off<br>**2** prioritize_off_peak<br>**3** off_peak_only | Schedule settings: Scheduled charging mode; ev-off-peak: mode |
 | shutdown_ack | **1** power_off_request<br>**2** rail_off | shutdown-ack: stage |
 | trip_unit | **1** km<br>**2** mile | Distance to empty: Unit |
-| vehicle | 116 values, below | Variant code: Vehicle; Version info: Micom vehicle |
+| vehicle | 118 values, below | Variant code: Vehicle; Version info: Micom vehicle |
 
 ### boot_mode
 
@@ -335,6 +335,8 @@ Not yet backed by a capture:
 
 | Value | Name |
 | --- | --- |
+| 5 | neev23 |
+| 54 | neev23se |
 | 83 | sk3 |
 | 84 | sk3ev |
 | 87 | jsn |

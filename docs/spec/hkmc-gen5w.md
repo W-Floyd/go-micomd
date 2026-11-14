@@ -92,7 +92,7 @@ Not yet backed by a capture:
 | radio_region | **0** khz_9_100<br>**1** khz_10_200<br>**2** khz_9_50<br>**3** khz_10_100<br>**4** khz_9_200 | Variant code: Radio region |
 | reset_reason | 20 values, below |  |
 | trip_unit | **1** km<br>**2** mile | Distance to empty: Unit |
-| vehicle | 116 values, below | Variant code: Vehicle; Version info: Micom vehicle |
+| vehicle | 118 values, below | Variant code: Vehicle; Version info: Micom vehicle |
 
 ### boot_mode
 
@@ -220,6 +220,8 @@ Not yet backed by a capture:
 
 | Value | Name |
 | --- | --- |
+| 5 | neev23 |
+| 54 | neev23se |
 | 83 | sk3 |
 | 84 | sk3ev |
 | 87 | jsn |

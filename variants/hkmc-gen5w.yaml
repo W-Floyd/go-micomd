@@ -114,11 +114,18 @@ enums:
 
   # The variant code's tables (automotive.jar VariantCoding.getVehicle and
   # getRegion, EV6 V015.011), also the vehicle and region bytes of the version
-  # info. Vehicle names are the code's, lower-cased, except cvev, neev and dn8
+  # info. All 10 distinct automotive builds in the fleet (250 Gen5W packages)
+  # carry the same 116 vehicle names; the two oldest regions tables stop at
+  # 17 (jpn, idn): sgp, tha, vnm, phl and mys are in newer builds only.
+  # neev23 (0x05) and neev23se (0x36) are not in VariantCoding (its table starts
+  # at 0x53): the 2023 NE1 firmware reports them in emulation.
+  # Vehicle names are the code's, lower-cased, except cvev, neev and dn8
   # which this repo already used; the code's own names for those are CV_E,
   # NEEV and DN8. Codes the table maps to "NONE" are left out.
   vehicle:
     {
+      neev23: 0x05,
+      neev23se: 0x36,
       sk3: 0x53,
       sk3ev: 0x54,
       jsn: 0x57,
@@ -479,11 +486,17 @@ messages:
 
   # The versions Engineering Mode's "Micom version" screen shows
   # (EngineeringModeVersion.checkVersion, EV6 V015.011), answer to func 0x0116.
+  # The head (86 bytes) reads the same widths in all 10 distinct automotive
+  # builds of the 250 Gen5W packages scanned; the two oldest (V013.001 and
+  # the Kona Electric V015.011-V016.010 group) stop the tail after MKBD.
   # The head is 86 bytes; stock reads the rest only if the frame is long
   # enough, in this order: Arkamys 4 (86), a flag byte (90), Arkamys DSP and
   # HiFi2 4 + 4 (91, 95), serial date 6 and serial number 32 (99, 105), MKBD 3
   # (137), 6 unread bytes (140), a flag byte and 40 bytes of radio DSP (146,
   # 147). Not fields: a field must lie within the length the message promises.
+  #
+  # The firmware answers this in emulation with the layout below (22 EV-family
+  # builds: vehicle, region, number 301 or 302, build date such as "Feb 21 2025").
   #
   # The screen's lines: main_micom_version is the micom block below
   # ("<vehicle>.<region>.<number>.<date>.MICOM.D"), can_db_version joins the
@@ -528,7 +541,10 @@ messages:
     status: code
     ref: "EV6 V015.011 automotive EngineeringModeVersion.checkVersion; EngineeringModeService.onVersion; SystemService func 0x8116 -> onVersion; HKMC_EngineerMode MicomVersionInfo (indices 1, 4, 5, 8); never captured"
 
-  # Answers to the part-number and trim requests below (regulation type B is
+  # Answers to the part-number and trim requests below. Fleet scan (250 Gen5W
+  # packages, 8 SystemService builds): part number is missing from 3 builds, 8
+  # packages (V011.005, V013.001 and a V015.011-V016.010 group of 6); trim is in
+  # all. (regulation type B is
   # already in kia-ev6-gen5w, captured). All are
   # read from EV6 V015.011 SystemService, never captured.
   #
