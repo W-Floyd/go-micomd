@@ -125,14 +125,26 @@ enums:
   # info. All 10 distinct automotive builds in the fleet (250 Gen5W packages)
   # carry the same 116 vehicle names; the two oldest regions tables stop at
   # 17 (jpn, idn): sgp, tha, vnm, phl and mys are in newer builds only.
-  # neev23 (0x05) and neev23se (0x36) are not in VariantCoding (its table starts
-  # at 0x53): the 2023 NE1 firmware reports them in emulation.
+  # The codes below 0x53 and 0xfa are not in VariantCoding (its table starts at
+  # 0x53): ckpe23 0x00, dn823 0x02, dn823hev 0x04, neev23 0x05, ospe23 0x0a, tm23
+  # 0x0d, tmhev23 0x0f, tmphev23 0x10, cn723 0x14, cn7hev23 0x15, neev23se 0x36 and
+  # deevpbv 0xfa (a Korean 2026 build). The firmware of those model dirs reports
+  # them in emulation (version info byte 3); named by the dir.
   # Vehicle names are the code's, lower-cased, except cvev, neev and dn8
   # which this repo already used; the code's own names for those are CV_E,
   # NEEV and DN8. Codes the table maps to "NONE" are left out.
   vehicle:
     {
+      ckpe23: 0x00,
+      dn823: 0x02,
+      dn823hev: 0x04,
       neev23: 0x05,
+      ospe23: 0x0a,
+      tm23: 0x0d,
+      tmhev23: 0x0f,
+      tmphev23: 0x10,
+      cn723: 0x14,
+      cn7hev23: 0x15,
       neev23se: 0x36,
       sk3: 0x53,
       sk3ev: 0x54,
@@ -250,6 +262,7 @@ enums:
       tm_22: 0xf0,
       tm_h_22: 0xf1,
       hmpe2_22: 0xf2,
+      deevpbv: 0xfa,
     }
   country:
     {

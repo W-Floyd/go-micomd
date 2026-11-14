@@ -208,7 +208,7 @@ Not yet backed by a capture:
 | sched_charge_mode | **0** off<br>**2** prioritize_off_peak<br>**3** off_peak_only | Schedule settings: Scheduled charging mode; ev-off-peak: mode |
 | shutdown_ack | **1** power_off_request<br>**2** rail_off | shutdown-ack: stage |
 | trip_unit | **1** km<br>**2** mile | Distance to empty: Unit |
-| vehicle | 118 values, below | Variant code: Vehicle; Version info: Micom vehicle |
+| vehicle | 128 values, below | Variant code: Vehicle; Version info: Micom vehicle |
 
 ### boot_mode
 
@@ -336,7 +336,16 @@ Not yet backed by a capture:
 
 | Value | Name |
 | --- | --- |
+| 0 | ckpe23 |
+| 2 | dn823 |
+| 4 | dn823hev |
 | 5 | neev23 |
+| 10 | ospe23 |
+| 13 | tm23 |
+| 15 | tmhev23 |
+| 16 | tmphev23 |
+| 20 | cn723 |
+| 21 | cn7hev23 |
 | 54 | neev23se |
 | 83 | sk3 |
 | 84 | sk3ev |
@@ -454,6 +463,7 @@ Not yet backed by a capture:
 | 240 | tm_22 |
 | 241 | tm_h_22 |
 | 242 | hmpe2_22 |
+| 250 | deevpbv |
 
 ## Messages from micom
 

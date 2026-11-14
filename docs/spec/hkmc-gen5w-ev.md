@@ -120,7 +120,7 @@ Not yet backed by a capture:
 | radio_region | **0** khz_9_100<br>**1** khz_10_200<br>**2** khz_9_50<br>**3** khz_10_100<br>**4** khz_9_200 | Variant code: Radio region |
 | reset_reason | 20 values, below |  |
 | trip_unit | **1** km<br>**2** mile | Distance to empty: Unit |
-| vehicle | 118 values, below | Variant code: Vehicle; Version info: Micom vehicle |
+| vehicle | 128 values, below | Variant code: Vehicle; Version info: Micom vehicle |
 
 ### boot_mode
 
@@ -248,7 +248,16 @@ Not yet backed by a capture:
 
 | Value | Name |
 | --- | --- |
+| 0 | ckpe23 |
+| 2 | dn823 |
+| 4 | dn823hev |
 | 5 | neev23 |
+| 10 | ospe23 |
+| 13 | tm23 |
+| 15 | tmhev23 |
+| 16 | tmphev23 |
+| 20 | cn723 |
+| 21 | cn7hev23 |
 | 54 | neev23se |
 | 83 | sk3 |
 | 84 | sk3ev |
@@ -366,6 +375,7 @@ Not yet backed by a capture:
 | 240 | tm_22 |
 | 241 | tm_h_22 |
 | 242 | hmpe2_22 |
+| 250 | deevpbv |
 
 ## Messages from micom
 
