@@ -38,7 +38,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 3 |
-| 🟡 code | 40 |
+| 🟡 code | 87 |
 
 Not yet backed by a capture:
 
@@ -84,6 +84,53 @@ Not yet backed by a capture:
 | EV power block | `0c 88 ?? 8c` | 0x5c | 🟡 code | HEVService setHEVStatusValue calls |
 | Departure timers | `0c 88 ?? 8c` | 0x55 | 🟡 code | HEVService; captured only at the default |
 | Charger state | `0c 88 ?? 8c` | 0x4f | 🟡 code | HEVService OBC ready (CAN DB generation < 2) |
+| CR_CLU_TOTALDTEDISP | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x02 CR_CLU_TOTALDTEDISP (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x226 byte 4 bits 0..7; CAN 0x226 byte 5 bits 0..3 changes |
+| CLU_TRIPUNIT | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x03 CLU_TRIPUNIT (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x226 byte 5 bits 4..5 changes |
+| CLU_AVGFCU | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x05 CLU_AVGFCU (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x226 byte 7 bits 0..1 changes |
+| CLU_TERMAVGSYNC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x07 CLU_TERMAVGSYNC (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 4 bits 6..7 changes |
+| CLU_TERMAVGFCI | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x08 CLU_TERMAVGFCI (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 5 bits 2..7; CAN 0x2FF byte 6 bits 2..3 changes |
+| MM_CR_CLU_SOC_SEG | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x0c MM_CR_CLU_SOC_SEG (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x474 byte 7 bits 1..5 changes |
+| DATC_EV_SCNDISP | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x0d DATC_EV_SCNDISP (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x384 byte 4 bits 2..2 changes |
+| SC_REM_TIME_120V | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x0f SC_REM_TIME_120V (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x1F7 byte 2 bits 0..7; CAN 0x1F7 byte 3 bits 0..7 changes |
+| AVG_FCL_DR_INFO_RESET | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x15 AVG_FCL_DR_INFO_RESET (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 3 bits 0..1 changes |
+| AVG_FCL_DR_INFO | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x16 AVG_FCL_DR_INFO (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 3 bits 4..7; CAN 0x2FF byte 4 bits 4..5 changes |
+| DISPLAY_SOC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x18 DISPLAY_SOC (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FC byte 7 bits 0..7 changes |
+| STD_CHA_120V | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x1a STD_CHA_120V (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x326 byte 3 bits 0..1 changes |
+| CHG_STS | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x1c CHG_STS (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x326 byte 4 bits 0..1 changes |
+| BMS_FST_CHA | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x27 BMS_FST_CHA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x25C byte 0 bits 4..5 changes |
+| FST_EVSE_FIT_ALARM | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x28 FST_EVSE_FIT_ALARM (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x25C byte 0 bits 2..3 changes |
+| EV_RDY | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x2b EV_RDY (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x36 byte 3 bits 4..5 changes |
+| AVG_FCI_DIGIT | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x2e AVG_FCI_DIGIT (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 5 bits 0..1 changes |
+| DRIVE_INFO_DIGIT | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x2f DRIVE_INFO_DIGIT (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 3 bits 2..3 changes |
+| ENERGYMAP_1000MS | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x30 ENERGYMAP_1000MS (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x25C byte 4 bits 0..7; CAN 0x25C byte 5 bits 0..7 changes |
+| BMS_EVENERGYCAPA | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x34 BMS_EVENERGYCAPA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x331 byte 6 bits 0..7; CAN 0x331 byte 7 bits 0..7 changes |
+| CF_LDC_12VCharge | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x3a CF_LDC_12VCharge (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x256 byte 3 bits 4..5 changes |
+| VCMS_RDY | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x3b VCMS_RDY (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x30B byte 4 bits 2..3 changes |
+| VCMS_CHGSTOPALARM | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x3c VCMS_CHGSTOPALARM (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x30B byte 7 bits 6..7 changes |
+| VCMS_CHGINCURRMODSTA | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x3d VCMS_CHGINCURRMODSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x30E byte 4 bits 0..1 changes |
+| VCMS_CHGALARM_STA | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x3e VCMS_CHGALARM_STA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x30D byte 7 bits 0..3 changes |
+| VCMS_CHGALARM_SUBCODE | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x3f VCMS_CHGALARM_SUBCODE (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x30D byte 7 bits 4..7 changes |
+| OBC_SYSRDY_STA | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x40 OBC_SYSRDY_STA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2E6 byte 3 bits 0..1 changes |
+| VCU_AVNDTEONCALCSTA | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x41 VCU_AVNDTEONCALCSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2B7 byte 1 bits 3..4 changes |
+| VCU_DTEOFFDISPSTA | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x42 VCU_DTEOFFDISPSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2B6 byte 4 bits 0..1 changes |
+| VCU_LOWSOCALERTSTA | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x43 VCU_LOWSOCALERTSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2B6 byte 4 bits 2..4 changes |
+| VCMS_V2LMODE | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x4e VCMS_V2LMODE (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x30E byte 4 bits 5..7 changes |
+| VCMS_V2GMODE | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x4f VCMS_V2GMODE (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x30E byte 4 bits 2..4 changes |
+| VCU_DTENAVIROUTEVAL | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x53 VCU_DTENAVIROUTEVAL (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2B7 byte 2 bits 0..7; CAN 0x2B7 byte 3 bits 0..1 changes |
+| VCU_FATCPWRUSEVAL | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x54 VCU_FATCPWRUSEVAL (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x37 byte 0 bits 0..7 changes |
+| VCMS_CHRGINLETTYP | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x56 VCMS_CHRGINLETTYP (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x30E byte 3 bits 0..7 changes |
+| VCU_UTILMODUSMSTA | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x58 VCU_UTILMODUSMSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2AE byte 4 bits 0..1 changes |
+| VCU_UTILMODWRNMSGSTA | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x59 VCU_UTILMODWRNMSGSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2AE byte 4 bits 4..5 changes |
+| MCU_MG1INVTCTRLRDYSTA | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x5c MCU_MG1INVTCTRLRDYSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x10B byte 7 bits 0..1 changes |
+| MCU_MG2INVTRDYSTA | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x5d MCU_MG2INVTRDYSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x121 byte 7 bits 0..1 changes |
+| MCU_MG1GENPOWER_WH | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x5f MCU_MG1GENPOWER_WH (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x397 byte 4 bits 0..7; CAN 0x397 byte 5 bits 0..7 changes |
+| MCU_MG2GENPOWER_WH | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x60 MCU_MG2GENPOWER_WH (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2EC byte 4 bits 0..7; CAN 0x2EC byte 5 bits 0..7 changes |
+| VCU_MXPWR_MDSTA | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x68 VCU_MXPWR_MDSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2C2 byte 6 bits 0..1 changes |
+| VCU_MXPWR_MDSEGVAL | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x69 VCU_MXPWR_MDSEGVAL (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2C2 byte 6 bits 2..6 changes |
+| VCU_MXPWR_MDOSD | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x6a VCU_MXPWR_MDOSD (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2C2 byte 6 bits 7..7 changes |
+| VCRM_QCKCHRGPWR_CUSTOM | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x6b VCRM_QCKCHRGPWR_CUSTOM (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x1F9 byte 4 bits 2..7 changes |
+| MCU_MG1MOTMXPWR_SPEC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x6c MCU_MG1MOTMXPWR_SPEC (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x253 byte 6 bits 2..7 changes |
+| BMS_HV_BATT_AUTO_DCH_OP_STA | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x74 BMS_HV_BATT_AUTO_DCH_OP_STA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x237 byte 4 bits 4..5 changes |
 
 ## Headers
 
@@ -1200,6 +1247,758 @@ cmd `0x4f`, length ≥ 4 · 🟡 code
 | Field | At |
 | --- | --- |
 | Charger ready | byte 3 bits 7:6 |
+
+#### CR_CLU_TOTALDTEDISP
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x02 CR_CLU_TOTALDTEDISP (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x226 byte 4 bits 0..7; CAN 0x226 byte 5 bits 0..3 changes
+
+| Field | At | Type |
+| --- | --- | --- |
+| CR_CLU_TOTALDTEDISP | byte 1 | u16 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "CR_CLU_TOTALDTEDISP"
+```
+
+#### CLU_TRIPUNIT
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x03 CLU_TRIPUNIT (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x226 byte 5 bits 4..5 changes
+
+| Field | At |
+| --- | --- |
+| CLU_TRIPUNIT | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "CLU_TRIPUNIT"
+```
+
+#### CLU_AVGFCU
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x05 CLU_AVGFCU (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x226 byte 7 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| CLU_AVGFCU | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "CLU_AVGFCU"
+```
+
+#### CLU_TERMAVGSYNC
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x07 CLU_TERMAVGSYNC (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 4 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| CLU_TERMAVGSYNC | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "CLU_TERMAVGSYNC"
+```
+
+#### CLU_TERMAVGFCI
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x08 CLU_TERMAVGFCI (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 5 bits 2..7; CAN 0x2FF byte 6 bits 2..3 changes
+
+| Field | At | Type |
+| --- | --- | --- |
+| CLU_TERMAVGFCI | byte 1 | u16 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "CLU_TERMAVGFCI"
+```
+
+#### MM_CR_CLU_SOC_SEG
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x0c MM_CR_CLU_SOC_SEG (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x474 byte 7 bits 1..5 changes
+
+| Field | At |
+| --- | --- |
+| MM_CR_CLU_SOC_SEG | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "MM_CR_CLU_SOC_SEG"
+```
+
+#### DATC_EV_SCNDISP
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x0d DATC_EV_SCNDISP (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x384 byte 4 bits 2..2 changes
+
+| Field | At |
+| --- | --- |
+| DATC_EV_SCNDISP | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "DATC_EV_SCNDISP"
+```
+
+#### SC_REM_TIME_120V
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x0f SC_REM_TIME_120V (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x1F7 byte 2 bits 0..7; CAN 0x1F7 byte 3 bits 0..7 changes
+
+| Field | At | Type |
+| --- | --- | --- |
+| SC_REM_TIME_120V | byte 1 | u16 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "SC_REM_TIME_120V"
+```
+
+#### AVG_FCL_DR_INFO_RESET
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x15 AVG_FCL_DR_INFO_RESET (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 3 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| AVG_FCL_DR_INFO_RESET | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "AVG_FCL_DR_INFO_RESET"
+```
+
+#### AVG_FCL_DR_INFO
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x16 AVG_FCL_DR_INFO (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 3 bits 4..7; CAN 0x2FF byte 4 bits 4..5 changes
+
+| Field | At | Type |
+| --- | --- | --- |
+| AVG_FCL_DR_INFO | byte 1 | u16 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "AVG_FCL_DR_INFO"
+```
+
+#### DISPLAY_SOC
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x18 DISPLAY_SOC (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FC byte 7 bits 0..7 changes
+
+| Field | At |
+| --- | --- |
+| DISPLAY_SOC | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "DISPLAY_SOC"
+```
+
+#### STD_CHA_120V
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x1a STD_CHA_120V (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x326 byte 3 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| STD_CHA_120V | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "STD_CHA_120V"
+```
+
+#### CHG_STS
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x1c CHG_STS (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x326 byte 4 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| CHG_STS | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "CHG_STS"
+```
+
+#### BMS_FST_CHA
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x27 BMS_FST_CHA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x25C byte 0 bits 4..5 changes
+
+| Field | At |
+| --- | --- |
+| BMS_FST_CHA | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "BMS_FST_CHA"
+```
+
+#### FST_EVSE_FIT_ALARM
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x28 FST_EVSE_FIT_ALARM (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x25C byte 0 bits 2..3 changes
+
+| Field | At |
+| --- | --- |
+| FST_EVSE_FIT_ALARM | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "FST_EVSE_FIT_ALARM"
+```
+
+#### EV_RDY
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x2b EV_RDY (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x36 byte 3 bits 4..5 changes
+
+| Field | At |
+| --- | --- |
+| EV_RDY | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "EV_RDY"
+```
+
+#### AVG_FCI_DIGIT
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x2e AVG_FCI_DIGIT (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 5 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| AVG_FCI_DIGIT | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "AVG_FCI_DIGIT"
+```
+
+#### DRIVE_INFO_DIGIT
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x2f DRIVE_INFO_DIGIT (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 3 bits 2..3 changes
+
+| Field | At |
+| --- | --- |
+| DRIVE_INFO_DIGIT | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "DRIVE_INFO_DIGIT"
+```
+
+#### ENERGYMAP_1000MS
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x30 ENERGYMAP_1000MS (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x25C byte 4 bits 0..7; CAN 0x25C byte 5 bits 0..7 changes
+
+| Field | At | Type |
+| --- | --- | --- |
+| ENERGYMAP_1000MS | byte 1 | u16 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "ENERGYMAP_1000MS"
+```
+
+#### BMS_EVENERGYCAPA
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x34 BMS_EVENERGYCAPA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x331 byte 6 bits 0..7; CAN 0x331 byte 7 bits 0..7 changes
+
+| Field | At | Type |
+| --- | --- | --- |
+| BMS_EVENERGYCAPA | byte 1 | u16 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "BMS_EVENERGYCAPA"
+```
+
+#### CF_LDC_12VCharge
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x3a CF_LDC_12VCharge (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x256 byte 3 bits 4..5 changes
+
+| Field | At |
+| --- | --- |
+| CF_LDC_12VCharge | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "CF_LDC_12VCharge"
+```
+
+#### VCMS_RDY
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x3b VCMS_RDY (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x30B byte 4 bits 2..3 changes
+
+| Field | At |
+| --- | --- |
+| VCMS_RDY | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCMS_RDY"
+```
+
+#### VCMS_CHGSTOPALARM
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x3c VCMS_CHGSTOPALARM (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x30B byte 7 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| VCMS_CHGSTOPALARM | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCMS_CHGSTOPALARM"
+```
+
+#### VCMS_CHGINCURRMODSTA
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x3d VCMS_CHGINCURRMODSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x30E byte 4 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| VCMS_CHGINCURRMODSTA | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCMS_CHGINCURRMODSTA"
+```
+
+#### VCMS_CHGALARM_STA
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x3e VCMS_CHGALARM_STA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x30D byte 7 bits 0..3 changes
+
+| Field | At |
+| --- | --- |
+| VCMS_CHGALARM_STA | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCMS_CHGALARM_STA"
+```
+
+#### VCMS_CHGALARM_SUBCODE
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x3f VCMS_CHGALARM_SUBCODE (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x30D byte 7 bits 4..7 changes
+
+| Field | At |
+| --- | --- |
+| VCMS_CHGALARM_SUBCODE | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCMS_CHGALARM_SUBCODE"
+```
+
+#### OBC_SYSRDY_STA
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x40 OBC_SYSRDY_STA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2E6 byte 3 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| OBC_SYSRDY_STA | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "OBC_SYSRDY_STA"
+```
+
+#### VCU_AVNDTEONCALCSTA
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x41 VCU_AVNDTEONCALCSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2B7 byte 1 bits 3..4 changes
+
+| Field | At |
+| --- | --- |
+| VCU_AVNDTEONCALCSTA | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCU_AVNDTEONCALCSTA"
+```
+
+#### VCU_DTEOFFDISPSTA
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x42 VCU_DTEOFFDISPSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2B6 byte 4 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| VCU_DTEOFFDISPSTA | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCU_DTEOFFDISPSTA"
+```
+
+#### VCU_LOWSOCALERTSTA
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x43 VCU_LOWSOCALERTSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2B6 byte 4 bits 2..4 changes
+
+| Field | At |
+| --- | --- |
+| VCU_LOWSOCALERTSTA | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCU_LOWSOCALERTSTA"
+```
+
+#### VCMS_V2LMODE
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x4e VCMS_V2LMODE (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x30E byte 4 bits 5..7 changes
+
+| Field | At |
+| --- | --- |
+| VCMS_V2LMODE | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCMS_V2LMODE"
+```
+
+#### VCMS_V2GMODE
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x4f VCMS_V2GMODE (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x30E byte 4 bits 2..4 changes
+
+| Field | At |
+| --- | --- |
+| VCMS_V2GMODE | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCMS_V2GMODE"
+```
+
+#### VCU_DTENAVIROUTEVAL
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x53 VCU_DTENAVIROUTEVAL (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2B7 byte 2 bits 0..7; CAN 0x2B7 byte 3 bits 0..1 changes
+
+| Field | At | Type |
+| --- | --- | --- |
+| VCU_DTENAVIROUTEVAL | byte 1 | u16 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "VCU_DTENAVIROUTEVAL"
+```
+
+#### VCU_FATCPWRUSEVAL
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x54 VCU_FATCPWRUSEVAL (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x37 byte 0 bits 0..7 changes
+
+| Field | At |
+| --- | --- |
+| VCU_FATCPWRUSEVAL | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCU_FATCPWRUSEVAL"
+```
+
+#### VCMS_CHRGINLETTYP
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x56 VCMS_CHRGINLETTYP (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x30E byte 3 bits 0..7 changes
+
+| Field | At |
+| --- | --- |
+| VCMS_CHRGINLETTYP | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCMS_CHRGINLETTYP"
+```
+
+#### VCU_UTILMODUSMSTA
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x58 VCU_UTILMODUSMSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2AE byte 4 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| VCU_UTILMODUSMSTA | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCU_UTILMODUSMSTA"
+```
+
+#### VCU_UTILMODWRNMSGSTA
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x59 VCU_UTILMODWRNMSGSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2AE byte 4 bits 4..5 changes
+
+| Field | At |
+| --- | --- |
+| VCU_UTILMODWRNMSGSTA | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCU_UTILMODWRNMSGSTA"
+```
+
+#### MCU_MG1INVTCTRLRDYSTA
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x5c MCU_MG1INVTCTRLRDYSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x10B byte 7 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| MCU_MG1INVTCTRLRDYSTA | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "MCU_MG1INVTCTRLRDYSTA"
+```
+
+#### MCU_MG2INVTRDYSTA
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x5d MCU_MG2INVTRDYSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x121 byte 7 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| MCU_MG2INVTRDYSTA | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "MCU_MG2INVTRDYSTA"
+```
+
+#### MCU_MG1GENPOWER_WH
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x5f MCU_MG1GENPOWER_WH (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x397 byte 4 bits 0..7; CAN 0x397 byte 5 bits 0..7 changes
+
+| Field | At | Type |
+| --- | --- | --- |
+| MCU_MG1GENPOWER_WH | byte 1 | u16 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "MCU_MG1GENPOWER_WH"
+```
+
+#### MCU_MG2GENPOWER_WH
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x60 MCU_MG2GENPOWER_WH (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2EC byte 4 bits 0..7; CAN 0x2EC byte 5 bits 0..7 changes
+
+| Field | At | Type |
+| --- | --- | --- |
+| MCU_MG2GENPOWER_WH | byte 1 | u16 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "MCU_MG2GENPOWER_WH"
+```
+
+#### VCU_MXPWR_MDSTA
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x68 VCU_MXPWR_MDSTA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2C2 byte 6 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| VCU_MXPWR_MDSTA | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCU_MXPWR_MDSTA"
+```
+
+#### VCU_MXPWR_MDSEGVAL
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x69 VCU_MXPWR_MDSEGVAL (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2C2 byte 6 bits 2..6 changes
+
+| Field | At |
+| --- | --- |
+| VCU_MXPWR_MDSEGVAL | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCU_MXPWR_MDSEGVAL"
+```
+
+#### VCU_MXPWR_MDOSD
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x6a VCU_MXPWR_MDOSD (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x2C2 byte 6 bits 7..7 changes
+
+| Field | At |
+| --- | --- |
+| VCU_MXPWR_MDOSD | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCU_MXPWR_MDOSD"
+```
+
+#### VCRM_QCKCHRGPWR_CUSTOM
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x6b VCRM_QCKCHRGPWR_CUSTOM (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x1F9 byte 4 bits 2..7 changes
+
+| Field | At |
+| --- | --- |
+| VCRM_QCKCHRGPWR_CUSTOM | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCRM_QCKCHRGPWR_CUSTOM"
+```
+
+#### MCU_MG1MOTMXPWR_SPEC
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x6c MCU_MG1MOTMXPWR_SPEC (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x253 byte 6 bits 2..7 changes
+
+| Field | At |
+| --- | --- |
+| MCU_MG1MOTMXPWR_SPEC | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "MCU_MG1MOTMXPWR_SPEC"
+```
+
+#### BMS_HV_BATT_AUTO_DCH_OP_STA
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x74 BMS_HV_BATT_AUTO_DCH_OP_STA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x237 byte 4 bits 4..5 changes
+
+| Field | At |
+| --- | --- |
+| BMS_HV_BATT_AUTO_DCH_OP_STA | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "BMS_HV_BATT_AUTO_DCH_OP_STA"
+```
 
 ## Send (the control socket may send)
 

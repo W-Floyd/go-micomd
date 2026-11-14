@@ -332,6 +332,481 @@ messages:
     status: code
     ref: "HEVService OBC ready (CAN DB generation < 2)"
 
+  # HEV items found by sweeping CAN input through the EV6 micom firmware in emulation (never seen on a car): the
+  # item id and name are HEV$SignalID from the stock protocol classes, the layout is the frame shape the others use
+  # (id, then a u8 at byte 2 or a u16 at bytes 1-2), and the ref gives the CAN byte and bits that drive it. Each is
+  # sent on change. Left out: 0x1e ODOMETER and 0x64 CCM_CERT_PCID1, whose 3-byte values no field type covers.
+  - name: "CR_CLU_TOTALDTEDISP"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x02 } ]
+    fields:
+      - { name: "CR_CLU_TOTALDTEDISP", off: 1, type: u16 }
+    status: code
+    ref: "HEVService item 0x02 CR_CLU_TOTALDTEDISP (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x226 byte 4 bits 0..7; CAN 0x226 byte 5 bits 0..3 changes"
+  - name: "CLU_TRIPUNIT"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x03 } ]
+    fields:
+      - { name: "CLU_TRIPUNIT", off: 2 }
+    status: code
+    ref: "HEVService item 0x03 CLU_TRIPUNIT (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x226 byte 5 bits 4..5 changes"
+  - name: "CLU_AVGFCU"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x05 } ]
+    fields:
+      - { name: "CLU_AVGFCU", off: 2 }
+    status: code
+    ref: "HEVService item 0x05 CLU_AVGFCU (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x226 byte 7 bits 0..1 changes"
+  - name: "CLU_TERMAVGSYNC"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x07 } ]
+    fields:
+      - { name: "CLU_TERMAVGSYNC", off: 2 }
+    status: code
+    ref: "HEVService item 0x07 CLU_TERMAVGSYNC (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 4 bits 6..7 changes"
+  - name: "CLU_TERMAVGFCI"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x08 } ]
+    fields:
+      - { name: "CLU_TERMAVGFCI", off: 1, type: u16 }
+    status: code
+    ref: "HEVService item 0x08 CLU_TERMAVGFCI (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 5 bits 2..7; CAN 0x2FF byte 6 bits 2..3 changes"
+  - name: "MM_CR_CLU_SOC_SEG"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x0c } ]
+    fields:
+      - { name: "MM_CR_CLU_SOC_SEG", off: 2 }
+    status: code
+    ref: "HEVService item 0x0c MM_CR_CLU_SOC_SEG (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x474 byte 7 bits 1..5 changes"
+  - name: "DATC_EV_SCNDISP"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x0d } ]
+    fields:
+      - { name: "DATC_EV_SCNDISP", off: 2 }
+    status: code
+    ref: "HEVService item 0x0d DATC_EV_SCNDISP (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x384 byte 4 bits 2..2 changes"
+  - name: "SC_REM_TIME_120V"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x0f } ]
+    fields:
+      - { name: "SC_REM_TIME_120V", off: 1, type: u16 }
+    status: code
+    ref: "HEVService item 0x0f SC_REM_TIME_120V (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x1F7 byte 2 bits 0..7; CAN 0x1F7 byte 3 bits 0..7 changes"
+  - name: "AVG_FCL_DR_INFO_RESET"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x15 } ]
+    fields:
+      - { name: "AVG_FCL_DR_INFO_RESET", off: 2 }
+    status: code
+    ref: "HEVService item 0x15 AVG_FCL_DR_INFO_RESET (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 3 bits 0..1 changes"
+  - name: "AVG_FCL_DR_INFO"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x16 } ]
+    fields:
+      - { name: "AVG_FCL_DR_INFO", off: 1, type: u16 }
+    status: code
+    ref: "HEVService item 0x16 AVG_FCL_DR_INFO (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 3 bits 4..7; CAN 0x2FF byte 4 bits 4..5 changes"
+  - name: "DISPLAY_SOC"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x18 } ]
+    fields:
+      - { name: "DISPLAY_SOC", off: 2 }
+    status: code
+    ref: "HEVService item 0x18 DISPLAY_SOC (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FC byte 7 bits 0..7 changes"
+  - name: "STD_CHA_120V"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x1a } ]
+    fields:
+      - { name: "STD_CHA_120V", off: 2 }
+    status: code
+    ref: "HEVService item 0x1a STD_CHA_120V (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x326 byte 3 bits 0..1 changes"
+  - name: "CHG_STS"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x1c } ]
+    fields:
+      - { name: "CHG_STS", off: 2 }
+    status: code
+    ref: "HEVService item 0x1c CHG_STS (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x326 byte 4 bits 0..1 changes"
+  - name: "BMS_FST_CHA"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x27 } ]
+    fields:
+      - { name: "BMS_FST_CHA", off: 2 }
+    status: code
+    ref: "HEVService item 0x27 BMS_FST_CHA (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x25C byte 0 bits 4..5 changes"
+  - name: "FST_EVSE_FIT_ALARM"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x28 } ]
+    fields:
+      - { name: "FST_EVSE_FIT_ALARM", off: 2 }
+    status: code
+    ref: "HEVService item 0x28 FST_EVSE_FIT_ALARM (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x25C byte 0 bits 2..3 changes"
+  - name: "EV_RDY"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x2b } ]
+    fields:
+      - { name: "EV_RDY", off: 2 }
+    status: code
+    ref: "HEVService item 0x2b EV_RDY (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x36 byte 3 bits 4..5 changes"
+  - name: "AVG_FCI_DIGIT"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x2e } ]
+    fields:
+      - { name: "AVG_FCI_DIGIT", off: 2 }
+    status: code
+    ref: "HEVService item 0x2e AVG_FCI_DIGIT (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 5 bits 0..1 changes"
+  - name: "DRIVE_INFO_DIGIT"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x2f } ]
+    fields:
+      - { name: "DRIVE_INFO_DIGIT", off: 2 }
+    status: code
+    ref: "HEVService item 0x2f DRIVE_INFO_DIGIT (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2FF byte 3 bits 2..3 changes"
+  - name: "ENERGYMAP_1000MS"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x30 } ]
+    fields:
+      - { name: "ENERGYMAP_1000MS", off: 1, type: u16 }
+    status: code
+    ref: "HEVService item 0x30 ENERGYMAP_1000MS (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x25C byte 4 bits 0..7; CAN 0x25C byte 5 bits 0..7 changes"
+  - name: "BMS_EVENERGYCAPA"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x34 } ]
+    fields:
+      - { name: "BMS_EVENERGYCAPA", off: 1, type: u16 }
+    status: code
+    ref: "HEVService item 0x34 BMS_EVENERGYCAPA (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x331 byte 6 bits 0..7; CAN 0x331 byte 7 bits 0..7 changes"
+  - name: "CF_LDC_12VCharge"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x3a } ]
+    fields:
+      - { name: "CF_LDC_12VCharge", off: 2 }
+    status: code
+    ref: "HEVService item 0x3a CF_LDC_12VCharge (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x256 byte 3 bits 4..5 changes"
+  - name: "VCMS_RDY"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x3b } ]
+    fields:
+      - { name: "VCMS_RDY", off: 2 }
+    status: code
+    ref: "HEVService item 0x3b VCMS_RDY (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x30B byte 4 bits 2..3 changes"
+  - name: "VCMS_CHGSTOPALARM"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x3c } ]
+    fields:
+      - { name: "VCMS_CHGSTOPALARM", off: 2 }
+    status: code
+    ref: "HEVService item 0x3c VCMS_CHGSTOPALARM (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x30B byte 7 bits 6..7 changes"
+  - name: "VCMS_CHGINCURRMODSTA"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x3d } ]
+    fields:
+      - { name: "VCMS_CHGINCURRMODSTA", off: 2 }
+    status: code
+    ref: "HEVService item 0x3d VCMS_CHGINCURRMODSTA (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x30E byte 4 bits 0..1 changes"
+  - name: "VCMS_CHGALARM_STA"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x3e } ]
+    fields:
+      - { name: "VCMS_CHGALARM_STA", off: 2 }
+    status: code
+    ref: "HEVService item 0x3e VCMS_CHGALARM_STA (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x30D byte 7 bits 0..3 changes"
+  - name: "VCMS_CHGALARM_SUBCODE"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x3f } ]
+    fields:
+      - { name: "VCMS_CHGALARM_SUBCODE", off: 2 }
+    status: code
+    ref: "HEVService item 0x3f VCMS_CHGALARM_SUBCODE (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x30D byte 7 bits 4..7 changes"
+  - name: "OBC_SYSRDY_STA"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x40 } ]
+    fields:
+      - { name: "OBC_SYSRDY_STA", off: 2 }
+    status: code
+    ref: "HEVService item 0x40 OBC_SYSRDY_STA (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2E6 byte 3 bits 0..1 changes"
+  - name: "VCU_AVNDTEONCALCSTA"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x41 } ]
+    fields:
+      - { name: "VCU_AVNDTEONCALCSTA", off: 2 }
+    status: code
+    ref: "HEVService item 0x41 VCU_AVNDTEONCALCSTA (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2B7 byte 1 bits 3..4 changes"
+  - name: "VCU_DTEOFFDISPSTA"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x42 } ]
+    fields:
+      - { name: "VCU_DTEOFFDISPSTA", off: 2 }
+    status: code
+    ref: "HEVService item 0x42 VCU_DTEOFFDISPSTA (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2B6 byte 4 bits 0..1 changes"
+  - name: "VCU_LOWSOCALERTSTA"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x43 } ]
+    fields:
+      - { name: "VCU_LOWSOCALERTSTA", off: 2 }
+    status: code
+    ref: "HEVService item 0x43 VCU_LOWSOCALERTSTA (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2B6 byte 4 bits 2..4 changes"
+  - name: "VCMS_V2LMODE"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x4e } ]
+    fields:
+      - { name: "VCMS_V2LMODE", off: 2 }
+    status: code
+    ref: "HEVService item 0x4e VCMS_V2LMODE (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x30E byte 4 bits 5..7 changes"
+  - name: "VCMS_V2GMODE"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x4f } ]
+    fields:
+      - { name: "VCMS_V2GMODE", off: 2 }
+    status: code
+    ref: "HEVService item 0x4f VCMS_V2GMODE (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x30E byte 4 bits 2..4 changes"
+  - name: "VCU_DTENAVIROUTEVAL"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x53 } ]
+    fields:
+      - { name: "VCU_DTENAVIROUTEVAL", off: 1, type: u16 }
+    status: code
+    ref: "HEVService item 0x53 VCU_DTENAVIROUTEVAL (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2B7 byte 2 bits 0..7; CAN 0x2B7 byte 3 bits 0..1 changes"
+  - name: "VCU_FATCPWRUSEVAL"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x54 } ]
+    fields:
+      - { name: "VCU_FATCPWRUSEVAL", off: 2 }
+    status: code
+    ref: "HEVService item 0x54 VCU_FATCPWRUSEVAL (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x37 byte 0 bits 0..7 changes"
+  - name: "VCMS_CHRGINLETTYP"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x56 } ]
+    fields:
+      - { name: "VCMS_CHRGINLETTYP", off: 2 }
+    status: code
+    ref: "HEVService item 0x56 VCMS_CHRGINLETTYP (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x30E byte 3 bits 0..7 changes"
+  - name: "VCU_UTILMODUSMSTA"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x58 } ]
+    fields:
+      - { name: "VCU_UTILMODUSMSTA", off: 2 }
+    status: code
+    ref: "HEVService item 0x58 VCU_UTILMODUSMSTA (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2AE byte 4 bits 0..1 changes"
+  - name: "VCU_UTILMODWRNMSGSTA"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x59 } ]
+    fields:
+      - { name: "VCU_UTILMODWRNMSGSTA", off: 2 }
+    status: code
+    ref: "HEVService item 0x59 VCU_UTILMODWRNMSGSTA (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2AE byte 4 bits 4..5 changes"
+  - name: "MCU_MG1INVTCTRLRDYSTA"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x5c } ]
+    fields:
+      - { name: "MCU_MG1INVTCTRLRDYSTA", off: 2 }
+    status: code
+    ref: "HEVService item 0x5c MCU_MG1INVTCTRLRDYSTA (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x10B byte 7 bits 0..1 changes"
+  - name: "MCU_MG2INVTRDYSTA"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x5d } ]
+    fields:
+      - { name: "MCU_MG2INVTRDYSTA", off: 2 }
+    status: code
+    ref: "HEVService item 0x5d MCU_MG2INVTRDYSTA (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x121 byte 7 bits 0..1 changes"
+  - name: "MCU_MG1GENPOWER_WH"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x5f } ]
+    fields:
+      - { name: "MCU_MG1GENPOWER_WH", off: 1, type: u16 }
+    status: code
+    ref: "HEVService item 0x5f MCU_MG1GENPOWER_WH (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x397 byte 4 bits 0..7; CAN 0x397 byte 5 bits 0..7 changes"
+  - name: "MCU_MG2GENPOWER_WH"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x60 } ]
+    fields:
+      - { name: "MCU_MG2GENPOWER_WH", off: 1, type: u16 }
+    status: code
+    ref: "HEVService item 0x60 MCU_MG2GENPOWER_WH (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2EC byte 4 bits 0..7; CAN 0x2EC byte 5 bits 0..7 changes"
+  - name: "VCU_MXPWR_MDSTA"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x68 } ]
+    fields:
+      - { name: "VCU_MXPWR_MDSTA", off: 2 }
+    status: code
+    ref: "HEVService item 0x68 VCU_MXPWR_MDSTA (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2C2 byte 6 bits 0..1 changes"
+  - name: "VCU_MXPWR_MDSEGVAL"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x69 } ]
+    fields:
+      - { name: "VCU_MXPWR_MDSEGVAL", off: 2 }
+    status: code
+    ref: "HEVService item 0x69 VCU_MXPWR_MDSEGVAL (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2C2 byte 6 bits 2..6 changes"
+  - name: "VCU_MXPWR_MDOSD"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x6a } ]
+    fields:
+      - { name: "VCU_MXPWR_MDOSD", off: 2 }
+    status: code
+    ref: "HEVService item 0x6a VCU_MXPWR_MDOSD (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x2C2 byte 6 bits 7..7 changes"
+  - name: "VCRM_QCKCHRGPWR_CUSTOM"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x6b } ]
+    fields:
+      - { name: "VCRM_QCKCHRGPWR_CUSTOM", off: 2 }
+    status: code
+    ref: "HEVService item 0x6b VCRM_QCKCHRGPWR_CUSTOM (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x1F9 byte 4 bits 2..7 changes"
+  - name: "MCU_MG1MOTMXPWR_SPEC"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x6c } ]
+    fields:
+      - { name: "MCU_MG1MOTMXPWR_SPEC", off: 2 }
+    status: code
+    ref: "HEVService item 0x6c MCU_MG1MOTMXPWR_SPEC (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x253 byte 6 bits 2..7 changes"
+  - name: "BMS_HV_BATT_AUTO_DCH_OP_STA"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x74 } ]
+    fields:
+      - { name: "BMS_HV_BATT_AUTO_DCH_OP_STA", off: 2 }
+    status: code
+    ref: "HEVService item 0x74 BMS_HV_BATT_AUTO_DCH_OP_STA (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x237 byte 4 bits 4..5 changes"
+
 send:
   # Inferred statically, never seen sent; -hev-status-request sends it.
   - { name: hev-status-request, frame: "ff 88 0c 01 0c 01 00 01 76", status: inferred, ref: "HEVService requestInitHevStatus: func 0x0c01, empty payload; answered by 0x8c01; the EV6 micom firmware answers it in emulation (cmd 0x01, 182 bytes)" }
