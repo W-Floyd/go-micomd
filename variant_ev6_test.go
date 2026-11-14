@@ -224,7 +224,9 @@ func TestEV6VariantSendsAsService(t *testing.T) {
 		"ff8a0101017400020002", "ff8a01010116000163", // module-version-request, version-info-request
 		"ff8a010101990001ec", "ff8a01010175000100", "ff8a010101890001fc", // part-number-request, vehicle-trim-request, regulation-type-request
 	}
-	for _, s := range append(serviceAllow, added...) {
+	// The base file's patterns come before the car's.
+	base := []string{"ff 8c 08 01 08 02 00 02 [00-01] ..", "ff 85 02 01 02 20 00 02 [20-62] .."} // monitor-backlight-set, audio-mic-volume-set
+	for _, s := range append(append(base, serviceAllow...), added...) {
 		if err := al.Set(s); err != nil {
 			t.Fatal(err)
 		}
@@ -250,7 +252,7 @@ func TestEV6VariantSendsAsService(t *testing.T) {
 	if got := hexes(fs); !reflect.DeepEqual(got, want) {
 		t.Errorf("captured frames %v, want %v", got, want)
 	}
-	if len(ps) != 1 || !reflect.DeepEqual(ps[0], al.patterns[0]) {
+	if len(ps) != 1 || !reflect.DeepEqual(ps[0], al.patterns[2]) {
 		t.Errorf("captured patterns %+v", ps)
 	}
 }

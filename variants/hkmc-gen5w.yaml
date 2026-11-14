@@ -34,6 +34,14 @@ headers:
       status: captured,
       ref: "stock micomd strace, source switch",
     }
+  # The monitor (display) module, MON_* funcs 0x08xx: the lights HAL's frame.
+  monitor_tx:
+    {
+      hdr: "8c 08 01 08",
+      dir: to_micom,
+      status: code,
+      ref: "stock lights.tcc803x.so set_backlight_state; MicomHeader$DeviceId MID_MONITOR = 8",
+    }
 
 identify:
   # Asks the micom for its variant coding. Sent only with -identify-request,
@@ -517,7 +525,11 @@ messages:
       - { name: "Micom number", off: 5, type: u16 }
       # "Mmm dd yyyy": the build date, shown as yyyy.mm.dd-ish by parseBuildDate.
       - { name: "Micom build date", off: 7, type: str, size: 11 }
-      # BCD, byte 0 skipped by the formatter: bytes 1-3 print "dd.dd.dd".
+      # The CAN database's release date, BCD yy mm dd after a century byte (0x20,
+      # or 0 in the 2023 NE1 builds); the formatter skips byte 0 and prints
+      # "yy.mm.dd". In emulation 2020-10-01 (OS PE EV) to 2024-04-01 (EV6), a
+      # constant in the image's data that moves with the build; the body CAN DB
+      # below was zero in all 22 builds.
       - { name: "MM CAN DB 0", off: 18 }
       - { name: "MM CAN DB 1", off: 19 }
       - { name: "MM CAN DB 2", off: 20 }
@@ -805,4 +817,23 @@ send:
       frame: "ff 8a 01 01 01 89 00 01 fc",
       status: code,
       ref: "SystemService.requestRegulationTypeBStatus: sendPacket(-118, 1, 0x189); its 0x8189 answer is captured unprompted, the request itself is not",
+    }
+  # The lights HAL writes this (10 bytes, checksum byte 0) to micomd's
+  # micom_mux_wronly socket; whether micomd or the micom fills the checksum is
+  # not known. Turns the backlight on or off.
+  - {
+      name: monitor-backlight-set,
+      pattern: "ff 8c 08 01 08 02 00 02 [00-01] ..",
+      status: code,
+      ref: "stock lights.tcc803x.so set_backlight_state: MON_SET_BACKLIGHT_C 0x0802, payload 1 on, 0 off; never captured",
+    }
+  # MicomAudioService turns the audio HAL's mic-volume message (a local
+  # socket, not the micom link) into this: the voice DSP's mic level, step * 2 +
+  # 0x20 for a step of 0-33 (0x20-0x62), 0x34 as the default. Header
+  # audio_tx, func 0x0220.
+  - {
+      name: audio-mic-volume-set,
+      pattern: "ff 85 02 01 02 20 00 02 [20-62] ..",
+      status: code,
+      ref: "stock MicomAudioService$DspMicThreadRunner: sendPacket func 0x0220 (AUDIO_SET_MIC_VOLUME_C) with level step*2+0x20, 0x34 for step 100; never captured",
     }

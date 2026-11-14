@@ -1696,6 +1696,9 @@ messages:
       - { name: "Reverse", off: 8, bits: "6", type: bool }
       - { name: "Parking brake", off: 8, bits: "1", type: bool }
       - { name: "Dim mode", off: 0x12, enum: dim_mode }
+      # A constant of the firmware, not of the CAN DB date: in emulation 2 for
+      # cvev, neev, neev23, nx4, nx4hev, nx4phev, nx4ob; 0 for ospeev and cn7n.
+      # The record is 149 bytes in the cvev, neev and neev23 builds, 147 in the rest.
       - { name: "CAN DB generation", off: 120 }
       - { name: "Light sensor fitted", off: 130, type: bool }
       - { name: "Driving regulation B", off: 148, type: bool }
