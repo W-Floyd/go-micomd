@@ -758,9 +758,9 @@ send:
   - {
       name: spi-sending-stop,
       frame: "ff 8a 01 01 01 1e 00 01 6b",
-      status: inferred,
+      status: code,
       dangerous: "func 0x011e requestSPISendingStop",
-      ref: "jadx SystemService",
+      ref: "SystemService sends it only on android.intent.action.ACTION_SHUTDOWN (log: request SPI sending stop; its sole caller, a BroadcastReceiver). The micom's cmd 0x1e handler (V002.208 build, 0x78abc) waits and then runs a peripheral setup routine from RAM state; in emulation it sends no reply and nothing else changes (the DSPI is barely modelled). SPI is the micom's bus to the Dirana and Saturn radio ICs.",
     }
   - {
       name: vbus-off-on,
