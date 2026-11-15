@@ -38,7 +38,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 3 |
-| 🟡 code | 101 |
+| 🟡 code | 105 |
 
 Not yet backed by a capture:
 
@@ -70,11 +70,15 @@ Not yet backed by a capture:
 | NSCC_C_REQ | `0d 8f ?? 8d` | 0x41 | 🟡 code | stock Navigation constant NSCC_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes |
 | DAW_WRN_C_REQ | `0d 8f ?? 8d` | 0x44 | 🟡 code | stock Navigation constant DAW_WRN_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes |
 | HDA_LINE_NUM_VAL_C_REQ | `0d 8f ?? 8d` | 0x45 | 🟡 code | stock Navigation constant HDA_LINE_NUM_VAL_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes |
-| USM_UserProfile_Rx_NFC_0_Short_M | `11 92 ?? 91` | 0x16 | 🟡 code | stock USM constant USM_UserProfile_Rx_NFC_0_Short_M; the EV6 firmware sends it in emulation when its CAN input changes |
-| USM_UserProfile_Rx_NFC_1_Short_M | `11 92 ?? 91` | 0x18 | 🟡 code | stock USM constant USM_UserProfile_Rx_NFC_1_Short_M; the EV6 firmware sends it in emulation when its CAN input changes |
 | USM_SWRC_SET_C_REQ | `11 92 ?? 91` | 0x27 | 🟡 code | stock USM constant USM_SWRC_SET_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes |
 | USM_Front_Seat_Heat_SET_C_REQ | `11 92 ?? 91` | 0x28 | 🟡 code | stock USM constant USM_Front_Seat_Heat_SET_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes |
-| USM_Body_Type_C_REQ | `11 92 ?? 91` | 0x2d | 🟡 code | stock USM constant USM_Body_Type_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes |
+| USM_UserProfile_Rx_NFC_0_Short_M PHONEPAIRINGRVALUE | `11 92 ?? 91` | 0x16 | 🟡 code | stock USM_UserProfile_Rx_NFC_0_Short_M, item 1 PHONEPAIRINGRVALUE (USM\$NFC0_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 1 bits 0..1 changes |
+| USM_UserProfile_Rx_NFC_0_Short_M NFC_SUPPORT_RESULT | `11 92 ?? 91` | 0x16 | 🟡 code | stock USM_UserProfile_Rx_NFC_0_Short_M, item 4 NFC_SUPPORT_RESULT (USM\$NFC0_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 0 bits 0..1 changes |
+| USM_UserProfile_Rx_NFC_0_Short_M OWNER_PHONERVALUE | `11 92 ?? 91` | 0x16 | 🟡 code | stock USM_UserProfile_Rx_NFC_0_Short_M, item 7 OWNER_PHONERVALUE (USM\$NFC0_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 3 bits 2..3 changes |
+| USM_UserProfile_Rx_NFC_0_Short_M DIGITALKEYENABLERVALUE | `11 92 ?? 91` | 0x16 | 🟡 code | stock USM_UserProfile_Rx_NFC_0_Short_M, item 8 DIGITALKEYENABLERVALUE (USM\$NFC0_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 3 bits 0..1 changes |
+| USM_UserProfile_Rx_NFC_1_Short_M IDRVALUE | `11 92 ?? 91` | 0x18 | 🟡 code | stock USM_UserProfile_Rx_NFC_1_Short_M, item 2 IDRVALUE (USM\$NFC1_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 1 bits 2..5 changes |
+| USM_UserProfile_Rx_NFC_1_Short_M DIGITALKEYGUIDE | `11 92 ?? 91` | 0x18 | 🟡 code | stock USM_UserProfile_Rx_NFC_1_Short_M, item 4 DIGITALKEYGUIDE (USM\$NFC1_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 2 bits 0..3 changes |
+| USM_Body_Type_C_REQ BodyTypeOption | `11 92 ?? 91` | 0x2d | 🟡 code | stock USM_Body_Type_C_REQ, item 1 BodyTypeOption (USM\$BodyType); the EV6 firmware sends it in emulation when CAN 0x442 byte 2 bits 4..6 changes |
 | Status flag | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService status-flag setter; seen live as 57 00 NN |
 | Charge time estimate, DC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x0e QC_REM_TIME: a DC fast charge's time to full, while not charging; 10-41 seen |
 | Charge time estimate, AC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x13 SC_REM_TIME_EVSE_PHEV, an EV's NOT_CHAR_EVSE_REM_TIME (CAN DB generation > 0): a wallbox's time to full, while not charging; 20-220 seen, rising as the charge fell |
@@ -967,38 +971,6 @@ packet-beta
 
 
 
-#### USM_UserProfile_Rx_NFC_0_Short_M
-
-cmd `0x16`, length ≥ 2 · 🟡 code
-
-> stock USM constant USM_UserProfile_Rx_NFC_0_Short_M; the EV6 firmware sends it in emulation when its CAN input changes
-
-| Field | At |
-| --- | --- |
-| USM_UserProfile_Rx_NFC_0_Short_M | byte 1 |
-
-```mermaid
-packet-beta
-0-7: "?"
-8-15: "USM_UserProfile_Rx_NFC_0_Short_M"
-```
-
-#### USM_UserProfile_Rx_NFC_1_Short_M
-
-cmd `0x18`, length ≥ 2 · 🟡 code
-
-> stock USM constant USM_UserProfile_Rx_NFC_1_Short_M; the EV6 firmware sends it in emulation when its CAN input changes
-
-| Field | At |
-| --- | --- |
-| USM_UserProfile_Rx_NFC_1_Short_M | byte 1 |
-
-```mermaid
-packet-beta
-0-7: "?"
-8-15: "USM_UserProfile_Rx_NFC_1_Short_M"
-```
-
 #### USM_SWRC_SET_C_REQ
 
 cmd `0x27`, length ≥ 5 · 🟡 code
@@ -1033,20 +1005,116 @@ packet-beta
 24-31: "USM_Front_Seat_Heat_SET_C_REQ byte 3"
 ```
 
-#### USM_Body_Type_C_REQ
+#### USM_UserProfile_Rx_NFC_0_Short_M PHONEPAIRINGRVALUE
 
-cmd `0x2d`, length ≥ 2 · 🟡 code
+cmd `0x16`, length ≥ 2 · 🟡 code
 
-> stock USM constant USM_Body_Type_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes
+> stock USM_UserProfile_Rx_NFC_0_Short_M, item 1 PHONEPAIRINGRVALUE (USM\$NFC0_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 1 bits 0..1 changes
 
 | Field | At |
 | --- | --- |
-| USM_Body_Type_C_REQ | byte 1 |
+| PHONEPAIRINGRVALUE | byte 1 |
 
 ```mermaid
 packet-beta
 0-7: "?"
-8-15: "USM_Body_Type_C_REQ"
+8-15: "PHONEPAIRINGRVALUE"
+```
+
+#### USM_UserProfile_Rx_NFC_0_Short_M NFC_SUPPORT_RESULT
+
+cmd `0x16`, length ≥ 2 · 🟡 code
+
+> stock USM_UserProfile_Rx_NFC_0_Short_M, item 4 NFC_SUPPORT_RESULT (USM\$NFC0_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 0 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| NFC_SUPPORT_RESULT | byte 1 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-15: "NFC_SUPPORT_RESULT"
+```
+
+#### USM_UserProfile_Rx_NFC_0_Short_M OWNER_PHONERVALUE
+
+cmd `0x16`, length ≥ 2 · 🟡 code
+
+> stock USM_UserProfile_Rx_NFC_0_Short_M, item 7 OWNER_PHONERVALUE (USM\$NFC0_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 3 bits 2..3 changes
+
+| Field | At |
+| --- | --- |
+| OWNER_PHONERVALUE | byte 1 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-15: "OWNER_PHONERVALUE"
+```
+
+#### USM_UserProfile_Rx_NFC_0_Short_M DIGITALKEYENABLERVALUE
+
+cmd `0x16`, length ≥ 2 · 🟡 code
+
+> stock USM_UserProfile_Rx_NFC_0_Short_M, item 8 DIGITALKEYENABLERVALUE (USM\$NFC0_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 3 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| DIGITALKEYENABLERVALUE | byte 1 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-15: "DIGITALKEYENABLERVALUE"
+```
+
+#### USM_UserProfile_Rx_NFC_1_Short_M IDRVALUE
+
+cmd `0x18`, length ≥ 2 · 🟡 code
+
+> stock USM_UserProfile_Rx_NFC_1_Short_M, item 2 IDRVALUE (USM\$NFC1_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 1 bits 2..5 changes
+
+| Field | At |
+| --- | --- |
+| IDRVALUE | byte 1 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-15: "IDRVALUE"
+```
+
+#### USM_UserProfile_Rx_NFC_1_Short_M DIGITALKEYGUIDE
+
+cmd `0x18`, length ≥ 2 · 🟡 code
+
+> stock USM_UserProfile_Rx_NFC_1_Short_M, item 4 DIGITALKEYGUIDE (USM\$NFC1_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 2 bits 0..3 changes
+
+| Field | At |
+| --- | --- |
+| DIGITALKEYGUIDE | byte 1 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-15: "DIGITALKEYGUIDE"
+```
+
+#### USM_Body_Type_C_REQ BodyTypeOption
+
+cmd `0x2d`, length ≥ 2 · 🟡 code
+
+> stock USM_Body_Type_C_REQ, item 1 BodyTypeOption (USM\$BodyType); the EV6 firmware sends it in emulation when CAN 0x442 byte 2 bits 4..6 changes
+
+| Field | At |
+| --- | --- |
+| BodyTypeOption | byte 1 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-15: "BodyTypeOption"
 ```
 
 ### 0c 88 ?? 8c
