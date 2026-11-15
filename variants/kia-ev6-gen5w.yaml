@@ -2373,9 +2373,9 @@ messages:
     cmd: 0x09
     length: 1
     fields:
-      - { name: "C_SMKTeleEngineRunning", off: 0 }
+      - { name: "C_SMKTeleEngineRunning", off: 0, enum: smk_engine }
     status: code
-    ref: "stock BODY TE_RX_IL ordinal 9 (func 0xc409); the EV6 firmware sends it in emulation when CAN 0x444 byte 7 bits 0..1 changes"
+    ref: "stock BODY TE_RX_IL ordinal 9 (func 0xc409); the EV6 firmware sends it in emulation when CAN 0x444 byte 7 bits 0..1 changes; stock HKMC_TAppService treats 1 as a remote (smart key or telematics) engine start running, and uses it with the ignition on and the key not in ACC; other values are not running (it starts at -1, unset)"
   - name: "C_BAlarmState"
     dir: from_micom
     hdr: body
@@ -2463,18 +2463,18 @@ messages:
     cmd: 0x2f
     length: 1
     fields:
-      - { name: "C_FOBBatteryStatusInfo", off: 0 }
+      - { name: "C_FOBBatteryStatusInfo", off: 0, enum: warning_flag, invalid: 3 }
     status: code
-    ref: "stock BODY TE_RX_IL ordinal 47 (func 0xc42f); the EV6 firmware sends it in emulation when CAN 0x445 byte 3 bits 0..1 changes"
+    ref: "stock BODY TE_RX_IL ordinal 47 (func 0xc42f); the EV6 firmware sends it in emulation when CAN 0x445 byte 3 bits 0..1 changes; stock HKMC_TAppService reports smartKeyBatteryWarning true for 1, nothing for 3 and false otherwise, so 1 is the fob battery low and 3 not available"
   - name: "C_BrakeFluidSw"
     dir: from_micom
     hdr: body
     cmd: 0x30
     length: 1
     fields:
-      - { name: "C_BrakeFluidSw", off: 0 }
+      - { name: "C_BrakeFluidSw", off: 0, enum: warning_flag, invalid: 3 }
     status: code
-    ref: "stock BODY TE_RX_IL ordinal 48 (func 0xc430); the EV6 firmware sends it in emulation when CAN 0x411 byte 4 bits 6..7 changes"
+    ref: "stock BODY TE_RX_IL ordinal 48 (func 0xc430); the EV6 firmware sends it in emulation when CAN 0x411 byte 4 bits 6..7 changes; stock HKMC_TAppService reads it with the same rule as the fob battery: 1 is the warning (breakOilStatus), 3 not available"
   - name: "C_DrvWindowOpenState"
     dir: from_micom
     hdr: body
@@ -2973,6 +2973,9 @@ messages:
 
 # The power and backlight tables of the micom firmware.
 enums:
+  # 0 (not set) and 2 are unnamed: stock only tests 1, and 3 is the invalid marker.
+  warning_flag: { warning: 1 }
+  smk_engine: { running: 1 }
   # The off-peak mode: 0 with nothing scheduled (stock's start-up write), 2
   # prioritize off-peak, 3 charge only off-peak (stock under QEMU); 1 unseen.
   sched_charge_mode: { "off": 0, prioritize_off_peak: 2, off_peak_only: 3 }

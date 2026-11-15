@@ -253,7 +253,7 @@ Not yet backed by a capture:
 | DATC_AfterBlowUSMSta | `climate_panel` | 0x4c | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 76 (func 0xc34c); the EV6 firmware sends it in emulation when CAN 0x3B1 byte 6 bits 4..5 changes |
 | DATC_ArClnIND | `climate_panel` | 0x53 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 83 (func 0xc353); the EV6 firmware sends it in emulation when CAN 0x383 byte 6 bits 6..7 changes |
 | DATC_Type2_NEW | `climate_panel` | 0x55 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 85 (func 0xc355); the EV6 firmware sends it in emulation when CAN 0x34B bytes 6..7 change (payload byte 0 is CAN byte 7) |
-| C_SMKTeleEngineRunning | `body` | 0x09 | 🟡 code | stock BODY TE_RX_IL ordinal 9 (func 0xc409); the EV6 firmware sends it in emulation when CAN 0x444 byte 7 bits 0..1 changes |
+| C_SMKTeleEngineRunning | `body` | 0x09 | 🟡 code | stock BODY TE_RX_IL ordinal 9 (func 0xc409); the EV6 firmware sends it in emulation when CAN 0x444 byte 7 bits 0..1 changes; stock HKMC_TAppService treats 1 as a remote (smart key or telematics) engine start running, and uses it with the ignition on and the key not in ACC; other values are not running (it starts at -1, unset) |
 | C_BAlarmState | `body` | 0x0a | 🟡 code | stock BODY TE_RX_IL ordinal 10 (func 0xc40a); the EV6 firmware sends it in emulation when CAN 0x3E0 byte 2 bits 0..3 changes |
 | C_PanicState | `body` | 0x0b | 🟡 code | stock BODY TE_RX_IL ordinal 11 (func 0xc40b); the EV6 firmware sends it in emulation when CAN 0x3E0 byte 2 bits 6..7 changes |
 | C_RrSeatRemindAlarm | `body` | 0x12 | 🟡 code | stock BODY TE_RX_IL ordinal 18 (func 0xc412); the EV6 firmware sends it in emulation when CAN 0x3C0 byte 4 bits 5..6 changes |
@@ -263,8 +263,8 @@ Not yet backed by a capture:
 | C_RRSeatHeatOption | `body` | 0x1e | 🟡 code | stock BODY TE_RX_IL ordinal 30 (func 0xc41e); the EV6 firmware sends it in emulation when CAN 0x453 byte 0 bits 0..2 changes |
 | C_SafetyWDWOpt | `body` | 0x2c | 🟡 code | stock BODY TE_RX_IL ordinal 44 (func 0xc42c); the EV6 firmware sends it in emulation when CAN 0x442 byte 3 bits 6..7 changes |
 | C_IMSOption | `body` | 0x2d | 🟡 code | stock BODY TE_RX_IL ordinal 45 (func 0xc42d); the EV6 firmware sends it in emulation when CAN 0x386 byte 1 bits 0..0 changes |
-| C_FOBBatteryStatusInfo | `body` | 0x2f | 🟡 code | stock BODY TE_RX_IL ordinal 47 (func 0xc42f); the EV6 firmware sends it in emulation when CAN 0x445 byte 3 bits 0..1 changes |
-| C_BrakeFluidSw | `body` | 0x30 | 🟡 code | stock BODY TE_RX_IL ordinal 48 (func 0xc430); the EV6 firmware sends it in emulation when CAN 0x411 byte 4 bits 6..7 changes |
+| C_FOBBatteryStatusInfo | `body` | 0x2f | 🟡 code | stock BODY TE_RX_IL ordinal 47 (func 0xc42f); the EV6 firmware sends it in emulation when CAN 0x445 byte 3 bits 0..1 changes; stock HKMC_TAppService reports smartKeyBatteryWarning true for 1, nothing for 3 and false otherwise, so 1 is the fob battery low and 3 not available |
+| C_BrakeFluidSw | `body` | 0x30 | 🟡 code | stock BODY TE_RX_IL ordinal 48 (func 0xc430); the EV6 firmware sends it in emulation when CAN 0x411 byte 4 bits 6..7 changes; stock HKMC_TAppService reads it with the same rule as the fob battery: 1 is the warning (breakOilStatus), 3 not available |
 | C_DrvWindowOpenState | `body` | 0x31 | 🟡 code | stock BODY TE_RX_IL ordinal 49 (func 0xc431); the EV6 firmware sends it in emulation when CAN 0x442 byte 4 bits 0..1 changes |
 | C_AstWindowOpenState | `body` | 0x32 | 🟡 code | stock BODY TE_RX_IL ordinal 50 (func 0xc432); the EV6 firmware sends it in emulation when CAN 0x442 byte 4 bits 2..3 changes |
 | C_RLWindowOpenState | `body` | 0x33 | 🟡 code | stock BODY TE_RX_IL ordinal 51 (func 0xc433); the EV6 firmware sends it in emulation when CAN 0x442 byte 4 bits 4..5 changes |
@@ -393,8 +393,10 @@ Not yet backed by a capture:
 | reset_reason | 20 values, below | Boot record (full): Reset reason; Boot record: Reset reason |
 | sched_charge_mode | **0** off<br>**2** prioritize_off_peak<br>**3** off_peak_only | Schedule settings: Scheduled charging mode; ev-off-peak: mode |
 | shutdown_ack | **1** power_off_request<br>**2** rail_off | shutdown-ack: stage |
+| smk_engine | **1** running | C_SMKTeleEngineRunning: C_SMKTeleEngineRunning |
 | trip_unit | **1** km<br>**2** mile | Distance to empty: Unit |
 | vehicle | 128 values, below | Variant code: Vehicle; Version info: Micom vehicle |
+| warning_flag | **1** warning | C_FOBBatteryStatusInfo: C_FOBBatteryStatusInfo; C_BrakeFluidSw: C_BrakeFluidSw |
 
 ### boot_mode
 
@@ -4699,11 +4701,11 @@ packet-beta
 
 cmd `0x09`, length 1 · 🟡 code
 
-> stock BODY TE_RX_IL ordinal 9 (func 0xc409); the EV6 firmware sends it in emulation when CAN 0x444 byte 7 bits 0..1 changes
+> stock BODY TE_RX_IL ordinal 9 (func 0xc409); the EV6 firmware sends it in emulation when CAN 0x444 byte 7 bits 0..1 changes; stock HKMC_TAppService treats 1 as a remote (smart key or telematics) engine start running, and uses it with the ignition on and the key not in ACC; other values are not running (it starts at -1, unset)
 
-| Field | At |
-| --- | --- |
-| C_SMKTeleEngineRunning | byte 0 |
+| Field | At | Enum |
+| --- | --- | --- |
+| C_SMKTeleEngineRunning | byte 0 | smk_engine |
 
 ```mermaid
 packet-beta
@@ -4849,11 +4851,11 @@ packet-beta
 
 cmd `0x2f`, length 1 · 🟡 code
 
-> stock BODY TE_RX_IL ordinal 47 (func 0xc42f); the EV6 firmware sends it in emulation when CAN 0x445 byte 3 bits 0..1 changes
+> stock BODY TE_RX_IL ordinal 47 (func 0xc42f); the EV6 firmware sends it in emulation when CAN 0x445 byte 3 bits 0..1 changes; stock HKMC_TAppService reports smartKeyBatteryWarning true for 1, nothing for 3 and false otherwise, so 1 is the fob battery low and 3 not available
 
-| Field | At |
-| --- | --- |
-| C_FOBBatteryStatusInfo | byte 0 |
+| Field | At | Enum | Notes |
+| --- | --- | --- | --- |
+| C_FOBBatteryStatusInfo | byte 0 | warning_flag | invalid 3 |
 
 ```mermaid
 packet-beta
@@ -4864,11 +4866,11 @@ packet-beta
 
 cmd `0x30`, length 1 · 🟡 code
 
-> stock BODY TE_RX_IL ordinal 48 (func 0xc430); the EV6 firmware sends it in emulation when CAN 0x411 byte 4 bits 6..7 changes
+> stock BODY TE_RX_IL ordinal 48 (func 0xc430); the EV6 firmware sends it in emulation when CAN 0x411 byte 4 bits 6..7 changes; stock HKMC_TAppService reads it with the same rule as the fob battery: 1 is the warning (breakOilStatus), 3 not available
 
-| Field | At |
-| --- | --- |
-| C_BrakeFluidSw | byte 0 |
+| Field | At | Enum | Notes |
+| --- | --- | --- | --- |
+| C_BrakeFluidSw | byte 0 | warning_flag | invalid 3 |
 
 ```mermaid
 packet-beta
