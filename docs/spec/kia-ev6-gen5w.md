@@ -52,7 +52,7 @@ Not yet backed by a capture:
 | --- | --- | --- | --- | --- |
 | Variant code | `system_rx` | 0x17 | 🟡 code | micom firmware 0x0117 handler; 61 S5W_M micom builds in emulation (en/ko, country 01/00); EV6 V015.012 automotive-service SystemService.onVariantCode/sendVariantCodeSave, automotive VariantCoding tables |
 | Module versions | `system_rx` | 0x74 | 🟡 code | EV6 V015.011 HKMC_EngineerMode VersionModule: registerCallback("MicomDataSVM", 0x8a), onEvent accepts func 0x8174 with 42+ bytes (parser needs 96), parsed by g([B); labels from res string ver_module_*; never captured |
-| Version info | `system_rx` | 0x16 | 🟡 code | EV6 V015.011 automotive EngineeringModeVersion.checkVersion; EngineeringModeService.onVersion; SystemService func 0x8116 -> onVersion; HKMC_EngineerMode MicomVersionInfo (indices 1, 4, 5, 8); never captured |
+| Version info | `system_rx` | 0x16 | 🟡 code | EV6 V015.011 automotive EngineeringModeVersion.checkVersion; EngineeringModeService.onVersion; SystemService func 0x8116 -> onVersion; HKMC_EngineerMode MicomVersionInfo (indices 1, 4, 5, 8); never captured. Payload bytes 86-89 (after the HD module) are not a field: in 134 of 208 emulated builds the cmd 0x16 handler zeroes them (memset of 4), in the other 74 it never writes them, so they carry whatever the reused reply buffer held (0xffffffff, 0x14 or 0x15, differing between requests in one session); do not read them |
 | Part number | `system_rx` | 0x99 | 🟡 code | EV6 V015.011 SystemService\$MicomEventHandler SYS_PART_NUMBER_M_RESP: new String(data, US-ASCII) -> sys.product.partnumber |
 | Vehicle trim | `system_rx` | 0x75 | 🟡 code | EV6 V015.011 SystemService func 0x8175 -> InitialCarInfo.setVehicleTrimInfo, USMService/BlackScreenService readers |
 | Front/rear camera status | `system_rx` | 0x04 | 🟡 code | SYS_FRONT_REAR_CAMERA_STATUS_M 0x8104 -> onFRCameraStatus |
@@ -779,7 +779,7 @@ cmd `0x74`, length ≥ 96 · 🟡 code
 
 cmd `0x16`, length ≥ 86 · 🟡 code
 
-> EV6 V015.011 automotive EngineeringModeVersion.checkVersion; EngineeringModeService.onVersion; SystemService func 0x8116 -> onVersion; HKMC_EngineerMode MicomVersionInfo (indices 1, 4, 5, 8); never captured
+> EV6 V015.011 automotive EngineeringModeVersion.checkVersion; EngineeringModeService.onVersion; SystemService func 0x8116 -> onVersion; HKMC_EngineerMode MicomVersionInfo (indices 1, 4, 5, 8); never captured. Payload bytes 86-89 (after the HD module) are not a field: in 134 of 208 emulated builds the cmd 0x16 handler zeroes them (memset of 4), in the other 74 it never writes them, so they carry whatever the reused reply buffer held (0xffffffff, 0x14 or 0x15, differing between requests in one session); do not read them
 
 | Field | At | Type | Enum |
 | --- | --- | --- | --- |

@@ -564,7 +564,7 @@ messages:
       - { name: "Radio DSP tuning", off: 42, type: str, size: 8 }
       - { name: "HD module", off: 50, type: str, size: 36 }
     status: code
-    ref: "EV6 V015.011 automotive EngineeringModeVersion.checkVersion; EngineeringModeService.onVersion; SystemService func 0x8116 -> onVersion; HKMC_EngineerMode MicomVersionInfo (indices 1, 4, 5, 8); never captured"
+    ref: "EV6 V015.011 automotive EngineeringModeVersion.checkVersion; EngineeringModeService.onVersion; SystemService func 0x8116 -> onVersion; HKMC_EngineerMode MicomVersionInfo (indices 1, 4, 5, 8); never captured. Payload bytes 86-89 (after the HD module) are not a field: in 134 of 208 emulated builds the cmd 0x16 handler zeroes them (memset of 4), in the other 74 it never writes them, so they carry whatever the reused reply buffer held (0xffffffff, 0x14 or 0x15, differing between requests in one session); do not read them"
 
   # Answers to the part-number and trim requests below. Fleet scan (250 Gen5W
   # packages, 8 SystemService builds): part number is missing from 3 builds, 8
