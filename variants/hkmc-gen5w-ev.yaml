@@ -827,6 +827,156 @@ messages:
     status: code
     ref: "HEVService item 0x64 CCM_CERT_PCID1 (HEV$SignalID): id, then a 24-bit value; the EV6 firmware sends it in emulation when CAN 0x357 byte 5 bits 0..7; CAN 0x357 byte 6 bits 0..7; CAN 0x357 byte 7 bits 0..7 changes"
 
+  - name: "CLU_EVDTEDISP"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x00 } ]
+    fields:
+      - { name: "CLU_EVDTEDISP", off: 1, type: u16 }
+    status: code
+    ref: "HEVService item 0x00 CLU_EVDTEDISP (HEV$SignalID); the MQ4_22_P V002.205 firmware sends it in emulation when CAN 0x1D1 byte 0 bits 0; CAN 0x1D1 byte 1 bits 0..7 changes"
+  - name: "HCU_MOTGENPWR"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x09 } ]
+    fields:
+      - { name: "HCU_MOTGENPWR", off: 2 }
+    status: code
+    ref: "HEVService item 0x09 HCU_MOTGENPWR (HEV$SignalID); the TM_PE_H V003.205 firmware sends it in emulation when CAN 0x163 byte 0 bits 0..5 changes"
+  - name: "SC_REM_TIME_ICCB_DOM"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x10 } ]
+    fields:
+      - { name: "SC_REM_TIME_ICCB_DOM", off: 1, type: u16 }
+    status: code
+    ref: "HEVService item 0x10 SC_REM_TIME_ICCB_DOM (HEV$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x1F8 byte 2 bits 0..7; CAN 0x1F8 byte 1 bits 0..7 changes; also seen in DE_22_E, MQ4_22_P, SK3_22_E"
+  - name: "SC_REM_TIME_ICCB_EURO"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x11 } ]
+    fields:
+      - { name: "SC_REM_TIME_ICCB_EURO", off: 1, type: u16 }
+    status: code
+    ref: "HEVService item 0x11 SC_REM_TIME_ICCB_EURO (HEV$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x1F8 byte 4 bits 0..7; CAN 0x1F8 byte 3 bits 0..7 changes; also seen in DE_22_E, MQ4_22_P, SK3_22_E"
+  - name: "SC_REM_TIME_EVSE_EV"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x12 } ]
+    fields:
+      - { name: "SC_REM_TIME_EVSE_EV", off: 1, type: u16, endian: little }
+    status: code
+    ref: "HEVService item 0x12 SC_REM_TIME_EVSE_EV (HEV$SignalID); the DE_22_E V002.205 firmware sends it in emulation when CAN 0x55E byte 6 bits 0..7; CAN 0x55E byte 7 bits 0..7 changes; also seen in SK3_22_E"
+  - name: "HEV_RDY"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x19 } ]
+    fields:
+      - { name: "HEV_RDY", off: 2 }
+    status: code
+    ref: "HEVService item 0x19 HEV_RDY (HEV$SignalID); the MQ4_22_P V002.205 firmware sends it in emulation when CAN 0x5C8 byte 0 bits 0..1 changes"
+  - name: "TGSOC_GPSCHG"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x31 } ]
+    fields:
+      - { name: "TGSOC_GPSCHG", off: 2 }
+    status: code
+    ref: "HEVService item 0x31 TGSOC_GPSCHG (HEV$SignalID); the SK3_22_E V002.205 firmware sends it in emulation when CAN 0x55D byte 7 bits 0..7 changes"
+  - name: "CF_HCU_RDY"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x36 } ]
+    fields:
+      - { name: "CF_HCU_RDY", off: 2 }
+    status: code
+    ref: "HEVService item 0x36 CF_HCU_RDY (HEV$SignalID); the TM_PE_H V003.205 firmware sends it in emulation when CAN 0x550 byte 3 bits 0 changes"
+  - name: "CR_SDC_TOTPWRGEN"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 4
+    when: [ { off: 0, eq: 0x38 } ]
+    fields:
+      - { name: "CR_SDC_TOTPWRGEN", off: 1, type: u24 }
+    status: code
+    ref: "HEVService item 0x38 CR_SDC_TOTPWRGEN (HEV$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x28C byte 6 bits 0..7; CAN 0x28C byte 5 bits 0..7; CAN 0x28C byte 4 bits 0..7 changes"
+  - name: "CF_SDC_INST"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x39 } ]
+    fields:
+      - { name: "CF_SDC_INST", off: 2 }
+    status: code
+    ref: "HEVService item 0x39 CF_SDC_INST (HEV$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x28C byte 3 bits 0..1 changes"
+  - name: "OBC_CHRGINLETTYP"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x55 } ]
+    fields:
+      - { name: "OBC_CHRGINLETTYP", off: 2 }
+    status: code
+    ref: "HEVService item 0x55 OBC_CHRGINLETTYP (HEV$SignalID); the MQ4_22_P V002.205 firmware sends it in emulation when CAN 0x575 byte 7 bits 0..7 changes"
+  - name: "VCU_LOWSOCDISPPCVal"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x62 } ]
+    fields:
+      - { name: "VCU_LOWSOCDISPPCVal", off: 2 }
+    status: code
+    ref: "HEVService item 0x62 VCU_LOWSOCDISPPCVal (HEV$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x2B9 byte 0 bits 0..3 changes"
+  - name: "CCM_CERT_PCID2"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 9
+    when: [ { off: 0, eq: 0x65 } ]
+    fields:
+      - { name: "CCM_CERT_PCID2", off: 1, type: str, size: 8, encoding: hex, endian: little }
+    status: code
+    ref: "HEVService item 0x65 CCM_CERT_PCID2 (HEV$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x358 byte 7 bits 0..7; CAN 0x358 byte 6 bits 0..7; CAN 0x358 byte 5 bits 0..7; CAN 0x358 byte 4 bits 0..7; CAN 0x358 byte 3 bits 0..7; CAN 0x358 byte 2 bits 0..7; CAN 0x358 byte 1 bits 0..7; CAN 0x358 byte 0 bits 0..7 changes"
+  - name: "CCM_CERT_PCID3"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 8
+    when: [ { off: 0, eq: 0x66 } ]
+    fields:
+      - { name: "CCM_CERT_PCID3", off: 1, type: str, size: 7, encoding: hex, endian: little }
+    status: code
+    ref: "HEVService item 0x66 CCM_CERT_PCID3 (HEV$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x359 byte 6 bits 0..7; CAN 0x359 byte 5 bits 0..7; CAN 0x359 byte 4 bits 0..7; CAN 0x359 byte 3 bits 0..7; CAN 0x359 byte 2 bits 0..7; CAN 0x359 byte 1 bits 0..7; CAN 0x359 byte 0 bits 0..7 changes"
+  - name: "CCM_PCIDDISP_OPT"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 3
+    when: [ { off: 0, eq: 0x67 } ]
+    fields:
+      - { name: "CCM_PCIDDISP_OPT", off: 2 }
+    status: code
+    ref: "HEVService item 0x67 CCM_PCIDDISP_OPT (HEV$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x359 byte 7 bits 0..1 changes"
 send:
   # Inferred statically, never seen sent; -hev-status-request sends it.
   - { name: hev-status-request, frame: "ff 88 0c 01 0c 01 00 01 76", status: inferred, ref: "HEVService requestInitHevStatus: func 0x0c01, empty payload; answered by 0x8c01; the EV6 micom firmware answers it in emulation (cmd 0x01, 182 bytes)" }

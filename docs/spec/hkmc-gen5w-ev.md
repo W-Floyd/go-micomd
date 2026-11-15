@@ -38,7 +38,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 3 |
-| 🟡 code | 147 |
+| 🟡 code | 162 |
 
 Not yet backed by a capture:
 
@@ -191,6 +191,21 @@ Not yet backed by a capture:
 | BMS_HV_BATT_AUTO_DCH_OP_STA | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x74 BMS_HV_BATT_AUTO_DCH_OP_STA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x237 byte 4 bits 4..5 changes |
 | ODOMETER | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x1e ODOMETER (HEV\$SignalID): id, then a 24-bit value; the EV6 firmware sends it in emulation when CAN 0x227 byte 1 bits 0..7; CAN 0x227 byte 2 bits 0..7; CAN 0x227 byte 3 bits 0..7 changes |
 | CCM_CERT_PCID1 | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x64 CCM_CERT_PCID1 (HEV\$SignalID): id, then a 24-bit value; the EV6 firmware sends it in emulation when CAN 0x357 byte 5 bits 0..7; CAN 0x357 byte 6 bits 0..7; CAN 0x357 byte 7 bits 0..7 changes |
+| CLU_EVDTEDISP | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x00 CLU_EVDTEDISP (HEV\$SignalID); the MQ4_22_P V002.205 firmware sends it in emulation when CAN 0x1D1 byte 0 bits 0; CAN 0x1D1 byte 1 bits 0..7 changes |
+| HCU_MOTGENPWR | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x09 HCU_MOTGENPWR (HEV\$SignalID); the TM_PE_H V003.205 firmware sends it in emulation when CAN 0x163 byte 0 bits 0..5 changes |
+| SC_REM_TIME_ICCB_DOM | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x10 SC_REM_TIME_ICCB_DOM (HEV\$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x1F8 byte 2 bits 0..7; CAN 0x1F8 byte 1 bits 0..7 changes; also seen in DE_22_E, MQ4_22_P, SK3_22_E |
+| SC_REM_TIME_ICCB_EURO | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x11 SC_REM_TIME_ICCB_EURO (HEV\$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x1F8 byte 4 bits 0..7; CAN 0x1F8 byte 3 bits 0..7 changes; also seen in DE_22_E, MQ4_22_P, SK3_22_E |
+| SC_REM_TIME_EVSE_EV | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x12 SC_REM_TIME_EVSE_EV (HEV\$SignalID); the DE_22_E V002.205 firmware sends it in emulation when CAN 0x55E byte 6 bits 0..7; CAN 0x55E byte 7 bits 0..7 changes; also seen in SK3_22_E |
+| HEV_RDY | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x19 HEV_RDY (HEV\$SignalID); the MQ4_22_P V002.205 firmware sends it in emulation when CAN 0x5C8 byte 0 bits 0..1 changes |
+| TGSOC_GPSCHG | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x31 TGSOC_GPSCHG (HEV\$SignalID); the SK3_22_E V002.205 firmware sends it in emulation when CAN 0x55D byte 7 bits 0..7 changes |
+| CF_HCU_RDY | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x36 CF_HCU_RDY (HEV\$SignalID); the TM_PE_H V003.205 firmware sends it in emulation when CAN 0x550 byte 3 bits 0 changes |
+| CR_SDC_TOTPWRGEN | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x38 CR_SDC_TOTPWRGEN (HEV\$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x28C byte 6 bits 0..7; CAN 0x28C byte 5 bits 0..7; CAN 0x28C byte 4 bits 0..7 changes |
+| CF_SDC_INST | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x39 CF_SDC_INST (HEV\$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x28C byte 3 bits 0..1 changes |
+| OBC_CHRGINLETTYP | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x55 OBC_CHRGINLETTYP (HEV\$SignalID); the MQ4_22_P V002.205 firmware sends it in emulation when CAN 0x575 byte 7 bits 0..7 changes |
+| VCU_LOWSOCDISPPCVal | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x62 VCU_LOWSOCDISPPCVal (HEV\$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x2B9 byte 0 bits 0..3 changes |
+| CCM_CERT_PCID2 | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x65 CCM_CERT_PCID2 (HEV\$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x358 byte 7 bits 0..7; CAN 0x358 byte 6 bits 0..7; CAN 0x358 byte 5 bits 0..7; CAN 0x358 byte 4 bits 0..7; CAN 0x358 byte 3 bits 0..7; CAN 0x358 byte 2 bits 0..7; CAN 0x358 byte 1 bits 0..7; CAN 0x358 byte 0 bits 0..7 changes |
+| CCM_CERT_PCID3 | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x66 CCM_CERT_PCID3 (HEV\$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x359 byte 6 bits 0..7; CAN 0x359 byte 5 bits 0..7; CAN 0x359 byte 4 bits 0..7; CAN 0x359 byte 3 bits 0..7; CAN 0x359 byte 2 bits 0..7; CAN 0x359 byte 1 bits 0..7; CAN 0x359 byte 0 bits 0..7 changes |
+| CCM_PCIDDISP_OPT | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x67 CCM_PCIDDISP_OPT (HEV\$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x359 byte 7 bits 0..1 changes |
 
 ## Headers
 
@@ -3681,6 +3696,246 @@ cmd `0x02`, length 4 · 🟡 code
 packet-beta
 0-7: "?"
 8-31: "CCM_CERT_PCID1"
+```
+
+#### CLU_EVDTEDISP
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x00 CLU_EVDTEDISP (HEV\$SignalID); the MQ4_22_P V002.205 firmware sends it in emulation when CAN 0x1D1 byte 0 bits 0; CAN 0x1D1 byte 1 bits 0..7 changes
+
+| Field | At | Type |
+| --- | --- | --- |
+| CLU_EVDTEDISP | byte 1 | u16 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "CLU_EVDTEDISP"
+```
+
+#### HCU_MOTGENPWR
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x09 HCU_MOTGENPWR (HEV\$SignalID); the TM_PE_H V003.205 firmware sends it in emulation when CAN 0x163 byte 0 bits 0..5 changes
+
+| Field | At |
+| --- | --- |
+| HCU_MOTGENPWR | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "HCU_MOTGENPWR"
+```
+
+#### SC_REM_TIME_ICCB_DOM
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x10 SC_REM_TIME_ICCB_DOM (HEV\$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x1F8 byte 2 bits 0..7; CAN 0x1F8 byte 1 bits 0..7 changes; also seen in DE_22_E, MQ4_22_P, SK3_22_E
+
+| Field | At | Type |
+| --- | --- | --- |
+| SC_REM_TIME_ICCB_DOM | byte 1 | u16 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "SC_REM_TIME_ICCB_DOM"
+```
+
+#### SC_REM_TIME_ICCB_EURO
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x11 SC_REM_TIME_ICCB_EURO (HEV\$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x1F8 byte 4 bits 0..7; CAN 0x1F8 byte 3 bits 0..7 changes; also seen in DE_22_E, MQ4_22_P, SK3_22_E
+
+| Field | At | Type |
+| --- | --- | --- |
+| SC_REM_TIME_ICCB_EURO | byte 1 | u16 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "SC_REM_TIME_ICCB_EURO"
+```
+
+#### SC_REM_TIME_EVSE_EV
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x12 SC_REM_TIME_EVSE_EV (HEV\$SignalID); the DE_22_E V002.205 firmware sends it in emulation when CAN 0x55E byte 6 bits 0..7; CAN 0x55E byte 7 bits 0..7 changes; also seen in SK3_22_E
+
+| Field | At | Type |
+| --- | --- | --- |
+| SC_REM_TIME_EVSE_EV | byte 1 | u16 little |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-23: "SC_REM_TIME_EVSE_EV"
+```
+
+#### HEV_RDY
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x19 HEV_RDY (HEV\$SignalID); the MQ4_22_P V002.205 firmware sends it in emulation when CAN 0x5C8 byte 0 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| HEV_RDY | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "HEV_RDY"
+```
+
+#### TGSOC_GPSCHG
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x31 TGSOC_GPSCHG (HEV\$SignalID); the SK3_22_E V002.205 firmware sends it in emulation when CAN 0x55D byte 7 bits 0..7 changes
+
+| Field | At |
+| --- | --- |
+| TGSOC_GPSCHG | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "TGSOC_GPSCHG"
+```
+
+#### CF_HCU_RDY
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x36 CF_HCU_RDY (HEV\$SignalID); the TM_PE_H V003.205 firmware sends it in emulation when CAN 0x550 byte 3 bits 0 changes
+
+| Field | At |
+| --- | --- |
+| CF_HCU_RDY | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "CF_HCU_RDY"
+```
+
+#### CR_SDC_TOTPWRGEN
+
+cmd `0x02`, length 4 · 🟡 code
+
+> HEVService item 0x38 CR_SDC_TOTPWRGEN (HEV\$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x28C byte 6 bits 0..7; CAN 0x28C byte 5 bits 0..7; CAN 0x28C byte 4 bits 0..7 changes
+
+| Field | At | Type |
+| --- | --- | --- |
+| CR_SDC_TOTPWRGEN | byte 1 | u24 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-31: "CR_SDC_TOTPWRGEN"
+```
+
+#### CF_SDC_INST
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x39 CF_SDC_INST (HEV\$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x28C byte 3 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| CF_SDC_INST | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "CF_SDC_INST"
+```
+
+#### OBC_CHRGINLETTYP
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x55 OBC_CHRGINLETTYP (HEV\$SignalID); the MQ4_22_P V002.205 firmware sends it in emulation when CAN 0x575 byte 7 bits 0..7 changes
+
+| Field | At |
+| --- | --- |
+| OBC_CHRGINLETTYP | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "OBC_CHRGINLETTYP"
+```
+
+#### VCU_LOWSOCDISPPCVal
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x62 VCU_LOWSOCDISPPCVal (HEV\$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x2B9 byte 0 bits 0..3 changes
+
+| Field | At |
+| --- | --- |
+| VCU_LOWSOCDISPPCVal | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "VCU_LOWSOCDISPPCVal"
+```
+
+#### CCM_CERT_PCID2
+
+cmd `0x02`, length 9 · 🟡 code
+
+> HEVService item 0x65 CCM_CERT_PCID2 (HEV\$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x358 byte 7 bits 0..7; CAN 0x358 byte 6 bits 0..7; CAN 0x358 byte 5 bits 0..7; CAN 0x358 byte 4 bits 0..7; CAN 0x358 byte 3 bits 0..7; CAN 0x358 byte 2 bits 0..7; CAN 0x358 byte 1 bits 0..7; CAN 0x358 byte 0 bits 0..7 changes
+
+| Field | At | Type |
+| --- | --- | --- |
+| CCM_CERT_PCID2 | byte 1 | str little |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-71: "CCM_CERT_PCID2"
+```
+
+#### CCM_CERT_PCID3
+
+cmd `0x02`, length 8 · 🟡 code
+
+> HEVService item 0x66 CCM_CERT_PCID3 (HEV\$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x359 byte 6 bits 0..7; CAN 0x359 byte 5 bits 0..7; CAN 0x359 byte 4 bits 0..7; CAN 0x359 byte 3 bits 0..7; CAN 0x359 byte 2 bits 0..7; CAN 0x359 byte 1 bits 0..7; CAN 0x359 byte 0 bits 0..7 changes
+
+| Field | At | Type |
+| --- | --- | --- |
+| CCM_CERT_PCID3 | byte 1 | str little |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-63: "CCM_CERT_PCID3"
+```
+
+#### CCM_PCIDDISP_OPT
+
+cmd `0x02`, length 3 · 🟡 code
+
+> HEVService item 0x67 CCM_PCIDDISP_OPT (HEV\$SignalID); the NE1_E V001.208 (Ioniq 5) firmware sends it in emulation when CAN 0x359 byte 7 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| CCM_PCIDDISP_OPT | byte 2 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "CCM_PCIDDISP_OPT"
 ```
 
 ## Send (the control socket may send)
