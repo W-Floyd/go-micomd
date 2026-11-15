@@ -1452,6 +1452,31 @@ messages:
       - { name: "DRIVERSTEERINGWHEEL", off: 3, invalid: 0xfa }
     status: code
     ref: "stock USM$ table ConvenienceVentilate; the EV6 firmware answers its request (0x110e) in emulation with 10 bytes; ids 2 and 3 only, not 1..N, and the reply is longer than max id + 1"
+  - name: "USM_Driver_Assi_SET_ETC_M_RESP (with item 17)"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x26
+    min_length: 18
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "SMARTCRUISECONTROL", off: 1, invalid: 0xfa }
+      - { name: "SMARTCRUISECONTROL_ACCELERATION", off: 2, invalid: 0xfa }
+      - { name: "SMARTCRUISECONTROL_DISTANCE", off: 3, invalid: 0xfa }
+      - { name: "SMARTCRUISECONTROL_REACTIONSPEED", off: 4, invalid: 0xfa }
+      - { name: "FORWARDCROSSTRAFFICSAFETY", off: 6, invalid: 0xfa }
+      - { name: "HIGHWAYLANECHANGEASSIST", off: 7, invalid: 0xfa }
+      - { name: "DRIVINGSAFETYAUTOOFFINNDRIVEMODE", off: 8, invalid: 0xfa }
+      - { name: "PARKINGSAFETYONOFF", off: 9, invalid: 0xfa }
+      - { name: "AUTONMODSTA", off: 10, invalid: 0xfa }
+      - { name: "FORWARDSIDESAFETY", off: 11, invalid: 0xfa }
+      - { name: "SCC_ML_OnOffEquipSta", off: 12, invalid: 0xfa }
+      - { name: "SCC_Char1Sta", off: 13, invalid: 0xfa }
+      - { name: "SCC_Char2Sta", off: 14, invalid: 0xfa }
+      - { name: "SCC_Char3Sta", off: 15, invalid: 0xfa }
+      - { name: "LANESAFETYTYPENEW2_LDW", off: 16, invalid: 0xfa }
+      - { name: "BLINDSPOTSAFETYWARNINGSOUND", off: 17, invalid: 0xfa }
+    status: code
+    ref: "stock USMService.onEvent (0x9126) reads item n at byte n through 17; a firmware that sends the 18th byte carries BLINDSPOTSAFETYWARNINGSOUND"
   - name: "USM_Driver_Assi_SET_ETC_M_RESP"
     dir: from_micom
     hdr: "11 92 ?? 91"
@@ -1475,7 +1500,7 @@ messages:
       - { name: "SCC_Char3Sta", off: 15, invalid: 0xfa }
       - { name: "LANESAFETYTYPENEW2_LDW", off: 16, invalid: 0xfa }
     status: code
-    ref: "stock USM$ table DriverAssistETC; the EV6 firmware answers its request (0x1126) in emulation with 17 bytes; ids 1-4 and 6-17 (no 5); id 17 BLINDSPOTSAFETYWARNINGSOUND would sit at byte 17, past the reply, so it is not read"
+    ref: "stock USM$ table DriverAssistETC; the EV6 firmware answers its request (0x1126) in emulation with 17 bytes; ids 1-4 and 6-17 (no 5); this firmware stops at byte 16, so id 17 BLINDSPOTSAFETYWARNINGSOUND is only in the 18-byte form above"
   - name: "USM_DIGITALKEY_2nd_M_RESP"
     dir: from_micom
     hdr: "11 92 ?? 91"
@@ -1496,15 +1521,15 @@ messages:
     cmd: 0x35
     min_length: 10
     fields:
-      - { name: "MLMBOTTOMRED", off: 1, invalid: 0xfa }
-      - { name: "MLMBOTTOMGREEN", off: 2, invalid: 0xfa }
-      - { name: "MLMBOTTOMBLUE", off: 3, invalid: 0xfa }
-      - { name: "MLMSPEEDN", off: 4, invalid: 0xfa }
-      - { name: "MLMCOLORN", off: 5, invalid: 0xfa }
-      - { name: "MLMMODE", off: 6, invalid: 0xfa }
-      - { name: "MLMRECOMMEND", off: 7, invalid: 0xfa }
+      - { name: "MLMBOTTOMRED", off: 0, type: u16 }
+      - { name: "MLMBOTTOMGREEN", off: 2, type: u16 }
+      - { name: "MLMBOTTOMBLUE", off: 4, type: u16 }
+      - { name: "MLMSPEEDN", off: 6 }
+      - { name: "MLMCOLORN", off: 7 }
+      - { name: "MLMMODE", off: 8 }
+      - { name: "MLMRECOMMEND", off: 9 }
     status: code
-    ref: "stock USM$ table DualLight; the EV6 firmware answers its request (0x1135) in emulation with 10 bytes; byte 0 is 02 here, not 0xfa, so it is left unnamed; id 100 MLMALL is the write-all id and has no byte"
+    ref: "stock USMService.onEvent (0x9135): no item byte, three big-endian u16 colours then four bytes, the same layout whether byte 0 is 0xfa or not; the set (0x1135) is 9 bytes, type then three u16 with 0x0200 meaning unchanged, type 0xfa all; the EV6 firmware answers request 0x1135 in emulation with 10 bytes, the colours 0x0200 (unchanged)"
   - name: "USM_HUD_SET_ON_OFF_M_RESP"
     dir: from_micom
     hdr: "11 92 ?? 91"

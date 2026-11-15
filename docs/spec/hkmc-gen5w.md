@@ -37,7 +37,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 
 | Status | Messages |
 | --- | --- |
-| 🟡 code | 76 |
+| 🟡 code | 77 |
 
 Not yet backed by a capture:
 
@@ -108,9 +108,10 @@ Not yet backed by a capture:
 | USM_Eco_Vehicle_ETC_M_RESP | `11 92 ?? 91` | 0x31 | 🟡 code | stock USM\$ table EcoVehicleETC; the EV6 firmware answers its request (0x1131) in emulation with 3 bytes |
 | USM_TOWMODE_M_RESP | `11 92 ?? 91` | 0x33 | 🟡 code | stock USM\$ table TOWMODE; the EV6 firmware answers its request (0x1133) in emulation with 2 bytes |
 | USM_Convenience_SET_Ventilated_M_RESP | `11 92 ?? 91` | 0x0e | 🟡 code | stock USM\$ table ConvenienceVentilate; the EV6 firmware answers its request (0x110e) in emulation with 10 bytes; ids 2 and 3 only, not 1..N, and the reply is longer than max id + 1 |
-| USM_Driver_Assi_SET_ETC_M_RESP | `11 92 ?? 91` | 0x26 | 🟡 code | stock USM\$ table DriverAssistETC; the EV6 firmware answers its request (0x1126) in emulation with 17 bytes; ids 1-4 and 6-17 (no 5); id 17 BLINDSPOTSAFETYWARNINGSOUND would sit at byte 17, past the reply, so it is not read |
+| USM_Driver_Assi_SET_ETC_M_RESP (with item 17) | `11 92 ?? 91` | 0x26 | 🟡 code | stock USMService.onEvent (0x9126) reads item n at byte n through 17; a firmware that sends the 18th byte carries BLINDSPOTSAFETYWARNINGSOUND |
+| USM_Driver_Assi_SET_ETC_M_RESP | `11 92 ?? 91` | 0x26 | 🟡 code | stock USM\$ table DriverAssistETC; the EV6 firmware answers its request (0x1126) in emulation with 17 bytes; ids 1-4 and 6-17 (no 5); this firmware stops at byte 16, so id 17 BLINDSPOTSAFETYWARNINGSOUND is only in the 18-byte form above |
 | USM_DIGITALKEY_2nd_M_RESP | `11 92 ?? 91` | 0x34 | 🟡 code | stock USM\$ table DigitalKeyInfo2; the EV6 firmware answers its request (0x1134) in emulation with 10 bytes; item 6 NFCCARD1_SERIAL is a string, probably bytes 6-9, unread |
-| USM_Dual_Light_SET_LAMP_M_RESP | `11 92 ?? 91` | 0x35 | 🟡 code | stock USM\$ table DualLight; the EV6 firmware answers its request (0x1135) in emulation with 10 bytes; byte 0 is 02 here, not 0xfa, so it is left unnamed; id 100 MLMALL is the write-all id and has no byte |
+| USM_Dual_Light_SET_LAMP_M_RESP | `11 92 ?? 91` | 0x35 | 🟡 code | stock USMService.onEvent (0x9135): no item byte, three big-endian u16 colours then four bytes, the same layout whether byte 0 is 0xfa or not; the set (0x1135) is 9 bytes, type then three u16 with 0x0200 meaning unchanged, type 0xfa all; the EV6 firmware answers request 0x1135 in emulation with 10 bytes, the colours 0x0200 (unchanged) |
 | USM_HUD_SET_ON_OFF_M_RESP | `11 92 ?? 91` | 0x01 | 🟡 code | no stock table; the EV6 firmware answers its request (0x1101) in emulation with 3 bytes |
 | USM_Driver_Assi_SET_SCC_M_RESP | `11 92 ?? 91` | 0x05 | 🟡 code | no stock table; the EV6 firmware answers its request (0x1105) in emulation with 1 bytes; 0xfa when unset |
 | USM_Cluster_SET_ENG_Reset_M_RESP | `11 92 ?? 91` | 0x0b | 🟡 code | no stock table; the EV6 firmware answers its request (0x110b) in emulation with 2 bytes |
@@ -2097,11 +2098,59 @@ packet-beta
 24-31: "DRIVERSTEERINGWHEEL"
 ```
 
+#### USM_Driver_Assi_SET_ETC_M_RESP (with item 17)
+
+cmd `0x26`, length ≥ 18 · 🟡 code
+
+> stock USMService.onEvent (0x9126) reads item n at byte n through 17; a firmware that sends the 18th byte carries BLINDSPOTSAFETYWARNINGSOUND
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| SMARTCRUISECONTROL | byte 1 | invalid 250 |
+| SMARTCRUISECONTROL_ACCELERATION | byte 2 | invalid 250 |
+| SMARTCRUISECONTROL_DISTANCE | byte 3 | invalid 250 |
+| SMARTCRUISECONTROL_REACTIONSPEED | byte 4 | invalid 250 |
+| FORWARDCROSSTRAFFICSAFETY | byte 6 | invalid 250 |
+| HIGHWAYLANECHANGEASSIST | byte 7 | invalid 250 |
+| DRIVINGSAFETYAUTOOFFINNDRIVEMODE | byte 8 | invalid 250 |
+| PARKINGSAFETYONOFF | byte 9 | invalid 250 |
+| AUTONMODSTA | byte 10 | invalid 250 |
+| FORWARDSIDESAFETY | byte 11 | invalid 250 |
+| SCC_ML_OnOffEquipSta | byte 12 | invalid 250 |
+| SCC_Char1Sta | byte 13 | invalid 250 |
+| SCC_Char2Sta | byte 14 | invalid 250 |
+| SCC_Char3Sta | byte 15 | invalid 250 |
+| LANESAFETYTYPENEW2_LDW | byte 16 | invalid 250 |
+| BLINDSPOTSAFETYWARNINGSOUND | byte 17 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "SMARTCRUISECONTROL"
+16-23: "SMARTCRUISECONTROL_ACCELERATION"
+24-31: "SMARTCRUISECONTROL_DISTANCE"
+32-39: "SMARTCRUISECONTROL_REACTIONSPEED"
+40-47: "?"
+48-55: "FORWARDCROSSTRAFFICSAFETY"
+56-63: "HIGHWAYLANECHANGEASSIST"
+64-71: "DRIVINGSAFETYAUTOOFFINNDRIVEMODE"
+72-79: "PARKINGSAFETYONOFF"
+80-87: "AUTONMODSTA"
+88-95: "FORWARDSIDESAFETY"
+96-103: "SCC_ML_OnOffEquipSta"
+104-111: "SCC_Char1Sta"
+112-119: "SCC_Char2Sta"
+120-127: "SCC_Char3Sta"
+128-135: "LANESAFETYTYPENEW2_LDW"
+136-143: "BLINDSPOTSAFETYWARNINGSOUND"
+```
+
 #### USM_Driver_Assi_SET_ETC_M_RESP
 
 cmd `0x26`, length ≥ 17 · 🟡 code
 
-> stock USM\$ table DriverAssistETC; the EV6 firmware answers its request (0x1126) in emulation with 17 bytes; ids 1-4 and 6-17 (no 5); id 17 BLINDSPOTSAFETYWARNINGSOUND would sit at byte 17, past the reply, so it is not read
+> stock USM\$ table DriverAssistETC; the EV6 firmware answers its request (0x1126) in emulation with 17 bytes; ids 1-4 and 6-17 (no 5); this firmware stops at byte 16, so id 17 BLINDSPOTSAFETYWARNINGSOUND is only in the 18-byte form above
 
 | Field | At | Notes |
 | --- | --- | --- |
@@ -2172,28 +2221,27 @@ packet-beta
 
 cmd `0x35`, length ≥ 10 · 🟡 code
 
-> stock USM\$ table DualLight; the EV6 firmware answers its request (0x1135) in emulation with 10 bytes; byte 0 is 02 here, not 0xfa, so it is left unnamed; id 100 MLMALL is the write-all id and has no byte
+> stock USMService.onEvent (0x9135): no item byte, three big-endian u16 colours then four bytes, the same layout whether byte 0 is 0xfa or not; the set (0x1135) is 9 bytes, type then three u16 with 0x0200 meaning unchanged, type 0xfa all; the EV6 firmware answers request 0x1135 in emulation with 10 bytes, the colours 0x0200 (unchanged)
 
-| Field | At | Notes |
+| Field | At | Type |
 | --- | --- | --- |
-| MLMBOTTOMRED | byte 1 | invalid 250 |
-| MLMBOTTOMGREEN | byte 2 | invalid 250 |
-| MLMBOTTOMBLUE | byte 3 | invalid 250 |
-| MLMSPEEDN | byte 4 | invalid 250 |
-| MLMCOLORN | byte 5 | invalid 250 |
-| MLMMODE | byte 6 | invalid 250 |
-| MLMRECOMMEND | byte 7 | invalid 250 |
+| MLMBOTTOMRED | byte 0 | u16 |
+| MLMBOTTOMGREEN | byte 2 | u16 |
+| MLMBOTTOMBLUE | byte 4 | u16 |
+| MLMSPEEDN | byte 6 |  |
+| MLMCOLORN | byte 7 |  |
+| MLMMODE | byte 8 |  |
+| MLMRECOMMEND | byte 9 |  |
 
 ```mermaid
 packet-beta
-0-7: "?"
-8-15: "MLMBOTTOMRED"
-16-23: "MLMBOTTOMGREEN"
-24-31: "MLMBOTTOMBLUE"
-32-39: "MLMSPEEDN"
-40-47: "MLMCOLORN"
-48-55: "MLMMODE"
-56-63: "MLMRECOMMEND"
+0-15: "MLMBOTTOMRED"
+16-31: "MLMBOTTOMGREEN"
+32-47: "MLMBOTTOMBLUE"
+48-55: "MLMSPEEDN"
+56-63: "MLMCOLORN"
+64-71: "MLMMODE"
+72-79: "MLMRECOMMEND"
 ```
 
 #### USM_HUD_SET_ON_OFF_M_RESP
