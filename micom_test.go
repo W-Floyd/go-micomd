@@ -638,3 +638,10 @@ func TestRunSendsAndReceives(t *testing.T) {
 		t.Errorf("Run = %v", err)
 	}
 }
+
+// Headers the tests send with.
+var (
+	hdrPoll  = [4]byte{0x88, 0x0c, 0x01, 0x0c}
+	hdrAck   = [4]byte{0x8f, 0x0d, 0x01, 0x0d}
+	hdrClock = [4]byte{0xc2, 0x43, 0x00, 0x43}
+)

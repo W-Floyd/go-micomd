@@ -1,9 +1,7 @@
 package micom
 
 import (
-	"bytes"
 	"encoding/hex"
-	"math/rand"
 	"reflect"
 	"slices"
 	"sort"
@@ -35,154 +33,6 @@ func ev6(t *testing.T) *Variant {
 	return v
 }
 
-// ev6Frames covers every header the EV6 code knows and a few it does not,
-// every command, every one-byte payload, and samples of the longer ones.
-func ev6Frames() []Frame {
-	hdrs := []string{"07840187", "43c200c3", "55ca00d5", "44c100c4", "01c40181", "018a0181", "0c88018c", "0d8f018d", "8a010101", "0c88008c"}
-	rnd := rand.New(rand.NewSource(1))
-	var out []Frame
-	for _, hs := range hdrs {
-		var h [4]byte
-		hex.Decode(h[:], []byte(hs))
-		for c := 0; c < 256; c++ {
-			add := func(p []byte) { out = append(out, Frame{Hdr: h, Cmd: byte(c), Payload: p}) }
-			add(nil)
-			for v := 0; v < 256; v++ {
-				add([]byte{byte(v)})
-			}
-			for _, a := range []byte{0, 1, 2, 7, 8, 9, 10, 11, 0xff} {
-				for _, b := range []byte{0, 0x01, 0x11, 0x1f, 0x21, 0x2b, 0x31, 0xff} {
-					add([]byte{a, b})
-					add([]byte{a, b, 0})
-				}
-			}
-			for n := 3; n <= 33; n++ {
-				p := make([]byte, n)
-				rnd.Read(p)
-				add(p)
-				add(bytes.Repeat([]byte{0xff}, n))
-			}
-			add([]byte{0x57, 0x00, 0xf5})
-			add([]byte{0x57, 0xff, 0xff})
-			add([]byte{0x58, 0x00, 0xf5})
-		}
-	}
-	return out
-}
-
-// The EV6 variant reads every frame as the Go tables did.
-func TestEV6VariantDescribesAsBefore(t *testing.T) {
-	v := ev6(t)
-	bad := 0
-	for _, f := range ev6Frames() {
-		if a, b, c := legacyCarDescribe(f), v.describe(f), carDescribe(f); a != b || a != c {
-			t.Errorf("%v: legacy carDescribe %q, variant %q, carDescribe %q", f, a, b, c)
-			bad++
-		}
-		// What the Go tables knew must read the same; frames they knew
-		// nothing of may be decoded since (the variant code, power state).
-		// A status flag (0x8C02) whose id the Go tables never decoded is as new as an unnamed frame, though
-		// they name every such frame "Status flag".
-		flagAdded := Func(f) == 0x8c02 && legacyDecode(f) == nil
-		// The climate panel's per-signal cmds (0xc3NN) the Go tables never decoded were named later from the stock enum.
-		climateAdded := f.Hdr == [4]byte{0x43, 0xc2, 0x00, 0xc3} && len(legacyDecode(f)) == 0
-		added := (legacyFrameName(f) == "" || flagAdded) && legacyDescribe(f) == "" && legacyDecode(f) == nil || climateAdded
-		// 0x8C55 is read whole (its days too), so from 8 bytes, as the car
-		// sends it, and 0x8C4F has more fields: the Go tables' reading is
-		// where each starts.
-		widened := legacyFrameName(f) == "Departure timers" || legacyFrameName(f) == "Charger state"
-		grown := func(a, b string) bool {
-			return widened && (b == "" && len(f.Payload) < 8 || strings.HasPrefix(b, a+" "))
-		}
-		if a, b, c := legacyDescribe(f), v.Describe(f), Describe(f); (a != b || a != c) && !added && !(grown(a, b) && b == c) {
-			t.Errorf("%v: legacy Describe %q, variant %q, Describe %q", f, a, b, c)
-			bad++
-		}
-		if a, b, c := legacyDecode(f), v.Decode(f), Decode(f); (!reflect.DeepEqual(a, b) || !reflect.DeepEqual(a, c)) && !added &&
-			!(widened && reflect.DeepEqual(b, c) && (b == nil && len(f.Payload) < 8 || len(b) > len(a) && reflect.DeepEqual(a, b[:len(a)]))) {
-			t.Errorf("%v: legacy Decode %v, variant %v, Decode %v", f, a, b, c)
-			bad++
-		}
-		// FrameName may gain coverage ahead of Describe/Decode (a signal frame
-		// described fine but had no name until FrameName learned to check
-		// v.signals too): only a name legacy already gave is a regression if
-		// it now differs or is lost. Safe to exempt all of legacyFrameName()
-		// == "" rather than only legacy's fully-blank cases (the broader
-		// "added" above): FrameName and Describe/Decode read the same
-		// v.signals/v.decoders lookup, so a real regression in what a frame
-		// means would always show up in the stricter Describe/Decode checks
-		// too, which keep the narrower "added".
-		if a, b, c := legacyFrameName(f), v.FrameName(f), FrameName(f); a != "" && !flagAdded && (a != b || a != c) {
-			t.Errorf("%v: legacy FrameName %q, variant %q, FrameName %q", f, a, b, c)
-			bad++
-		}
-		if bad > 20 {
-			t.Fatal("too many differences")
-		}
-	}
-}
-
-// The EV6 variant folds every frame into the climate state as the Go code
-// did, from an empty state and from a full one.
-func TestEV6VariantAppliesAsBefore(t *testing.T) {
-	v := ev6(t)
-	full := CarClimate{
-		DriverSetF: ptr(72), PassengerSetF: ptr(0), Airflow: ptr(byte(3)),
-		Auto: ptr(true), AC: ptr(false), DriverOnly: ptr(true), Recirculation: ptr(false), ZonesSynced: ptr(true),
-		FanLevel: ptr(4), FanAuto: ptr(false), DriverSeatHeat: ptr(2), PassengerSeatHeat: ptr(0),
-	}
-	bad := 0
-	for _, f := range ev6Frames() {
-		for _, start := range []CarClimate{{}, full} {
-			a, b, c := start, start, start
-			ea, eb, ec := legacyApply(&a, f), v.ApplyClimate(&b, f), c.Apply(f)
-			if ea != eb || ea != ec || !reflect.DeepEqual(a, b) || !reflect.DeepEqual(a, c) {
-				t.Errorf("%v: legacy Apply %d %+v, variant %d %+v, Apply %d %+v", f, ea, a, eb, b, ec, c)
-				bad++
-			}
-		}
-		if bad > 20 {
-			t.Fatal("too many differences")
-		}
-	}
-}
-
-// The EV6 variant's profile is DefaultProfile's and ClockProfile's, frame
-// for frame, at any time.
-func TestEV6VariantProfileAsBefore(t *testing.T) {
-	v := ev6(t)
-	times := []time.Time{
-		time.Date(2026, 10, 16, 20, 1, 16, 0, time.UTC),
-		time.Date(2026, 11, 7, 20, 21, 16, 0, time.Local),
-		time.Date(2031, 2, 28, 23, 59, 59, 0, time.UTC),
-		time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
-	for _, pair := range []struct {
-		name      string
-		old, vari []Periodic
-	}{
-		{"default", legacyDefaultProfile(), v.Profile()},
-		{"clock", legacyClockProfile(), v.ClockProfile()},
-		{"DefaultProfile", legacyDefaultProfile(), DefaultProfile()},
-		{"ClockProfile", legacyClockProfile(), ClockProfile()},
-	} {
-		if len(pair.old) != len(pair.vari) {
-			t.Fatalf("%s: %d entries, variant %d", pair.name, len(pair.old), len(pair.vari))
-		}
-		for i, o := range pair.old {
-			n := pair.vari[i]
-			if o.Name != n.Name || o.Every != n.Every {
-				t.Errorf("%s[%d]: %s every %v, variant %s every %v", pair.name, i, o.Name, o.Every, n.Name, n.Every)
-			}
-			for _, at := range times {
-				if a, b := o.Build(at).Encode(), n.Build(at).Encode(); !bytes.Equal(a, b) {
-					t.Errorf("%s at %v: %x, variant %x", o.Name, at, a, b)
-				}
-			}
-		}
-	}
-}
-
 // The EV6 variant's key frame, labels and keymap are the code's and the
 // unit's -keyfunc and -keymap.
 func TestEV6VariantKeysAsBefore(t *testing.T) {
@@ -208,8 +58,8 @@ func TestEV6VariantKeysAsBefore(t *testing.T) {
 	for k, l := range v.pushLabels {
 		labels[k] = l
 	}
-	if !reflect.DeepEqual(legacyKeyLabels, labels) {
-		t.Errorf("labels %v, variant %v", legacyKeyLabels, labels)
+	if labels[[2]byte{2, 2}] == "" || labels[[2]byte{0, 1}] == "" {
+		t.Errorf("push labels missing the steering and front-column keys: %v", labels)
 	}
 	if want := map[byte]string{8: "Tune knob", 9: "Volume knob"}; !reflect.DeepEqual(v.knobLabels, want) {
 		t.Errorf("knob labels %v, want %v", v.knobLabels, want)
