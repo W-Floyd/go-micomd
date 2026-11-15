@@ -82,7 +82,8 @@ headers:
       status: code,
       ref: "EV6 micom firmware V002.208, firmware emulation",
     }
-  # A node not otherwise captured: only ever seen reporting the gear.
+  # The camera node (CAM, 0x50; stock UNICameraProtocol): seen reporting the
+  # gear (VCU_GearPosSta, 0x4a); its other signals are in the messages.
   gear_node:
     {
       hdr: "50 c4 00 d0",
@@ -2251,6 +2252,724 @@ messages:
     min_interval: 1s
     status: code
     ref: "stock user brightness; micom firmware 0x081A handler; EEPROM trace under emulation"
+
+  # The nodes' other signals: stock's TE_RX_IL enums (BODY, UNIDatcProtocol,
+  # UNICameraProtocol), func = 0xc4NN / 0xc3NN / 0xd0NN with NN the enum's
+  # ordinal. Each carries the CAN signal's raw bits, right-aligned, so a
+  # 2-bit field holds 0-3; what the codes mean is in the stock services, not
+  # decoded here. Located by emulation: the firmware sends each frame when the
+  # CAN bits in its ref change.
+  - name: "DATC_TempUnit"
+    dir: from_micom
+    hdr: climate_panel
+    cmd: 0x0e
+    length: 1
+    fields:
+      - { name: "DATC_TempUnit", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 14 (func 0xc30e); the EV6 firmware sends it in emulation when CAN 0x382 byte 5 bits 0..1 changes"
+  - name: "CF_DATC_Option2"
+    dir: from_micom
+    hdr: climate_panel
+    cmd: 0x31
+    length: 1
+    fields:
+      - { name: "CF_DATC_Option2", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 49 (func 0xc331); the EV6 firmware sends it in emulation when CAN 0x3B2 byte 6 bits 0..3 changes"
+  - name: "DATC_WshFldUSMSta"
+    dir: from_micom
+    hdr: climate_panel
+    cmd: 0x3c
+    length: 1
+    fields:
+      - { name: "DATC_WshFldUSMSta", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 60 (func 0xc33c); the EV6 firmware sends it in emulation when CAN 0x427 byte 4 bits 6..7 changes"
+  - name: "DATC_FrontBlwAutoDisp"
+    dir: from_micom
+    hdr: climate_panel
+    cmd: 0x3f
+    length: 1
+    fields:
+      - { name: "DATC_FrontBlwAutoDisp", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 63 (func 0xc33f); the EV6 firmware sends it in emulation when CAN 0x384 byte 4 bits 6..7 changes"
+  - name: "CF_DATC_Option4"
+    dir: from_micom
+    hdr: climate_panel
+    cmd: 0x44
+    length: 1
+    fields:
+      - { name: "CF_DATC_Option4", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 68 (func 0xc344); the EV6 firmware sends it in emulation when CAN 0x3B2 byte 6 bits 4..7 changes"
+  - name: "DATC_ArClnSmblTyp"
+    dir: from_micom
+    hdr: climate_panel
+    cmd: 0x45
+    length: 1
+    fields:
+      - { name: "DATC_ArClnSmblTyp", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 69 (func 0xc345); the EV6 firmware sends it in emulation when CAN 0x3B1 byte 6 bits 0..2 changes"
+  - name: "DATC_ArClnStepClr"
+    dir: from_micom
+    hdr: climate_panel
+    cmd: 0x46
+    length: 1
+    fields:
+      - { name: "DATC_ArClnStepClr", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 70 (func 0xc346); the EV6 firmware sends it in emulation when CAN 0x3B1 byte 5 bits 4..7 changes"
+  - name: "DATC_ArClnSysOSD"
+    dir: from_micom
+    hdr: climate_panel
+    cmd: 0x47
+    length: 1
+    fields:
+      - { name: "DATC_ArClnSysOSD", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 71 (func 0xc347); the EV6 firmware sends it in emulation when CAN 0x3B1 byte 5 bits 0..3 changes"
+  - name: "DATC_Opt5Typ"
+    dir: from_micom
+    hdr: climate_panel
+    cmd: 0x4b
+    length: 1
+    fields:
+      - { name: "DATC_Opt5Typ", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 75 (func 0xc34b); the EV6 firmware sends it in emulation when CAN 0x42A byte 5 bits 4..7 changes"
+  - name: "DATC_AfterBlowUSMSta"
+    dir: from_micom
+    hdr: climate_panel
+    cmd: 0x4c
+    length: 1
+    fields:
+      - { name: "DATC_AfterBlowUSMSta", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 76 (func 0xc34c); the EV6 firmware sends it in emulation when CAN 0x3B1 byte 6 bits 4..5 changes"
+  - name: "DATC_ArClnIND"
+    dir: from_micom
+    hdr: climate_panel
+    cmd: 0x53
+    length: 1
+    fields:
+      - { name: "DATC_ArClnIND", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 83 (func 0xc353); the EV6 firmware sends it in emulation when CAN 0x383 byte 6 bits 6..7 changes"
+  - name: "DATC_Type2_NEW"
+    dir: from_micom
+    hdr: climate_panel
+    cmd: 0x55
+    length: 2
+    fields:
+      - { name: "DATC_Type2_NEW", off: 0, type: u16, endian: little }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 85 (func 0xc355); the EV6 firmware sends it in emulation when CAN 0x34B bytes 6..7 change (payload byte 0 is CAN byte 7)"
+  - name: "C_SMKTeleEngineRunning"
+    dir: from_micom
+    hdr: body
+    cmd: 0x09
+    length: 1
+    fields:
+      - { name: "C_SMKTeleEngineRunning", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 9 (func 0xc409); the EV6 firmware sends it in emulation when CAN 0x444 byte 7 bits 0..1 changes"
+  - name: "C_BAlarmState"
+    dir: from_micom
+    hdr: body
+    cmd: 0x0a
+    length: 1
+    fields:
+      - { name: "C_BAlarmState", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 10 (func 0xc40a); the EV6 firmware sends it in emulation when CAN 0x3E0 byte 2 bits 0..3 changes"
+  - name: "C_PanicState"
+    dir: from_micom
+    hdr: body
+    cmd: 0x0b
+    length: 1
+    fields:
+      - { name: "C_PanicState", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 11 (func 0xc40b); the EV6 firmware sends it in emulation when CAN 0x3E0 byte 2 bits 6..7 changes"
+  - name: "C_RrSeatRemindAlarm"
+    dir: from_micom
+    hdr: body
+    cmd: 0x12
+    length: 1
+    fields:
+      - { name: "C_RrSeatRemindAlarm", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 18 (func 0xc412); the EV6 firmware sends it in emulation when CAN 0x3C0 byte 4 bits 5..6 changes"
+  - name: "C_DrvSeatHeatOption"
+    dir: from_micom
+    hdr: body
+    cmd: 0x18
+    length: 1
+    fields:
+      - { name: "C_DrvSeatHeatOption", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 24 (func 0xc418); the EV6 firmware sends it in emulation when CAN 0x496 byte 0 bits 0..2 changes"
+  - name: "C_AstSeatHeatOption"
+    dir: from_micom
+    hdr: body
+    cmd: 0x1a
+    length: 1
+    fields:
+      - { name: "C_AstSeatHeatOption", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 26 (func 0xc41a); the EV6 firmware sends it in emulation when CAN 0x475 byte 0 bits 0..2 changes"
+  - name: "C_RLSeatHeatOption"
+    dir: from_micom
+    hdr: body
+    cmd: 0x1c
+    length: 1
+    fields:
+      - { name: "C_RLSeatHeatOption", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 28 (func 0xc41c); the EV6 firmware sends it in emulation when CAN 0x438 byte 0 bits 0..2 changes"
+  - name: "C_RRSeatHeatOption"
+    dir: from_micom
+    hdr: body
+    cmd: 0x1e
+    length: 1
+    fields:
+      - { name: "C_RRSeatHeatOption", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 30 (func 0xc41e); the EV6 firmware sends it in emulation when CAN 0x453 byte 0 bits 0..2 changes"
+  - name: "C_SafetyWDWOpt"
+    dir: from_micom
+    hdr: body
+    cmd: 0x2c
+    length: 1
+    fields:
+      - { name: "C_SafetyWDWOpt", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 44 (func 0xc42c); the EV6 firmware sends it in emulation when CAN 0x442 byte 3 bits 6..7 changes"
+  - name: "C_IMSOption"
+    dir: from_micom
+    hdr: body
+    cmd: 0x2d
+    length: 1
+    fields:
+      - { name: "C_IMSOption", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 45 (func 0xc42d); the EV6 firmware sends it in emulation when CAN 0x386 byte 1 bits 0..0 changes"
+  - name: "C_FOBBatteryStatusInfo"
+    dir: from_micom
+    hdr: body
+    cmd: 0x2f
+    length: 1
+    fields:
+      - { name: "C_FOBBatteryStatusInfo", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 47 (func 0xc42f); the EV6 firmware sends it in emulation when CAN 0x445 byte 3 bits 0..1 changes"
+  - name: "C_BrakeFluidSw"
+    dir: from_micom
+    hdr: body
+    cmd: 0x30
+    length: 1
+    fields:
+      - { name: "C_BrakeFluidSw", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 48 (func 0xc430); the EV6 firmware sends it in emulation when CAN 0x411 byte 4 bits 6..7 changes"
+  - name: "C_DrvWindowOpenState"
+    dir: from_micom
+    hdr: body
+    cmd: 0x31
+    length: 1
+    fields:
+      - { name: "C_DrvWindowOpenState", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 49 (func 0xc431); the EV6 firmware sends it in emulation when CAN 0x442 byte 4 bits 0..1 changes"
+  - name: "C_AstWindowOpenState"
+    dir: from_micom
+    hdr: body
+    cmd: 0x32
+    length: 1
+    fields:
+      - { name: "C_AstWindowOpenState", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 50 (func 0xc432); the EV6 firmware sends it in emulation when CAN 0x442 byte 4 bits 2..3 changes"
+  - name: "C_RLWindowOpenState"
+    dir: from_micom
+    hdr: body
+    cmd: 0x33
+    length: 1
+    fields:
+      - { name: "C_RLWindowOpenState", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 51 (func 0xc433); the EV6 firmware sends it in emulation when CAN 0x442 byte 4 bits 4..5 changes"
+  - name: "C_RRWindowOpenState"
+    dir: from_micom
+    hdr: body
+    cmd: 0x34
+    length: 1
+    fields:
+      - { name: "C_RRWindowOpenState", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 52 (func 0xc434); the EV6 firmware sends it in emulation when CAN 0x442 byte 4 bits 6..7 changes"
+  - name: "C_StrgWhlHeatingOpt"
+    dir: from_micom
+    hdr: body
+    cmd: 0x3b
+    length: 1
+    fields:
+      - { name: "C_StrgWhlHeatingOpt", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 59 (func 0xc43b); the EV6 firmware sends it in emulation when CAN 0x48F byte 4 bits 0..0 changes"
+  - name: "CCM_Evse_ID1"
+    dir: from_micom
+    hdr: body
+    cmd: 0x46
+    length: 5
+    fields:
+      - { name: "CCM_Evse_ID1", off: 0, type: str, size: 5, encoding: hex, endian: little }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 70 (func 0xc446); the EV6 firmware sends it in emulation when CAN 0x356 bytes 3..7 change (payload byte i is CAN byte 7-i, so little-endian hex reads in CAN order)"
+  - name: "CCM_Evse_ID2"
+    dir: from_micom
+    hdr: body
+    cmd: 0x47
+    length: 5
+    fields:
+      - { name: "CCM_Evse_ID2", off: 0, type: str, size: 5, encoding: hex, endian: little }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 71 (func 0xc447); the EV6 firmware sends it in emulation when CAN 0x357 bytes 0..4 change (payload byte i is CAN byte 4-i, so little-endian hex reads in CAN order)"
+  - name: "CDM_HS_OptTyp"
+    dir: from_micom
+    hdr: body
+    cmd: 0x48
+    length: 1
+    fields:
+      - { name: "CDM_HS_OptTyp", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 72 (func 0xc448); the EV6 firmware sends it in emulation when CAN 0x3AA byte 4 bits 6..7 changes"
+  - name: "CDM_HS_WarnMsg"
+    dir: from_micom
+    hdr: body
+    cmd: 0x4a
+    length: 1
+    fields:
+      - { name: "CDM_HS_WarnMsg", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 74 (func 0xc44a); the EV6 firmware sends it in emulation when CAN 0x3AA byte 4 bits 4..5 changes"
+  - name: "ICU_BattAutoCutPreWrng"
+    dir: from_micom
+    hdr: body
+    cmd: 0x4b
+    length: 1
+    fields:
+      - { name: "ICU_BattAutoCutPreWrng", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 75 (func 0xc44b); the EV6 firmware sends it in emulation when CAN 0x48F byte 4 bits 4..5 changes"
+  - name: "ICU_BattMngAlert"
+    dir: from_micom
+    hdr: body
+    cmd: 0x4c
+    length: 1
+    fields:
+      - { name: "ICU_BattMngAlert", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 76 (func 0xc44c); the EV6 firmware sends it in emulation when CAN 0x405 byte 6 bits 0..7 changes"
+  - name: "ROA_RrStRmndAlrm"
+    dir: from_micom
+    hdr: body
+    cmd: 0x4d
+    length: 1
+    fields:
+      - { name: "ROA_RrStRmndAlrm", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 77 (func 0xc44d); the EV6 firmware sends it in emulation when CAN 0x3C0 byte 3 bits 0..2 changes"
+  - name: "IBU_RrStRmndAlrmSta"
+    dir: from_micom
+    hdr: body
+    cmd: 0x4e
+    length: 1
+    fields:
+      - { name: "IBU_RrStRmndAlrmSta", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 78 (func 0xc44e); the EV6 firmware sends it in emulation when CAN 0x3E2 byte 5 bits 6..7 changes"
+  - name: "Warn_ROA_RrStRmndSysSta"
+    dir: from_micom
+    hdr: body
+    cmd: 0x4f
+    length: 1
+    fields:
+      - { name: "Warn_ROA_RrStRmndSysSta", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 79 (func 0xc44f); the EV6 firmware sends it in emulation when CAN 0x3C0 byte 3 bits 6..7 changes"
+  - name: "C_SafetyWDWOpt2"
+    dir: from_micom
+    hdr: body
+    cmd: 0x55
+    length: 1
+    fields:
+      - { name: "C_SafetyWDWOpt2", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 85 (func 0xc455); the EV6 firmware sends it in emulation when CAN 0xFF byte 6 bits 1..3 changes"
+  - name: "VCMS_ChgPwrDerating"
+    dir: from_micom
+    hdr: body
+    cmd: 0x5a
+    length: 1
+    fields:
+      - { name: "VCMS_ChgPwrDerating", off: 0 }
+    status: code
+    ref: "stock BODY TE_RX_IL ordinal 90 (func 0xc45a); the EV6 firmware sends it in emulation when CAN 0x30C byte 0 bits 0..1 changes"
+  - name: "AVM_Option"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x07
+    length: 1
+    fields:
+      - { name: "AVM_Option", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 7 (func 0xd007); the EV6 firmware sends it in emulation when CAN 0x477 byte 4 bits 0..3 changes"
+  - name: "AVM_Btn_Show"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x0c
+    length: 1
+    fields:
+      - { name: "AVM_Btn_Show", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 12 (func 0xd00c); the EV6 firmware sends it in emulation when CAN 0x477 byte 4 bits 4..5 changes"
+  - name: "Lamp_RrTrnSigLmpLftOpnSta"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x12
+    length: 1
+    fields:
+      - { name: "Lamp_RrTrnSigLmpLftOpnSta", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 18 (func 0xd012); the EV6 firmware sends it in emulation when CAN 0x416 byte 6 bits 2..3 changes"
+  - name: "Lamp_RrTrnSigLmpRtOpnSta"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x13
+    length: 1
+    fields:
+      - { name: "Lamp_RrTrnSigLmpRtOpnSta", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 19 (func 0xd013); the EV6 firmware sends it in emulation when CAN 0x416 byte 6 bits 4..5 changes"
+  - name: "Lamp_FrTrnSigLmpLftOpnSta"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x14
+    length: 1
+    fields:
+      - { name: "Lamp_FrTrnSigLmpLftOpnSta", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 20 (func 0xd014); the EV6 firmware sends it in emulation when CAN 0x416 byte 6 bits 6..7 changes"
+  - name: "Lamp_FrTrnSigLmpRtOpnSta"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x15
+    length: 1
+    fields:
+      - { name: "Lamp_FrTrnSigLmpRtOpnSta", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 21 (func 0xd015); the EV6 firmware sends it in emulation when CAN 0x416 byte 7 bits 0..1 changes"
+  - name: "SVM_CaptureModeState"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x16
+    length: 1
+    fields:
+      - { name: "SVM_CaptureModeState", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 22 (func 0xd016); the EV6 firmware sends it in emulation when CAN 0x409 byte 0 bits 6..7 changes"
+  - name: "SVM_CaptureModeViewState"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x17
+    length: 1
+    fields:
+      - { name: "SVM_CaptureModeViewState", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 23 (func 0xd017); the EV6 firmware sends it in emulation when CAN 0x409 byte 7 bits 0..2 changes"
+  - name: "SVM_Typ"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x18
+    length: 1
+    fields:
+      - { name: "SVM_Typ", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 24 (func 0xd018); the EV6 firmware sends it in emulation when CAN 0x409 byte 0 bits 0..3 changes"
+  - name: "SVM_Typ2"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x19
+    length: 1
+    fields:
+      - { name: "SVM_Typ2", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 25 (func 0xd019); the EV6 firmware sends it in emulation when CAN 0x409 byte 7 bits 3..6 changes"
+  - name: "SVM_PhoneLimitFR_YawLft"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x26
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitFR_YawLft", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 38 (func 0xd026); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 0 bits 0..5 changes"
+  - name: "SVM_PhoneLimitFR_YawRt"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x27
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitFR_YawRt", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 39 (func 0xd027); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 0 bits 6..7 changes"
+  - name: "SVM_PhoneLimitFR_TiltUp"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x28
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitFR_TiltUp", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 40 (func 0xd028); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 1 bits 4..7 changes"
+  - name: "SVM_PhoneLimitFR_TiltDnCtr"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x29
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitFR_TiltDnCtr", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 41 (func 0xd029); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 2 bits 2..7 changes"
+  - name: "SVM_PhoneLimitFR_TiltDnLft"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x2a
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitFR_TiltDnLft", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 42 (func 0xd02a); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 3 bits 0..5 changes"
+  - name: "SVM_PhoneLimitFR_TiltDnRt"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x2b
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitFR_TiltDnRt", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 43 (func 0xd02b); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 3 bits 6..7 changes"
+  - name: "SVM_PhoneLimitRR_YawLft"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x2c
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitRR_YawLft", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 44 (func 0xd02c); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 0 bits 0..5 changes"
+  - name: "SVM_PhoneLimitRR_YawRt"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x2d
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitRR_YawRt", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 45 (func 0xd02d); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 0 bits 6..7 changes"
+  - name: "SVM_PhoneLimitRR_TiltUp"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x2e
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitRR_TiltUp", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 46 (func 0xd02e); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 1 bits 4..7 changes"
+  - name: "SVM_PhoneLimitRR_TiltDnCtr"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x2f
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitRR_TiltDnCtr", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 47 (func 0xd02f); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 2 bits 2..7 changes"
+  - name: "SVM_PhoneLimitRR_TiltDnLft"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x30
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitRR_TiltDnLft", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 48 (func 0xd030); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 3 bits 0..5 changes"
+  - name: "SVM_PhoneLimitRR_TiltDnRt"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x31
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitRR_TiltDnRt", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 49 (func 0xd031); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 3 bits 6..7 changes"
+  - name: "SVM_PhoneLimitLH_YawLft"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x32
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitLH_YawLft", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 50 (func 0xd032); the EV6 firmware sends it in emulation when CAN 0x3AC byte 0 bits 0..5 changes"
+  - name: "SVM_PhoneLimitLH_YawRt"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x33
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitLH_YawRt", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 51 (func 0xd033); the EV6 firmware sends it in emulation when CAN 0x3AC byte 0 bits 6..7 changes"
+  - name: "SVM_PhoneLimitLH_TiltUp"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x34
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitLH_TiltUp", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 52 (func 0xd034); the EV6 firmware sends it in emulation when CAN 0x3AC byte 1 bits 4..7 changes"
+  - name: "SVM_PhoneLimitLH_TiltDnCtr"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x35
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitLH_TiltDnCtr", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 53 (func 0xd035); the EV6 firmware sends it in emulation when CAN 0x3AC byte 2 bits 2..7 changes"
+  - name: "SVM_PhoneLimitLH_TiltDnLft"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x36
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitLH_TiltDnLft", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 54 (func 0xd036); the EV6 firmware sends it in emulation when CAN 0x3AC byte 3 bits 0..5 changes"
+  - name: "SVM_PhoneLimitLH_TiltDnRt"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x37
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitLH_TiltDnRt", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 55 (func 0xd037); the EV6 firmware sends it in emulation when CAN 0x3AC byte 3 bits 6..7 changes"
+  - name: "SVM_PhoneLimitRH_YawLft"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x38
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitRH_YawLft", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 56 (func 0xd038); the EV6 firmware sends it in emulation when CAN 0x3AD byte 0 bits 0..5 changes"
+  - name: "SVM_PhoneLimitRH_YawRt"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x39
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitRH_YawRt", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 57 (func 0xd039); the EV6 firmware sends it in emulation when CAN 0x3AD byte 0 bits 6..7 changes"
+  - name: "SVM_PhoneLimitRH_TiltUp"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x3a
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitRH_TiltUp", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 58 (func 0xd03a); the EV6 firmware sends it in emulation when CAN 0x3AD byte 1 bits 4..7 changes"
+  - name: "SVM_PhoneLimitRH_TiltDnCtr"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x3b
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitRH_TiltDnCtr", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 59 (func 0xd03b); the EV6 firmware sends it in emulation when CAN 0x3AD byte 2 bits 2..7 changes"
+  - name: "SVM_PhoneLimitRH_TiltDnLft"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x3c
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitRH_TiltDnLft", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 60 (func 0xd03c); the EV6 firmware sends it in emulation when CAN 0x3AD byte 3 bits 0..5 changes"
+  - name: "SVM_PhoneLimitRH_TiltDnRt"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x3d
+    length: 1
+    fields:
+      - { name: "SVM_PhoneLimitRH_TiltDnRt", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 61 (func 0xd03d); the EV6 firmware sends it in emulation when CAN 0x3AD byte 3 bits 6..7 changes"
+  - name: "AVM_ZoomBtn_State"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x3e
+    length: 1
+    fields:
+      - { name: "AVM_ZoomBtn_State", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 62 (func 0xd03e); the EV6 firmware sends it in emulation when CAN 0x409 byte 0 bits 4..5 changes"
+  - name: "Mirror_OSMirFldOpt"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x3f
+    length: 1
+    fields:
+      - { name: "Mirror_OSMirFldOpt", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 63 (func 0xd03f); the EV6 firmware sends it in emulation when CAN 0x401 byte 2 bits 0..1 changes"
+  - name: "SVM_FrViewBtn_Sta"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x42
+    length: 1
+    fields:
+      - { name: "SVM_FrViewBtn_Sta", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 66 (func 0xd042); the EV6 firmware sends it in emulation when CAN 0x476 byte 2 bits 0..2 changes"
+  - name: "SVM_RrViewBtn_Sta"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x43
+    length: 1
+    fields:
+      - { name: "SVM_RrViewBtn_Sta", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 67 (func 0xd043); the EV6 firmware sends it in emulation when CAN 0x476 byte 2 bits 3..5 changes"
+  - name: "SVM_DRVViewBtn_Sta"
+    dir: from_micom
+    hdr: gear_node
+    cmd: 0x44
+    length: 1
+    fields:
+      - { name: "SVM_DRVViewBtn_Sta", off: 0 }
+    status: code
+    ref: "stock UNICameraProtocol TE_RX_IL ordinal 68 (func 0xd044); the EV6 firmware sends it in emulation when CAN 0x476 byte 2 bits 6..7 changes"
 
 # The power and backlight tables of the micom firmware.
 enums:
