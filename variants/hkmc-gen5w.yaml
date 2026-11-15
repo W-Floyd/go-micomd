@@ -1547,18 +1547,28 @@ messages:
     cmd: 0x13
     min_length: 14
     fields:
-      - { name: "Byte0", off: 0 }
+      - { name: "PhonePairingRValue", off: 0, invalid: 0xfa }
+      - { name: "IMSPairingErr", off: 1, invalid: 0xfa }
+      - { name: "NFC_BD_Addr_exist_result", off: 2, invalid: 0xfa }
+      - { name: "NFC_Support_result", off: 3, invalid: 0xfa }
+      - { name: "NFCCard1RValue", off: 10, invalid: 0xfa }
+      - { name: "NFCCard2RValue", off: 11, invalid: 0xfa }
+      - { name: "Owner_PhoneRValue", off: 12, invalid: 0xfa }
+      - { name: "DigitalKeyEnableRValue", off: 13, invalid: 0xfa }
     status: code
-    ref: "no stock table; the EV6 firmware answers its request (0x1113) in emulation with 14 bytes; named _REQ in the stock table although it is micom to SoC"
+    ref: "stock USMService.onEvent, UserProfile fields in log order (byte-to-field pairing is that order, not a setter name); bytes 4-9 are the NFC BD address, big-endian 6 bytes, unread; the EV6 firmware answers request 0x1113 in emulation with 14 bytes; named _REQ in the stock table although it is micom to SoC"
   - name: "USM_UserProfile_ALL_NFC_1_M_REQ"
     dir: from_micom
     hdr: "11 92 ?? 91"
     cmd: 0x14
     min_length: 10
     fields:
-      - { name: "Item", off: 0 }
+      - { name: "IMSRValue", off: 0, invalid: 0xfa }
+      - { name: "IDRValue", off: 1, invalid: 0xfa }
+      - { name: "DigitalKeyExit", off: 8, invalid: 0xfa }
+      - { name: "DigitalKeyGuide", off: 9, invalid: 0xfa }
     status: code
-    ref: "no stock table; the EV6 firmware answers its request (0x1114) in emulation with 10 bytes; named _REQ in the stock table although it is micom to SoC"
+    ref: "stock USMService.onEvent, UserProfile fields in log order; bytes 2-7 are a number the SoC formats as hex, little-endian 3+3 bytes, unread; the EV6 firmware answers request 0x1114 in emulation with 10 bytes; named _REQ in the stock table although it is micom to SoC"
   - name: "USM_DigitalKey_Info_M_RESP"
     dir: from_micom
     hdr: "11 92 ?? 91"
@@ -1566,8 +1576,15 @@ messages:
     min_length: 14
     fields:
       - { name: "Item", off: 0 }
+      - { name: "Manufacturer", off: 1 }
+      - { name: "Serial", off: 2, type: u24 }
+      - { name: "VendorCode high", off: 5, type: u16 }
+      - { name: "VendorCode low", off: 7, type: u16 }
+      - { name: "Year", off: 9, type: u16 }
+      - { name: "Month", off: 11 }
+      - { name: "Date", off: 12, type: u16 }
     status: code
-    ref: "no stock table; the EV6 firmware answers its request (0x111e) in emulation with 14 bytes; stock strings Manufacturer, Serial, VendorCode and Date/Month/Year are unplaced"
+    ref: "stock USMService.onEvent: Item 1-6 (or 0xfa for all) says which of Manufacturer, Serial, VendorCode, Year, Month, Date the reply carries, each big-endian at its own offset (VendorCode as two u16, no 32-bit field is allowed from the micom); the string fields are the stock hex of those bytes; Year, Month and Date indices are from the getters, the three strings are assumed in that order; the EV6 firmware answers request 0x111e in emulation with 14 bytes"
   - name: "USM_UserProfile_Rx_NFC_2_M_RESP"
     dir: from_micom
     hdr: "11 92 ?? 91"
@@ -1576,7 +1593,7 @@ messages:
     fields:
       - { name: "Byte0", off: 0 }
     status: code
-    ref: "no stock table; the EV6 firmware answers its request (0x111f) in emulation with 8 bytes"
+    ref: "stock USMService.onEvent: all 8 bytes are UserProfile PhoneNumber, little-endian, which the SoC formats as hex (%08X of bytes 0-3, then %X of bytes 4-7), so Byte0 is only a placeholder; the EV6 firmware answers request 0x111f in emulation with 8 bytes"
 # SystemService requests that reset, rewrite or reconfigure the micom. They are
 # on the system header (sendPacket(0x8a, 1, func)); the `dangerous` string marks
 # each so it is documented here yet refused on every path unless -allow-dangerous
