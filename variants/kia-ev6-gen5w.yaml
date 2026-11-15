@@ -1644,6 +1644,9 @@ messages:
       - { name: "IGN1", off: 0, type: bool }
     status: captured
     ref: "stock SYS_IGN_STATUS_M (0x810a); 00 at ACC off, 01 at ACC on, 2026-11 captures; micom firmware FUN_00062f9c"
+    examples:
+      - { payload: "00", expect: { "IGN1": 0 } }
+      - { payload: "01", expect: { "IGN1": 1 } }
   - name: "Vehicle ready"
     dir: from_micom
     hdr: system_rx
@@ -1964,6 +1967,8 @@ messages:
       - { name: "Range (mi)", off: 1, type: u16, unit: " mi" }
     status: captured
     ref: "02 00 75 00 bc against the cluster's 117 mi"
+    examples:
+      - { payload: "02007500bc", expect: { "Range (mi)": 117, "Range": 188 } }
   # The sign the cluster shows, 5 Hz; 0 when none. Byte 4 repeats at 5 and is
   # 2 * mph - 10 (an unknown unit). Byte 15 (0x10 mostly while a sign shows)
   # and bytes 18-19 (brief 83 01, a3 03, 63 03) are unknown; bytes 0-2 are a
@@ -1992,6 +1997,8 @@ messages:
         }
     status: captured
     ref: "06 c4 0c (44340.4 km) against the cluster's 27551 mi"
+    examples:
+      - { payload: "06c40c", expect: { "Odometer": 44340.4 } }
   # °F + 40 in one byte.
   - name: "Outdoor temperature"
     dir: from_micom
@@ -2009,6 +2016,8 @@ messages:
       - { name: "Outdoor temperature (F)", off: 0, offset: -40, unit: " F" }
     status: captured
     ref: "5e against the cluster's 54 F"
+    examples:
+      - { payload: "5e", expect: { "Outdoor temperature": 12.2222, "Outdoor temperature (F)": 54 } }
   # A second speed, in whole km/h; it follows the one Car Scanner reads
   # from the climate module over OBD2 ("[HVAC] Real Vehicle Speed", r
   # 0.98), whatever its source here. Neither is the true speed: against
@@ -2103,6 +2112,8 @@ messages:
       - { name: "Charging power", off: 1, type: u16, scale: 0.1, unit: " kW" }
     status: captured
     ref: "AC charge 2026-11-12: 5b 00 48 against the pack's remaining energy (+1.51 kWh in 16 min) and a 30 A wallbox"
+    examples:
+      - { payload: "5b0048", expect: { "Charging power": 7.2 } }
   # Item 0x1b: 1 as the cable went in (52 s after the charge port opened),
   # 0 for 50 s while the car's modules woke (the ranges read 0 then came
   # back), 1 again 6 s before charging began, through the charge. An
@@ -2117,6 +2128,8 @@ messages:
       - { name: "Charging cable connected", off: 2 }
     status: captured
     ref: "AC charge 2026-11-12: 1b 00 01 at plug-in; with it, not decoded: 0x3e (02 at plug-in, then 0d; 08 once charging), 0x3f, 0x1c, 0x3a (01 by the time it charged)"
+    examples:
+      - { payload: "1b0001", expect: { "Charging cable connected": 1 } }
 
   # Replies to the start-up reads. Each snapshot byte is the value its
   # single-signal frame carries (micom-livi splits them back into those).

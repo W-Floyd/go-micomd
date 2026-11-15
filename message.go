@@ -46,9 +46,20 @@ type rawMessage struct {
 	// field.
 	Requires []rawRequire `yaml:"requires,omitempty"`
 	Status   string       `yaml:"status,omitempty"`
+	// Examples are payloads with the values a from_micom message must read
+	// from them, checked by the tests (TestExamples).
+	Examples []rawExample `yaml:"examples,omitempty"`
 	Ref      string       `yaml:"ref,omitempty"`
 	Note     string       `yaml:"note,omitempty"`
 	Remove   bool         `yaml:"remove,omitempty"`
+}
+
+// rawExample is a hex payload and the fields it must decode to: a number
+// (the exact Float if the field has one, else Value), a string (Text), or
+// "n/a" (the field's invalid marker).
+type rawExample struct {
+	Payload string         `yaml:"payload"`
+	Expect  map[string]any `yaml:"expect"`
 }
 
 type rawMsgField struct {

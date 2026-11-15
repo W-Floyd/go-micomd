@@ -583,7 +583,15 @@ describes.
   and backlight frames as the emulated firmware sent them; the shutdown acks refused
   before any power state, at 5/4/3, and after ACC returns, and sent at their
   own; which messages each gate admits.
-- The EV6 equivalence tests: what the Go tables read is read the same.
+- `TestExamples`: a from_micom message's `examples:` (a hex `payload` and the
+  fields it must read as: a number, a string for Text, or `"n/a"`). Put one on
+  every message whose value you have seen against something real, with the
+  evidence in `ref`.
+- `TestGolden`: every frame in `testdata/corpus.txt` (replies of emulated
+  micoms, built by `go run ./cmd/mkcorpus` from the scratch emulator caches) and a zero frame of every from_micom
+  message, each as `FrameName` and `Describe` read it, against
+  `testdata/golden-<variant>.txt`. After a deliberate change run
+  `go test -run TestGolden -update` and read the diff in review.
 
 ## Open questions
 - **Power, from a car**: the EEPROM's power settings and timers, what stock

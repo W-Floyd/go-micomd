@@ -375,8 +375,8 @@ gives a Daemon another car.
 The EV6's Go tables were moved to `kia-ev6-gen5w.yaml`, with HEVService's
 layouts in `hkmc-gen5w-ev.yaml`. For the move, the Go code they replaced was
 kept as `legacy_test.go` and every header, command and one-byte payload was
-read both ways; that oracle is gone, and `micom_test.go` and the spec tests
-now hold the expected readings. `variant_ev6_test.go` still checks that the
+read both ways; that oracle is gone, and `examples:` in the messages
+(`TestExamples`) and the golden files in `testdata/` (`TestGolden`) now hold the expected readings. `variant_ev6_test.go` still checks that the
 keymap, key frame and allowlist equal the device unit's flags.
 
 Running these tests turned up three quirks the data keeps:
