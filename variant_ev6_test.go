@@ -84,7 +84,9 @@ func TestEV6VariantDescribesAsBefore(t *testing.T) {
 		// A status flag (0x8C02) whose id the Go tables never decoded is as new as an unnamed frame, though
 		// they name every such frame "Status flag".
 		flagAdded := Func(f) == 0x8c02 && legacyDecode(f) == nil
-		added := (legacyFrameName(f) == "" || flagAdded) && legacyDescribe(f) == "" && legacyDecode(f) == nil
+		// The climate panel's per-signal cmds (0xc3NN) the Go tables never decoded were named later from the stock enum.
+		climateAdded := f.Hdr == [4]byte{0x43, 0xc2, 0x00, 0xc3} && len(legacyDecode(f)) == 0
+		added := (legacyFrameName(f) == "" || flagAdded) && legacyDescribe(f) == "" && legacyDecode(f) == nil || climateAdded
 		// 0x8C55 is read whole (its days too), so from 8 bytes, as the car
 		// sends it, and 0x8C4F has more fields: the Go tables' reading is
 		// where each starts.

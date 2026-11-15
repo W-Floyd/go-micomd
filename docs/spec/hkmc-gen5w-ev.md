@@ -38,7 +38,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 3 |
-| 🟡 code | 162 |
+| 🟡 code | 184 |
 
 Not yet backed by a capture:
 
@@ -121,6 +121,28 @@ Not yet backed by a capture:
 | USM_UserProfile_ALL_NFC_1_M_RESP | `11 92 ?? 91` | 0x14 | 🟡 code | stock USMService.onEvent, byte-to-field pairing from the odex iput-quick field offsets, resolved against USMService's field layout; bytes 2-7 (strUserProfile_PhoneNumberOnWPC) are a number the SoC formats as hex (%06X of bytes 2-4, %X of bytes 5-7, each little-endian), shown as two halves; the EV6 firmware answers request 0x1114 in emulation with 10 bytes; stock name is USM_UserProfile_ALL_NFC_1_M_REQ although it is micom to SoC |
 | USM_DigitalKey_Info_M_RESP | `11 92 ?? 91` | 0x1e | 🟡 code | stock USMService.onEvent: Item 1-6 (or 0xfa for all) says which of Manufacturer (byte 1), VendorCode (bytes 2-4), Serial (bytes 5-8), Year, Month, Date the reply carries, each big-endian at its own offset; the string fields are the stock hex of those bytes; the field per offset is from the odex iput-quick offsets resolved against USMService's field layout (VendorCode precedes Serial); the EV6 firmware answers request 0x111e in emulation with 14 bytes |
 | USM_UserProfile_Rx_NFC_2_M_RESP | `11 92 ?? 91` | 0x1f | 🟡 code | stock USMService.onEvent: all 8 bytes are UserProfile PhoneNumber, little-endian, which the SoC formats as hex (%08X of bytes 0-3, then %X of bytes 4-7), shown as two halves; the stock's %X drops leading zeros, these halves keep them; the EV6 firmware answers request 0x111f in emulation with 8 bytes |
+| DATC_Clu_OutTempC | `43 c2 00 c3` | 0x01 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 1 (func 0xc301); the EV6 firmware sends it in emulation when CAN 0x226 byte 3 bits 0..7 changes; other builds: DE_22_E CAN 0x1DF byte 0 bits 0..7; TM_PE_H CAN 0x1DF byte 0 bits 0..7; MQ4_22_P CAN 0x1DF byte 0 bits 0..7; SK3_22_E CAN 0x1DF byte 0 bits 0..7 |
+| DATC_DrTempDispC | `43 c2 00 c3` | 0x05 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 5 (func 0xc305); the DE_22_E firmware sends it in emulation when CAN 0x131 byte 0 bits 0..7 changes; same source in TM_PE_H, SK3_22_E |
+| DATC_DrTempDispF | `43 c2 00 c3` | 0x07 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 7 (func 0xc307); the DE_22_E firmware sends it in emulation when CAN 0x131 byte 2 bits 0..7 changes; same source in TM_PE_H, SK3_22_E |
+| DATC_PsTempDispC | `43 c2 00 c3` | 0x09 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 9 (func 0xc309); the TM_PE_H firmware sends it in emulation when CAN 0x131 byte 4 bits 0..7 changes |
+| DATC_PsTempDispF | `43 c2 00 c3` | 0x0b | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 11 (func 0xc30b); the TM_PE_H firmware sends it in emulation when CAN 0x131 byte 6 bits 0..7 changes |
+| DATC_ModeDisp | `43 c2 00 c3` | 0x0d | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 13 (func 0xc30d); the DE_22_E firmware sends it in emulation when CAN 0x132 byte 0 bits 0..3 changes; same source in TM_PE_H, SK3_22_E |
+| DATC_AutoDisp | `43 c2 00 c3` | 0x0f | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 15 (func 0xc30f); the DE_22_E firmware sends it in emulation when CAN 0x132 byte 1 bits 0..1 changes; same source in TM_PE_H, SK3_22_E |
+| DATC_AcDisp | `43 c2 00 c3` | 0x11 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 17 (func 0xc311); the DE_22_E firmware sends it in emulation when CAN 0x132 byte 2 bits 0..1 changes; same source in TM_PE_H, SK3_22_E |
+| DATC_OpSts | `43 c2 00 c3` | 0x12 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 18 (func 0xc312); the EV6 firmware sends it in emulation when CAN 0x383 byte 4 bits 0..2 changes; same source in NE1_E (Ioniq 5) |
+| DATC_AutoDefogBlink | `43 c2 00 c3` | 0x14 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 20 (func 0xc314); the DE_22_E firmware sends it in emulation when CAN 0x132 byte 5 bits 0..1 changes; same source in TM_PE_H, SK3_22_E |
+| DATC_MainBlowerDisp | `43 c2 00 c3` | 0x15 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 21 (func 0xc315); the EV6 firmware sends it in emulation when CAN 0x384 byte 3 bits 0..3 changes; other builds: DE_22_E CAN 0x132 byte 7 bits 0..3; TM_PE_H CAN 0x132 byte 7 bits 0..3; SK3_22_E CAN 0x132 byte 7 bits 0..3 |
+| DATC_AirCleaningSystemStatus | `43 c2 00 c3` | 0x1a | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 26 (func 0xc31a); the MQ4_22_P firmware sends it in emulation when CAN 0x32D byte 3 bits 0..1 changes |
+| DATC_SelfDiagDisp | `43 c2 00 c3` | 0x21 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 33 (func 0xc321); the EV6 firmware sends it in emulation when CAN 0x384 byte 5 bits 0..7 changes; other builds: DE_22_E CAN 0x133 byte 1 bits 0..7; TM_PE_H CAN 0x133 byte 1 bits 0..7; SK3_22_E CAN 0x133 byte 1 bits 0..7 |
+| DATC_DiagMode | `43 c2 00 c3` | 0x22 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 34 (func 0xc322); the DE_22_E firmware sends it in emulation when CAN 0x133 byte 0 bits 0..1 changes; same source in TM_PE_H, SK3_22_E |
+| DATC_Variant | `43 c2 00 c3` | 0x26 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 38 (func 0xc326); the DE_22_E firmware sends it in emulation when CAN 0x133 byte 7 bits 0..7 changes; same source in TM_PE_H, SK3_22_E |
+| DATC_SyncDisp | `43 c2 00 c3` | 0x27 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 39 (func 0xc327); the TM_PE_H firmware sends it in emulation when CAN 0x134 byte 3 bits 0..3 changes |
+| CF_DATC_Option1 | `43 c2 00 c3` | 0x30 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 48 (func 0xc330); the DE_22_E firmware sends it in emulation when CAN 0x135 byte 4 bits 0..7 changes; same source in TM_PE_H, SK3_22_E |
+| DATC_HeatDisp | `43 c2 00 c3` | 0x33 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 51 (func 0xc333); the EV6 firmware sends it in emulation when CAN 0x384 byte 4 bits 0..1 changes |
+| CF_DATC_Option3 | `43 c2 00 c3` | 0x39 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 57 (func 0xc339); the DE_22_E firmware sends it in emulation when CAN 0x135 byte 6 bits 0..7 changes; same source in TM_PE_H |
+| CF_Datc_DefLogic_USM_State | `43 c2 00 c3` | 0x3b | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 59 (func 0xc33b); the EV6 firmware sends it in emulation when CAN 0x427 byte 5 bits 0..1 changes; other builds: DE_22_E CAN 0x134 byte 0 bits 0..1 |
+| DATC_MltAutoBlrTxt | `43 c2 00 c3` | 0x4f | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 79 (func 0xc34f); the EV6 firmware sends it in emulation when CAN 0x42A byte 3 bits 0..2 changes; same source in NE1_E (Ioniq 5) |
+| DATC_AutoStep | `43 c2 00 c3` | 0x50 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 80 (func 0xc350); the EV6 firmware sends it in emulation when CAN 0x384 byte 7 bits 0..3 changes; same source in NE1_E (Ioniq 5) |
 | Status flag | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService status-flag setter; seen live as 57 00 NN |
 | Charge time estimate, DC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x0e QC_REM_TIME: a DC fast charge's time to full, while not charging; 10-41 seen |
 | Charge time estimate, AC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x13 SC_REM_TIME_EVSE_PHEV, an EV's NOT_CHAR_EVSE_REM_TIME (CAN DB generation > 0): a wallbox's time to full, while not charging; 20-220 seen, rising as the charge fell |
@@ -2493,6 +2515,340 @@ cmd `0x1f`, length ≥ 8 · 🟡 code
 packet-beta
 0-31: "PhoneNumber low"
 32-63: "PhoneNumber high"
+```
+
+### 43 c2 00 c3
+
+
+
+#### DATC_Clu_OutTempC
+
+cmd `0x01`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 1 (func 0xc301); the EV6 firmware sends it in emulation when CAN 0x226 byte 3 bits 0..7 changes; other builds: DE_22_E CAN 0x1DF byte 0 bits 0..7; TM_PE_H CAN 0x1DF byte 0 bits 0..7; MQ4_22_P CAN 0x1DF byte 0 bits 0..7; SK3_22_E CAN 0x1DF byte 0 bits 0..7
+
+| Field | At |
+| --- | --- |
+| DATC_Clu_OutTempC | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_Clu_OutTempC"
+```
+
+#### DATC_DrTempDispC
+
+cmd `0x05`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 5 (func 0xc305); the DE_22_E firmware sends it in emulation when CAN 0x131 byte 0 bits 0..7 changes; same source in TM_PE_H, SK3_22_E
+
+| Field | At |
+| --- | --- |
+| DATC_DrTempDispC | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_DrTempDispC"
+```
+
+#### DATC_DrTempDispF
+
+cmd `0x07`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 7 (func 0xc307); the DE_22_E firmware sends it in emulation when CAN 0x131 byte 2 bits 0..7 changes; same source in TM_PE_H, SK3_22_E
+
+| Field | At |
+| --- | --- |
+| DATC_DrTempDispF | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_DrTempDispF"
+```
+
+#### DATC_PsTempDispC
+
+cmd `0x09`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 9 (func 0xc309); the TM_PE_H firmware sends it in emulation when CAN 0x131 byte 4 bits 0..7 changes
+
+| Field | At |
+| --- | --- |
+| DATC_PsTempDispC | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_PsTempDispC"
+```
+
+#### DATC_PsTempDispF
+
+cmd `0x0b`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 11 (func 0xc30b); the TM_PE_H firmware sends it in emulation when CAN 0x131 byte 6 bits 0..7 changes
+
+| Field | At |
+| --- | --- |
+| DATC_PsTempDispF | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_PsTempDispF"
+```
+
+#### DATC_ModeDisp
+
+cmd `0x0d`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 13 (func 0xc30d); the DE_22_E firmware sends it in emulation when CAN 0x132 byte 0 bits 0..3 changes; same source in TM_PE_H, SK3_22_E
+
+| Field | At |
+| --- | --- |
+| DATC_ModeDisp | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_ModeDisp"
+```
+
+#### DATC_AutoDisp
+
+cmd `0x0f`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 15 (func 0xc30f); the DE_22_E firmware sends it in emulation when CAN 0x132 byte 1 bits 0..1 changes; same source in TM_PE_H, SK3_22_E
+
+| Field | At |
+| --- | --- |
+| DATC_AutoDisp | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_AutoDisp"
+```
+
+#### DATC_AcDisp
+
+cmd `0x11`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 17 (func 0xc311); the DE_22_E firmware sends it in emulation when CAN 0x132 byte 2 bits 0..1 changes; same source in TM_PE_H, SK3_22_E
+
+| Field | At |
+| --- | --- |
+| DATC_AcDisp | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_AcDisp"
+```
+
+#### DATC_OpSts
+
+cmd `0x12`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 18 (func 0xc312); the EV6 firmware sends it in emulation when CAN 0x383 byte 4 bits 0..2 changes; same source in NE1_E (Ioniq 5)
+
+| Field | At |
+| --- | --- |
+| DATC_OpSts | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_OpSts"
+```
+
+#### DATC_AutoDefogBlink
+
+cmd `0x14`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 20 (func 0xc314); the DE_22_E firmware sends it in emulation when CAN 0x132 byte 5 bits 0..1 changes; same source in TM_PE_H, SK3_22_E
+
+| Field | At |
+| --- | --- |
+| DATC_AutoDefogBlink | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_AutoDefogBlink"
+```
+
+#### DATC_MainBlowerDisp
+
+cmd `0x15`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 21 (func 0xc315); the EV6 firmware sends it in emulation when CAN 0x384 byte 3 bits 0..3 changes; other builds: DE_22_E CAN 0x132 byte 7 bits 0..3; TM_PE_H CAN 0x132 byte 7 bits 0..3; SK3_22_E CAN 0x132 byte 7 bits 0..3
+
+| Field | At |
+| --- | --- |
+| DATC_MainBlowerDisp | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_MainBlowerDisp"
+```
+
+#### DATC_AirCleaningSystemStatus
+
+cmd `0x1a`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 26 (func 0xc31a); the MQ4_22_P firmware sends it in emulation when CAN 0x32D byte 3 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| DATC_AirCleaningSystemStatus | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_AirCleaningSystemStatus"
+```
+
+#### DATC_SelfDiagDisp
+
+cmd `0x21`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 33 (func 0xc321); the EV6 firmware sends it in emulation when CAN 0x384 byte 5 bits 0..7 changes; other builds: DE_22_E CAN 0x133 byte 1 bits 0..7; TM_PE_H CAN 0x133 byte 1 bits 0..7; SK3_22_E CAN 0x133 byte 1 bits 0..7
+
+| Field | At |
+| --- | --- |
+| DATC_SelfDiagDisp | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_SelfDiagDisp"
+```
+
+#### DATC_DiagMode
+
+cmd `0x22`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 34 (func 0xc322); the DE_22_E firmware sends it in emulation when CAN 0x133 byte 0 bits 0..1 changes; same source in TM_PE_H, SK3_22_E
+
+| Field | At |
+| --- | --- |
+| DATC_DiagMode | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_DiagMode"
+```
+
+#### DATC_Variant
+
+cmd `0x26`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 38 (func 0xc326); the DE_22_E firmware sends it in emulation when CAN 0x133 byte 7 bits 0..7 changes; same source in TM_PE_H, SK3_22_E
+
+| Field | At |
+| --- | --- |
+| DATC_Variant | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_Variant"
+```
+
+#### DATC_SyncDisp
+
+cmd `0x27`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 39 (func 0xc327); the TM_PE_H firmware sends it in emulation when CAN 0x134 byte 3 bits 0..3 changes
+
+| Field | At |
+| --- | --- |
+| DATC_SyncDisp | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_SyncDisp"
+```
+
+#### CF_DATC_Option1
+
+cmd `0x30`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 48 (func 0xc330); the DE_22_E firmware sends it in emulation when CAN 0x135 byte 4 bits 0..7 changes; same source in TM_PE_H, SK3_22_E
+
+| Field | At |
+| --- | --- |
+| CF_DATC_Option1 | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "CF_DATC_Option1"
+```
+
+#### DATC_HeatDisp
+
+cmd `0x33`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 51 (func 0xc333); the EV6 firmware sends it in emulation when CAN 0x384 byte 4 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| DATC_HeatDisp | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_HeatDisp"
+```
+
+#### CF_DATC_Option3
+
+cmd `0x39`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 57 (func 0xc339); the DE_22_E firmware sends it in emulation when CAN 0x135 byte 6 bits 0..7 changes; same source in TM_PE_H
+
+| Field | At |
+| --- | --- |
+| CF_DATC_Option3 | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "CF_DATC_Option3"
+```
+
+#### CF_Datc_DefLogic_USM_State
+
+cmd `0x3b`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 59 (func 0xc33b); the EV6 firmware sends it in emulation when CAN 0x427 byte 5 bits 0..1 changes; other builds: DE_22_E CAN 0x134 byte 0 bits 0..1
+
+| Field | At |
+| --- | --- |
+| CF_Datc_DefLogic_USM_State | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "CF_Datc_DefLogic_USM_State"
+```
+
+#### DATC_MltAutoBlrTxt
+
+cmd `0x4f`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 79 (func 0xc34f); the EV6 firmware sends it in emulation when CAN 0x42A byte 3 bits 0..2 changes; same source in NE1_E (Ioniq 5)
+
+| Field | At |
+| --- | --- |
+| DATC_MltAutoBlrTxt | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_MltAutoBlrTxt"
+```
+
+#### DATC_AutoStep
+
+cmd `0x50`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 80 (func 0xc350); the EV6 firmware sends it in emulation when CAN 0x384 byte 7 bits 0..3 changes; same source in NE1_E (Ioniq 5)
+
+| Field | At |
+| --- | --- |
+| DATC_AutoStep | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_AutoStep"
 ```
 
 ### 0c 88 ?? 8c

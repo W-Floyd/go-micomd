@@ -1624,6 +1624,206 @@ messages:
       - { name: "PhoneNumber high", off: 4, type: str, size: 4, encoding: hex, endian: little }
     status: code
     ref: "stock USMService.onEvent: all 8 bytes are UserProfile PhoneNumber, little-endian, which the SoC formats as hex (%08X of bytes 0-3, then %X of bytes 4-7), shown as two halves; the stock's %X drops leading zeros, these halves keep them; the EV6 firmware answers request 0x111f in emulation with 8 bytes"
+  # Climate (DATC) signals the other-family CAN sweeps found, one cmd per stock
+  # TE_RX_IL ordinal (func 0xc3NN), in the header the EV6 uses for its own.
+  - name: "DATC_Clu_OutTempC"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x01
+    length: 1
+    fields:
+      - { name: "DATC_Clu_OutTempC", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 1 (func 0xc301); the EV6 firmware sends it in emulation when CAN 0x226 byte 3 bits 0..7 changes; other builds: DE_22_E CAN 0x1DF byte 0 bits 0..7; TM_PE_H CAN 0x1DF byte 0 bits 0..7; MQ4_22_P CAN 0x1DF byte 0 bits 0..7; SK3_22_E CAN 0x1DF byte 0 bits 0..7"
+  - name: "DATC_DrTempDispC"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x05
+    length: 1
+    fields:
+      - { name: "DATC_DrTempDispC", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 5 (func 0xc305); the DE_22_E firmware sends it in emulation when CAN 0x131 byte 0 bits 0..7 changes; same source in TM_PE_H, SK3_22_E"
+  - name: "DATC_DrTempDispF"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x07
+    length: 1
+    fields:
+      - { name: "DATC_DrTempDispF", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 7 (func 0xc307); the DE_22_E firmware sends it in emulation when CAN 0x131 byte 2 bits 0..7 changes; same source in TM_PE_H, SK3_22_E"
+  - name: "DATC_PsTempDispC"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x09
+    length: 1
+    fields:
+      - { name: "DATC_PsTempDispC", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 9 (func 0xc309); the TM_PE_H firmware sends it in emulation when CAN 0x131 byte 4 bits 0..7 changes"
+  - name: "DATC_PsTempDispF"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x0b
+    length: 1
+    fields:
+      - { name: "DATC_PsTempDispF", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 11 (func 0xc30b); the TM_PE_H firmware sends it in emulation when CAN 0x131 byte 6 bits 0..7 changes"
+  - name: "DATC_ModeDisp"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x0d
+    length: 1
+    fields:
+      - { name: "DATC_ModeDisp", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 13 (func 0xc30d); the DE_22_E firmware sends it in emulation when CAN 0x132 byte 0 bits 0..3 changes; same source in TM_PE_H, SK3_22_E"
+  - name: "DATC_AutoDisp"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x0f
+    length: 1
+    fields:
+      - { name: "DATC_AutoDisp", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 15 (func 0xc30f); the DE_22_E firmware sends it in emulation when CAN 0x132 byte 1 bits 0..1 changes; same source in TM_PE_H, SK3_22_E"
+  - name: "DATC_AcDisp"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x11
+    length: 1
+    fields:
+      - { name: "DATC_AcDisp", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 17 (func 0xc311); the DE_22_E firmware sends it in emulation when CAN 0x132 byte 2 bits 0..1 changes; same source in TM_PE_H, SK3_22_E"
+  - name: "DATC_OpSts"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x12
+    length: 1
+    fields:
+      - { name: "DATC_OpSts", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 18 (func 0xc312); the EV6 firmware sends it in emulation when CAN 0x383 byte 4 bits 0..2 changes; same source in NE1_E (Ioniq 5)"
+  - name: "DATC_AutoDefogBlink"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x14
+    length: 1
+    fields:
+      - { name: "DATC_AutoDefogBlink", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 20 (func 0xc314); the DE_22_E firmware sends it in emulation when CAN 0x132 byte 5 bits 0..1 changes; same source in TM_PE_H, SK3_22_E"
+  - name: "DATC_MainBlowerDisp"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x15
+    length: 1
+    fields:
+      - { name: "DATC_MainBlowerDisp", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 21 (func 0xc315); the EV6 firmware sends it in emulation when CAN 0x384 byte 3 bits 0..3 changes; other builds: DE_22_E CAN 0x132 byte 7 bits 0..3; TM_PE_H CAN 0x132 byte 7 bits 0..3; SK3_22_E CAN 0x132 byte 7 bits 0..3"
+  - name: "DATC_AirCleaningSystemStatus"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x1a
+    length: 1
+    fields:
+      - { name: "DATC_AirCleaningSystemStatus", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 26 (func 0xc31a); the MQ4_22_P firmware sends it in emulation when CAN 0x32D byte 3 bits 0..1 changes"
+  - name: "DATC_SelfDiagDisp"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x21
+    length: 1
+    fields:
+      - { name: "DATC_SelfDiagDisp", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 33 (func 0xc321); the EV6 firmware sends it in emulation when CAN 0x384 byte 5 bits 0..7 changes; other builds: DE_22_E CAN 0x133 byte 1 bits 0..7; TM_PE_H CAN 0x133 byte 1 bits 0..7; SK3_22_E CAN 0x133 byte 1 bits 0..7"
+  - name: "DATC_DiagMode"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x22
+    length: 1
+    fields:
+      - { name: "DATC_DiagMode", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 34 (func 0xc322); the DE_22_E firmware sends it in emulation when CAN 0x133 byte 0 bits 0..1 changes; same source in TM_PE_H, SK3_22_E"
+  - name: "DATC_Variant"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x26
+    length: 1
+    fields:
+      - { name: "DATC_Variant", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 38 (func 0xc326); the DE_22_E firmware sends it in emulation when CAN 0x133 byte 7 bits 0..7 changes; same source in TM_PE_H, SK3_22_E"
+  - name: "DATC_SyncDisp"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x27
+    length: 1
+    fields:
+      - { name: "DATC_SyncDisp", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 39 (func 0xc327); the TM_PE_H firmware sends it in emulation when CAN 0x134 byte 3 bits 0..3 changes"
+  - name: "CF_DATC_Option1"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x30
+    length: 1
+    fields:
+      - { name: "CF_DATC_Option1", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 48 (func 0xc330); the DE_22_E firmware sends it in emulation when CAN 0x135 byte 4 bits 0..7 changes; same source in TM_PE_H, SK3_22_E"
+  - name: "DATC_HeatDisp"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x33
+    length: 1
+    fields:
+      - { name: "DATC_HeatDisp", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 51 (func 0xc333); the EV6 firmware sends it in emulation when CAN 0x384 byte 4 bits 0..1 changes"
+  - name: "CF_DATC_Option3"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x39
+    length: 1
+    fields:
+      - { name: "CF_DATC_Option3", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 57 (func 0xc339); the DE_22_E firmware sends it in emulation when CAN 0x135 byte 6 bits 0..7 changes; same source in TM_PE_H"
+  - name: "CF_Datc_DefLogic_USM_State"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x3b
+    length: 1
+    fields:
+      - { name: "CF_Datc_DefLogic_USM_State", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 59 (func 0xc33b); the EV6 firmware sends it in emulation when CAN 0x427 byte 5 bits 0..1 changes; other builds: DE_22_E CAN 0x134 byte 0 bits 0..1"
+  - name: "DATC_MltAutoBlrTxt"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x4f
+    length: 1
+    fields:
+      - { name: "DATC_MltAutoBlrTxt", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 79 (func 0xc34f); the EV6 firmware sends it in emulation when CAN 0x42A byte 3 bits 0..2 changes; same source in NE1_E (Ioniq 5)"
+  - name: "DATC_AutoStep"
+    dir: from_micom
+    hdr: "43 c2 00 c3"
+    cmd: 0x50
+    length: 1
+    fields:
+      - { name: "DATC_AutoStep", off: 0 }
+    status: code
+    ref: "stock UNIDatcProtocol TE_RX_IL ordinal 80 (func 0xc350); the EV6 firmware sends it in emulation when CAN 0x384 byte 7 bits 0..3 changes; same source in NE1_E (Ioniq 5)"
 # SystemService requests that reset, rewrite or reconfigure the micom. They are
 # on the system header (sendPacket(0x8a, 1, func)); the `dangerous` string marks
 # each so it is documented here yet refused on every path unless -allow-dangerous
