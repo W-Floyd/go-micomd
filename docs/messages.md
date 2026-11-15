@@ -91,7 +91,7 @@ A field is placed one of two ways:
 
 | key | meaning |
 |---|---|
-| `off` + `type` | byte form: `u8` (default), `u16`, `u32`, `i8`, `i16`, `i32`, `bool` at payload byte `off` |
+| `off` + `type` | byte form: `u8` (default), `u16`, `u24`, `u32`, `i8`, `i16`, `i24`, `i32`, `bool` at payload byte `off` |
 | `bits` | with `off`: `"hi:lo"` within that byte, for one-byte types; `"3"` is one bit |
 | `start_bit` + `bit_length` | bit form, as DBC: bit k is bit k%8 of byte k/8; 1 to 32 bits; `signed: true` for signed; `type: bool` allowed |
 | `endian` | `big` (default; every layout seen so far; DBC's Motorola, `start_bit` is the most significant bit) or `little` (Intel, `start_bit` the least) |

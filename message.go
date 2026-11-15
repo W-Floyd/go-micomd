@@ -800,11 +800,11 @@ func compileField(c *checker, where string, r rawMsgField, enums map[string]map[
 		}
 		width, ok := typeWidths[typ]
 		if !ok {
-			c.errf(w, "type is u8, u16, u32, i8, i16, i32, bool or str, not %q", typ)
+			c.errf(w, "type is u8, u16, u24, u32, i8, i16, i24, i32, bool or str, not %q", typ)
 			return nil, false
 		}
 		if r.Signed || r.BitLength != 0 {
-			c.errf(w, "signed and bit_length are for start_bit fields (i8, i16, i32 are signed)")
+			c.errf(w, "signed and bit_length are for start_bit fields (i8, i16, i24, i32 are signed)")
 		}
 		f.typ, f.signed = "int", typ[0] == 'i'
 		if typ == "bool" {

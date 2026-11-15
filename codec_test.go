@@ -23,6 +23,8 @@ func TestFieldCodec(t *testing.T) {
 		{"{name: a, off: 0, type: u16, endian: little}", 2, 0x1234, "3412"},
 		{"{name: a, off: 0, type: u16}", 2, 0x1234, "1234"},
 		{"{name: a, off: 0, type: i16}", 2, -2, "fffe"},
+		{"{name: a, off: 1, type: u24}", 4, 0xabcdef, "00abcdef"},
+		{"{name: a, off: 0, type: i24, endian: little}", 3, -0x123456, "aacbed"},
 		{"{name: a, off: 1, type: u32}", 5, 0xdeadbeef, "00deadbeef"},
 		{"{name: a, off: 0, type: i32, endian: little}", 4, -0x12345678, "88a9cbed"},
 		{"{name: a, off: 0, bits: \"6:4\"}", 1, 5, "50"},

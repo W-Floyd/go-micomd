@@ -38,7 +38,7 @@ type field struct {
 	src        *fieldSource // to_micom: computed, not an input
 }
 
-var typeWidths = map[string]int{"u8": 1, "i8": 1, "bool": 1, "u16": 2, "i16": 2, "u32": 4, "i32": 4}
+var typeWidths = map[string]int{"u8": 1, "i8": 1, "bool": 1, "u16": 2, "i16": 2, "u24": 3, "i24": 3, "u32": 4, "i32": 4}
 
 func (f *field) nbits() uint { return uint(len(f.pos)) }
 

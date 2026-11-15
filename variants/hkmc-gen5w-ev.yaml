@@ -335,7 +335,7 @@ messages:
   # HEV items found by sweeping CAN input through the EV6 micom firmware in emulation (never seen on a car): the
   # item id and name are HEV$SignalID from the stock protocol classes, the layout is the frame shape the others use
   # (id, then a u8 at byte 2 or a u16 at bytes 1-2), and the ref gives the CAN byte and bits that drive it. Each is
-  # sent on change. Left out: 0x1e ODOMETER and 0x64 CCM_CERT_PCID1, whose 3-byte values no field type covers.
+  # sent on change. Two (0x1e ODOMETER, 0x64 CCM_CERT_PCID1) carry a 24-bit value: id, then a little-endian u24 at bytes 1-3 (the micom reverses the CAN bytes).
   - name: "CR_CLU_TOTALDTEDISP"
     dir: from_micom
     hdr: "0c 88 ?? 8c"
@@ -806,6 +806,26 @@ messages:
       - { name: "BMS_HV_BATT_AUTO_DCH_OP_STA", off: 2 }
     status: code
     ref: "HEVService item 0x74 BMS_HV_BATT_AUTO_DCH_OP_STA (HEV$SignalID); the EV6 firmware sends it in emulation when CAN 0x237 byte 4 bits 4..5 changes"
+  - name: "ODOMETER"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 4
+    when: [ { off: 0, eq: 0x1e } ]
+    fields:
+      - { name: "ODOMETER", off: 1, type: u24, endian: little }
+    status: code
+    ref: "HEVService item 0x1e ODOMETER (HEV$SignalID): id, then a 24-bit value; the EV6 firmware sends it in emulation when CAN 0x227 byte 1 bits 0..7; CAN 0x227 byte 2 bits 0..7; CAN 0x227 byte 3 bits 0..7 changes"
+  - name: "CCM_CERT_PCID1"
+    dir: from_micom
+    hdr: "0c 88 ?? 8c"
+    cmd: 0x02
+    length: 4
+    when: [ { off: 0, eq: 0x64 } ]
+    fields:
+      - { name: "CCM_CERT_PCID1", off: 1, type: u24, endian: little }
+    status: code
+    ref: "HEVService item 0x64 CCM_CERT_PCID1 (HEV$SignalID): id, then a 24-bit value; the EV6 firmware sends it in emulation when CAN 0x357 byte 5 bits 0..7; CAN 0x357 byte 6 bits 0..7; CAN 0x357 byte 7 bits 0..7 changes"
 
 send:
   # Inferred statically, never seen sent; -hev-status-request sends it.

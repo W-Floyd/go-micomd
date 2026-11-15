@@ -43,7 +43,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 20 |
-| 🟡 code | 128 |
+| 🟡 code | 130 |
 | 🟠 inferred | 3 |
 
 Not yet backed by a capture:
@@ -135,6 +135,8 @@ Not yet backed by a capture:
 | VCRM_QCKCHRGPWR_CUSTOM | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x6b VCRM_QCKCHRGPWR_CUSTOM (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x1F9 byte 4 bits 2..7 changes |
 | MCU_MG1MOTMXPWR_SPEC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x6c MCU_MG1MOTMXPWR_SPEC (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x253 byte 6 bits 2..7 changes |
 | BMS_HV_BATT_AUTO_DCH_OP_STA | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x74 BMS_HV_BATT_AUTO_DCH_OP_STA (HEV\$SignalID); the EV6 firmware sends it in emulation when CAN 0x237 byte 4 bits 4..5 changes |
+| ODOMETER | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x1e ODOMETER (HEV\$SignalID): id, then a 24-bit value; the EV6 firmware sends it in emulation when CAN 0x227 byte 1 bits 0..7; CAN 0x227 byte 2 bits 0..7; CAN 0x227 byte 3 bits 0..7 changes |
+| CCM_CERT_PCID1 | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x64 CCM_CERT_PCID1 (HEV\$SignalID): id, then a 24-bit value; the EV6 firmware sends it in emulation when CAN 0x357 byte 5 bits 0..7; CAN 0x357 byte 6 bits 0..7; CAN 0x357 byte 7 bits 0..7 changes |
 | tbt-turn | `cluster_tx` | 0x04 | 🟡 code | stock ClusterService\$NaviCluster TBTInfo packer (byte 0 straight from the caller); GPM GpmNaviTBTManager.releaseGuidance; nemesis-report worked example "turn right, 0.3 km" |
 | tbt-points | `cluster_tx` | 0x02 | 🟡 code | stock ClusterService\$NaviCluster TBTSubInfo2C packer |
 | cluster-sub-info | `cluster_tx` | 0x03 | 🟡 code | stock ClusterService\$NaviCluster TBTSubInfo packer; the captured ack frame |
@@ -2100,6 +2102,38 @@ cmd `0x02`, length 3 · 🟡 code
 packet-beta
 0-15: "?"
 16-23: "BMS_HV_BATT_AUTO_DCH_OP_STA"
+```
+
+#### ODOMETER
+
+cmd `0x02`, length 4 · 🟡 code
+
+> HEVService item 0x1e ODOMETER (HEV\$SignalID): id, then a 24-bit value; the EV6 firmware sends it in emulation when CAN 0x227 byte 1 bits 0..7; CAN 0x227 byte 2 bits 0..7; CAN 0x227 byte 3 bits 0..7 changes
+
+| Field | At | Type |
+| --- | --- | --- |
+| ODOMETER | byte 1 | u24 little |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-31: "ODOMETER"
+```
+
+#### CCM_CERT_PCID1
+
+cmd `0x02`, length 4 · 🟡 code
+
+> HEVService item 0x64 CCM_CERT_PCID1 (HEV\$SignalID): id, then a 24-bit value; the EV6 firmware sends it in emulation when CAN 0x357 byte 5 bits 0..7; CAN 0x357 byte 6 bits 0..7; CAN 0x357 byte 7 bits 0..7 changes
+
+| Field | At | Type |
+| --- | --- | --- |
+| CCM_CERT_PCID1 | byte 1 | u24 little |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-31: "CCM_CERT_PCID1"
 ```
 
 #### Schedule settings
