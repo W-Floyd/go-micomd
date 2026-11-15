@@ -1582,8 +1582,9 @@ messages:
       - { name: "Owner_PhoneRValue", off: 12, invalid: 0xfa }
       - { name: "DigitalKeyEnableRValue", off: 13, invalid: 0xfa }
     status: code
-    ref: "stock USMService.onEvent, UserProfile fields in log order (byte-to-field pairing is that order, not a setter name); bytes 4-9 are the NFC BD address as hex; the EV6 firmware answers request 0x1113 in emulation with 14 bytes; stock name is USM_UserProfile_ALL_NFC_0_M_REQ although it is micom to SoC"
+    ref: "stock USMService.onEvent, byte-to-field pairing from the odex iput-quick field offsets, resolved against USMService's field layout; bytes 4-9 are the NFC BD address as hex; the EV6 firmware answers request 0x1113 in emulation with 14 bytes; stock name is USM_UserProfile_ALL_NFC_0_M_REQ although it is micom to SoC"
   - name: "USM_UserProfile_ALL_NFC_1_M_RESP"
+
     dir: from_micom
     hdr: "11 92 ?? 91"
     cmd: 0x14
@@ -1596,7 +1597,8 @@ messages:
       - { name: "DigitalKeyExit", off: 8, invalid: 0xfa }
       - { name: "DigitalKeyGuide", off: 9, invalid: 0xfa }
     status: code
-    ref: "stock USMService.onEvent, UserProfile fields in log order; bytes 2-7 are a number the SoC formats as hex (%06X of bytes 2-4, %X of bytes 5-7, each little-endian), shown as two halves; the field name PhoneNumberOnWPC is a guess from the stock field list; the EV6 firmware answers request 0x1114 in emulation with 10 bytes; stock name is USM_UserProfile_ALL_NFC_1_M_REQ although it is micom to SoC"
+    ref: "stock USMService.onEvent, byte-to-field pairing from the odex iput-quick field offsets, resolved against USMService's field layout; bytes 2-7 (strUserProfile_PhoneNumberOnWPC) are a number the SoC formats as hex (%06X of bytes 2-4, %X of bytes 5-7, each little-endian), shown as two halves; the EV6 firmware answers request 0x1114 in emulation with 10 bytes; stock name is USM_UserProfile_ALL_NFC_1_M_REQ although it is micom to SoC"
+
   - name: "USM_DigitalKey_Info_M_RESP"
     dir: from_micom
     hdr: "11 92 ?? 91"
@@ -1605,13 +1607,13 @@ messages:
     fields:
       - { name: "Item", off: 0 }
       - { name: "Manufacturer", off: 1 }
-      - { name: "Serial", off: 2, type: str, size: 3, encoding: hex }
-      - { name: "VendorCode", off: 5, type: str, size: 4, encoding: hex }
+      - { name: "VendorCode", off: 2, type: str, size: 3, encoding: hex }
+      - { name: "Serial", off: 5, type: str, size: 4, encoding: hex }
       - { name: "Year", off: 9, type: u16 }
       - { name: "Month", off: 11 }
       - { name: "Date", off: 12, type: u16 }
     status: code
-    ref: "stock USMService.onEvent: Item 1-6 (or 0xfa for all) says which of Manufacturer, Serial, VendorCode, Year, Month, Date the reply carries, each big-endian at its own offset; the string fields are the stock hex of those bytes; Year, Month and Date indices are from the getters, the three strings are assumed in that order; the EV6 firmware answers request 0x111e in emulation with 14 bytes"
+    ref: "stock USMService.onEvent: Item 1-6 (or 0xfa for all) says which of Manufacturer (byte 1), VendorCode (bytes 2-4), Serial (bytes 5-8), Year, Month, Date the reply carries, each big-endian at its own offset; the string fields are the stock hex of those bytes; the field per offset is from the odex iput-quick offsets resolved against USMService's field layout (VendorCode precedes Serial); the EV6 firmware answers request 0x111e in emulation with 14 bytes"
   - name: "USM_UserProfile_Rx_NFC_2_M_RESP"
     dir: from_micom
     hdr: "11 92 ?? 91"
