@@ -43,7 +43,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 20 |
-| 🟡 code | 130 |
+| 🟡 code | 142 |
 | 🟠 inferred | 3 |
 
 Not yet backed by a capture:
@@ -69,6 +69,18 @@ Not yet backed by a capture:
 | Terrain mode | `system_rx` | 0x64 | 🟡 code | SYS_TERRAIN_MODE_M 0x8164 -> broadcast com.mobis.action.TERRAIN_MODE_STATUS (terrainMode, support: byte 1 > 0) |
 | WPC status | `system_rx` | 0x70 | 🟡 code | SYS_WPCWARNING_M_RESP 0x8170 -> broadcast com.mobis.intent.action.WPC_STATUS_CHANGED (WPC_STATUS); answer to wpc request 0x0170 |
 | Class status | `system_rx` | 0x98 | 🟡 code | SYS_CLASS_STA_M_RESP 0x8198 -> onClassStatus(byteToInt(b0)); answer to class request 0x0198 |
+| SYS_DRV_CUSTOM_MODE_2_M_RESP | `01 8a ?? 81` | 0x87 | 🟡 code | stock SystemService constant SYS_DRV_CUSTOM_MODE_2_M_RESP; the EV6 firmware sends it in emulation when its CAN input changes |
+| SYS_IGN_AUTO_OFF_WARN_STATUS_M | `01 8a ?? 81` | 0x88 | 🟡 code | stock SystemService constant SYS_IGN_AUTO_OFF_WARN_STATUS_M; the EV6 firmware sends it in emulation when its CAN input changes |
+| SYS_DRV_NEW_MY_DRV_MODE_M_RESP | `01 8a ?? 81` | 0x8a | 🟡 code | stock SystemService constant SYS_DRV_NEW_MY_DRV_MODE_M_RESP; the EV6 firmware sends it in emulation when its CAN input changes |
+| HANDSHAKING_RX_SIG | `0d 8f ?? 8d` | 0x2e | 🟡 code | stock Navigation constant HANDSHAKING_RX_SIG; the EV6 firmware sends it in emulation when its CAN input changes |
+| NSCC_C_REQ | `0d 8f ?? 8d` | 0x41 | 🟡 code | stock Navigation constant NSCC_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes |
+| DAW_WRN_C_REQ | `0d 8f ?? 8d` | 0x44 | 🟡 code | stock Navigation constant DAW_WRN_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes |
+| HDA_LINE_NUM_VAL_C_REQ | `0d 8f ?? 8d` | 0x45 | 🟡 code | stock Navigation constant HDA_LINE_NUM_VAL_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes |
+| USM_UserProfile_Rx_NFC_0_Short_M | `11 92 ?? 91` | 0x16 | 🟡 code | stock USM constant USM_UserProfile_Rx_NFC_0_Short_M; the EV6 firmware sends it in emulation when its CAN input changes |
+| USM_UserProfile_Rx_NFC_1_Short_M | `11 92 ?? 91` | 0x18 | 🟡 code | stock USM constant USM_UserProfile_Rx_NFC_1_Short_M; the EV6 firmware sends it in emulation when its CAN input changes |
+| USM_SWRC_SET_C_REQ | `11 92 ?? 91` | 0x27 | 🟡 code | stock USM constant USM_SWRC_SET_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes |
+| USM_Front_Seat_Heat_SET_C_REQ | `11 92 ?? 91` | 0x28 | 🟡 code | stock USM constant USM_Front_Seat_Heat_SET_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes |
+| USM_Body_Type_C_REQ | `11 92 ?? 91` | 0x2d | 🟡 code | stock USM constant USM_Body_Type_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes |
 | Status flag | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService status-flag setter; seen live as 57 00 NN |
 | Charge time estimate, DC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x0e QC_REM_TIME: a DC fast charge's time to full, while not charging; 10-41 seen |
 | Charge time estimate, AC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x13 SC_REM_TIME_EVSE_PHEV, an EV's NOT_CHAR_EVSE_REM_TIME (CAN DB generation > 0): a wallbox's time to full, while not charging; 20-220 seen, rising as the charge fell |
@@ -917,6 +929,212 @@ cmd `0x98`, length ≥ 1 · 🟡 code
 ```mermaid
 packet-beta
 0-7: "Class"
+```
+
+### 01 8a ?? 81
+
+
+
+#### SYS_DRV_CUSTOM_MODE_2_M_RESP
+
+cmd `0x87`, length ≥ 14 · 🟡 code
+
+> stock SystemService constant SYS_DRV_CUSTOM_MODE_2_M_RESP; the EV6 firmware sends it in emulation when its CAN input changes
+
+| Field | At |
+| --- | --- |
+| SYS_DRV_CUSTOM_MODE_2_M_RESP byte 8 | byte 8 |
+| SYS_DRV_CUSTOM_MODE_2_M_RESP byte 9 | byte 9 |
+
+```mermaid
+packet-beta
+0-63: "?"
+64-71: "SYS_DRV_CUSTOM_MODE_2_M_RESP byte 8"
+72-79: "SYS_DRV_CUSTOM_MODE_2_M_RESP byte 9"
+```
+
+#### SYS_IGN_AUTO_OFF_WARN_STATUS_M
+
+cmd `0x88`, length ≥ 1 · 🟡 code
+
+> stock SystemService constant SYS_IGN_AUTO_OFF_WARN_STATUS_M; the EV6 firmware sends it in emulation when its CAN input changes
+
+| Field | At |
+| --- | --- |
+| SYS_IGN_AUTO_OFF_WARN_STATUS_M | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SYS_IGN_AUTO_OFF_WARN_STATUS_M"
+```
+
+#### SYS_DRV_NEW_MY_DRV_MODE_M_RESP
+
+cmd `0x8a`, length ≥ 6 · 🟡 code
+
+> stock SystemService constant SYS_DRV_NEW_MY_DRV_MODE_M_RESP; the EV6 firmware sends it in emulation when its CAN input changes
+
+| Field | At |
+| --- | --- |
+| SYS_DRV_NEW_MY_DRV_MODE_M_RESP byte 0 | byte 0 |
+| SYS_DRV_NEW_MY_DRV_MODE_M_RESP byte 1 | byte 1 |
+| SYS_DRV_NEW_MY_DRV_MODE_M_RESP byte 2 | byte 2 |
+
+```mermaid
+packet-beta
+0-7: "SYS_DRV_NEW_MY_DRV_MODE_M_RESP byte 0"
+8-15: "SYS_DRV_NEW_MY_DRV_MODE_M_RESP byte 1"
+16-23: "SYS_DRV_NEW_MY_DRV_MODE_M_RESP byte 2"
+```
+
+### 0d 8f ?? 8d
+
+
+
+#### HANDSHAKING_RX_SIG
+
+cmd `0x2e`, length ≥ 16 · 🟡 code
+
+> stock Navigation constant HANDSHAKING_RX_SIG; the EV6 firmware sends it in emulation when its CAN input changes
+
+| Field | At |
+| --- | --- |
+| HANDSHAKING_RX_SIG | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "HANDSHAKING_RX_SIG"
+```
+
+#### NSCC_C_REQ
+
+cmd `0x41`, length ≥ 1 · 🟡 code
+
+> stock Navigation constant NSCC_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes
+
+| Field | At |
+| --- | --- |
+| NSCC_C_REQ | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "NSCC_C_REQ"
+```
+
+#### DAW_WRN_C_REQ
+
+cmd `0x44`, length ≥ 1 · 🟡 code
+
+> stock Navigation constant DAW_WRN_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes
+
+| Field | At |
+| --- | --- |
+| DAW_WRN_C_REQ | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DAW_WRN_C_REQ"
+```
+
+#### HDA_LINE_NUM_VAL_C_REQ
+
+cmd `0x45`, length ≥ 2 · 🟡 code
+
+> stock Navigation constant HDA_LINE_NUM_VAL_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes
+
+| Field | At |
+| --- | --- |
+| HDA_LINE_NUM_VAL_C_REQ | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "HDA_LINE_NUM_VAL_C_REQ"
+```
+
+### 11 92 ?? 91
+
+
+
+#### USM_UserProfile_Rx_NFC_0_Short_M
+
+cmd `0x16`, length ≥ 2 · 🟡 code
+
+> stock USM constant USM_UserProfile_Rx_NFC_0_Short_M; the EV6 firmware sends it in emulation when its CAN input changes
+
+| Field | At |
+| --- | --- |
+| USM_UserProfile_Rx_NFC_0_Short_M | byte 1 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-15: "USM_UserProfile_Rx_NFC_0_Short_M"
+```
+
+#### USM_UserProfile_Rx_NFC_1_Short_M
+
+cmd `0x18`, length ≥ 2 · 🟡 code
+
+> stock USM constant USM_UserProfile_Rx_NFC_1_Short_M; the EV6 firmware sends it in emulation when its CAN input changes
+
+| Field | At |
+| --- | --- |
+| USM_UserProfile_Rx_NFC_1_Short_M | byte 1 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-15: "USM_UserProfile_Rx_NFC_1_Short_M"
+```
+
+#### USM_SWRC_SET_C_REQ
+
+cmd `0x27`, length ≥ 5 · 🟡 code
+
+> stock USM constant USM_SWRC_SET_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes
+
+| Field | At |
+| --- | --- |
+| USM_SWRC_SET_C_REQ | byte 1 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-15: "USM_SWRC_SET_C_REQ"
+```
+
+#### USM_Front_Seat_Heat_SET_C_REQ
+
+cmd `0x28`, length ≥ 5 · 🟡 code
+
+> stock USM constant USM_Front_Seat_Heat_SET_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes
+
+| Field | At |
+| --- | --- |
+| USM_Front_Seat_Heat_SET_C_REQ byte 2 | byte 2 |
+| USM_Front_Seat_Heat_SET_C_REQ byte 3 | byte 3 |
+
+```mermaid
+packet-beta
+0-15: "?"
+16-23: "USM_Front_Seat_Heat_SET_C_REQ byte 2"
+24-31: "USM_Front_Seat_Heat_SET_C_REQ byte 3"
+```
+
+#### USM_Body_Type_C_REQ
+
+cmd `0x2d`, length ≥ 2 · 🟡 code
+
+> stock USM constant USM_Body_Type_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes
+
+| Field | At |
+| --- | --- |
+| USM_Body_Type_C_REQ | byte 1 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-15: "USM_Body_Type_C_REQ"
 ```
 
 ### 0c 88 ?? 8c

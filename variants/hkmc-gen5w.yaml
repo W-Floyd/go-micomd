@@ -735,6 +735,123 @@ messages:
     status: code
     ref: "SYS_CLASS_STA_M_RESP 0x8198 -> onClassStatus(byteToInt(b0)); answer to class request 0x0198"
 
+  # Frames found by sweeping CAN input through the EV6 micom firmware in emulation (never seen on a car), named by the
+  # stock constant of that cmd (SystemProtocol$Func, Navigation$Func, USM$Func). Only the payload bytes a CAN signal was
+  # seen to drive are fields, each a raw byte; the rest of the frame is left unread. Each field comment gives the CAN
+  # byte and bits.
+  - name: "SYS_DRV_CUSTOM_MODE_2_M_RESP"
+    dir: from_micom
+    hdr: "01 8a ?? 81"
+    cmd: 0x87
+    min_length: 14
+    fields:
+      - { name: "SYS_DRV_CUSTOM_MODE_2_M_RESP byte 8", off: 8 }   # CAN 0x208 byte 0 bits 4..7
+      - { name: "SYS_DRV_CUSTOM_MODE_2_M_RESP byte 9", off: 9 }   # CAN 0x208 byte 5 bits 0..1
+    status: code
+    ref: "stock SystemService constant SYS_DRV_CUSTOM_MODE_2_M_RESP; the EV6 firmware sends it in emulation when its CAN input changes"
+  - name: "SYS_IGN_AUTO_OFF_WARN_STATUS_M"
+    dir: from_micom
+    hdr: "01 8a ?? 81"
+    cmd: 0x88
+    min_length: 1
+    fields:
+      - { name: "SYS_IGN_AUTO_OFF_WARN_STATUS_M", off: 0 }   # CAN 0x48F byte 1 bits 0..1
+    status: code
+    ref: "stock SystemService constant SYS_IGN_AUTO_OFF_WARN_STATUS_M; the EV6 firmware sends it in emulation when its CAN input changes"
+  - name: "SYS_DRV_NEW_MY_DRV_MODE_M_RESP"
+    dir: from_micom
+    hdr: "01 8a ?? 81"
+    cmd: 0x8a
+    min_length: 6
+    fields:
+      - { name: "SYS_DRV_NEW_MY_DRV_MODE_M_RESP byte 0", off: 0 }   # CAN 0x317 byte 1 bits 6..7
+      - { name: "SYS_DRV_NEW_MY_DRV_MODE_M_RESP byte 1", off: 1 }   # CAN 0x1AC byte 1 bits 3..6
+      - { name: "SYS_DRV_NEW_MY_DRV_MODE_M_RESP byte 2", off: 2 }   # CAN 0x2E3 byte 6 bits 1..7
+    status: code
+    ref: "stock SystemService constant SYS_DRV_NEW_MY_DRV_MODE_M_RESP; the EV6 firmware sends it in emulation when its CAN input changes"
+  - name: "HANDSHAKING_RX_SIG"
+    dir: from_micom
+    hdr: "0d 8f ?? 8d"
+    cmd: 0x2e
+    min_length: 16
+    fields:
+      - { name: "HANDSHAKING_RX_SIG", off: 0 }   # CAN 0x11C byte 5 bits 0..7
+    status: code
+    ref: "stock Navigation constant HANDSHAKING_RX_SIG; the EV6 firmware sends it in emulation when its CAN input changes"
+  - name: "NSCC_C_REQ"
+    dir: from_micom
+    hdr: "0d 8f ?? 8d"
+    cmd: 0x41
+    min_length: 1
+    fields:
+      - { name: "NSCC_C_REQ", off: 0 }   # CAN 0x1A2 byte 5 bits 0..1
+    status: code
+    ref: "stock Navigation constant NSCC_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes"
+  - name: "DAW_WRN_C_REQ"
+    dir: from_micom
+    hdr: "0d 8f ?? 8d"
+    cmd: 0x44
+    min_length: 1
+    fields:
+      - { name: "DAW_WRN_C_REQ", off: 0 }   # CAN 0x11B byte 7 bits 3..5
+    status: code
+    ref: "stock Navigation constant DAW_WRN_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes"
+  - name: "HDA_LINE_NUM_VAL_C_REQ"
+    dir: from_micom
+    hdr: "0d 8f ?? 8d"
+    cmd: 0x45
+    min_length: 2
+    fields:
+      - { name: "HDA_LINE_NUM_VAL_C_REQ", off: 0 }   # CAN 0x1EC byte 7 bits 4..7
+    status: code
+    ref: "stock Navigation constant HDA_LINE_NUM_VAL_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes"
+  - name: "USM_UserProfile_Rx_NFC_0_Short_M"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x16
+    min_length: 2
+    fields:
+      - { name: "USM_UserProfile_Rx_NFC_0_Short_M", off: 1 }   # CAN 0x434 byte 0 bits 0..1; CAN 0x434 byte 1 bits 0..1
+    status: code
+    ref: "stock USM constant USM_UserProfile_Rx_NFC_0_Short_M; the EV6 firmware sends it in emulation when its CAN input changes"
+  - name: "USM_UserProfile_Rx_NFC_1_Short_M"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x18
+    min_length: 2
+    fields:
+      - { name: "USM_UserProfile_Rx_NFC_1_Short_M", off: 1 }   # CAN 0x434 byte 1 bits 2..5
+    status: code
+    ref: "stock USM constant USM_UserProfile_Rx_NFC_1_Short_M; the EV6 firmware sends it in emulation when its CAN input changes"
+  - name: "USM_SWRC_SET_C_REQ"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x27
+    min_length: 5
+    fields:
+      - { name: "USM_SWRC_SET_C_REQ", off: 1 }   # CAN 0x48F byte 4 bits 0..1
+    status: code
+    ref: "stock USM constant USM_SWRC_SET_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes"
+  - name: "USM_Front_Seat_Heat_SET_C_REQ"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x28
+    min_length: 5
+    fields:
+      - { name: "USM_Front_Seat_Heat_SET_C_REQ byte 2", off: 2 }   # CAN 0x475 byte 0 bits 0..2
+      - { name: "USM_Front_Seat_Heat_SET_C_REQ byte 3", off: 3 }   # CAN 0x496 byte 0 bits 3..6
+    status: code
+    ref: "stock USM constant USM_Front_Seat_Heat_SET_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes"
+  - name: "USM_Body_Type_C_REQ"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x2d
+    min_length: 2
+    fields:
+      - { name: "USM_Body_Type_C_REQ", off: 1 }   # CAN 0x442 byte 2 bits 4..6
+    status: code
+    ref: "stock USM constant USM_Body_Type_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes"
+
 # SystemService requests that reset, rewrite or reconfigure the micom. They are
 # on the system header (sendPacket(0x8a, 1, func)); the `dangerous` string marks
 # each so it is documented here yet refused on every path unless -allow-dangerous
