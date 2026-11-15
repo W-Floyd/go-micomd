@@ -38,7 +38,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 3 |
-| 🟡 code | 134 |
+| 🟡 code | 146 |
 
 Not yet backed by a capture:
 
@@ -108,6 +108,18 @@ Not yet backed by a capture:
 | USM_Seat_2nd_Reg_R_M_RESP | `11 92 ?? 91` | 0x30 | 🟡 code | stock USM\$ table SEATBACKRECLINE_RRPSU; the EV6 firmware answers its request (0x1130) in emulation with 10 bytes |
 | USM_Eco_Vehicle_ETC_M_RESP | `11 92 ?? 91` | 0x31 | 🟡 code | stock USM\$ table EcoVehicleETC; the EV6 firmware answers its request (0x1131) in emulation with 3 bytes |
 | USM_TOWMODE_M_RESP | `11 92 ?? 91` | 0x33 | 🟡 code | stock USM\$ table TOWMODE; the EV6 firmware answers its request (0x1133) in emulation with 2 bytes |
+| USM_Convenience_SET_Ventilated_M_RESP | `11 92 ?? 91` | 0x0e | 🟡 code | stock USM\$ table ConvenienceVentilate; the EV6 firmware answers its request (0x110e) in emulation with 10 bytes; ids 2 and 3 only, not 1..N, and the reply is longer than max id + 1 |
+| USM_Driver_Assi_SET_ETC_M_RESP | `11 92 ?? 91` | 0x26 | 🟡 code | stock USM\$ table DriverAssistETC; the EV6 firmware answers its request (0x1126) in emulation with 17 bytes; ids 1-4 and 6-17 (no 5); id 17 BLINDSPOTSAFETYWARNINGSOUND would sit at byte 17, past the reply, so it is not read |
+| USM_DIGITALKEY_2nd_M_RESP | `11 92 ?? 91` | 0x34 | 🟡 code | stock USM\$ table DigitalKeyInfo2; the EV6 firmware answers its request (0x1134) in emulation with 10 bytes; item 6 NFCCARD1_SERIAL is a string, probably bytes 6-9, unread |
+| USM_Dual_Light_SET_LAMP_M_RESP | `11 92 ?? 91` | 0x35 | 🟡 code | stock USM\$ table DualLight; the EV6 firmware answers its request (0x1135) in emulation with 10 bytes; byte 0 is 02 here, not 0xfa, so it is left unnamed; id 100 MLMALL is the write-all id and has no byte |
+| USM_HUD_SET_ON_OFF_M_RESP | `11 92 ?? 91` | 0x01 | 🟡 code | no stock table; the EV6 firmware answers its request (0x1101) in emulation with 3 bytes |
+| USM_Driver_Assi_SET_SCC_M_RESP | `11 92 ?? 91` | 0x05 | 🟡 code | no stock table; the EV6 firmware answers its request (0x1105) in emulation with 1 bytes; 0xfa when unset |
+| USM_Cluster_SET_ENG_Reset_M_RESP | `11 92 ?? 91` | 0x0b | 🟡 code | no stock table; the EV6 firmware answers its request (0x110b) in emulation with 2 bytes |
+| USM_Reset_USM_SETTING_M_RESP | `11 92 ?? 91` | 0x10 | 🟡 code | no stock table; the EV6 firmware answers its request (0x1110) in emulation with 1 bytes |
+| USM_UserProfile_ALL_NFC_0_M_REQ | `11 92 ?? 91` | 0x13 | 🟡 code | no stock table; the EV6 firmware answers its request (0x1113) in emulation with 14 bytes; named _REQ in the stock table although it is micom to SoC |
+| USM_UserProfile_ALL_NFC_1_M_REQ | `11 92 ?? 91` | 0x14 | 🟡 code | no stock table; the EV6 firmware answers its request (0x1114) in emulation with 10 bytes; named _REQ in the stock table although it is micom to SoC |
+| USM_DigitalKey_Info_M_RESP | `11 92 ?? 91` | 0x1e | 🟡 code | no stock table; the EV6 firmware answers its request (0x111e) in emulation with 14 bytes; stock strings Manufacturer, Serial, VendorCode and Date/Month/Year are unplaced |
+| USM_UserProfile_Rx_NFC_2_M_RESP | `11 92 ?? 91` | 0x1f | 🟡 code | no stock table; the EV6 firmware answers its request (0x111f) in emulation with 8 bytes |
 | Status flag | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService status-flag setter; seen live as 57 00 NN |
 | Charge time estimate, DC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x0e QC_REM_TIME: a DC fast charge's time to full, while not charging; 10-41 seen |
 | Charge time estimate, AC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x13 SC_REM_TIME_EVSE_PHEV, an EV's NOT_CHAR_EVSE_REM_TIME (CAN DB generation > 0): a wallbox's time to full, while not charging; 20-220 seen, rising as the charge fell |
@@ -2139,6 +2151,245 @@ cmd `0x33`, length ≥ 2 · 🟡 code
 packet-beta
 0-7: "Item"
 8-15: "TOWWEIGHT"
+```
+
+#### USM_Convenience_SET_Ventilated_M_RESP
+
+cmd `0x0e`, length ≥ 10 · 🟡 code
+
+> stock USM\$ table ConvenienceVentilate; the EV6 firmware answers its request (0x110e) in emulation with 10 bytes; ids 2 and 3 only, not 1..N, and the reply is longer than max id + 1
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| SEATWARMER | byte 2 | invalid 250 |
+| DRIVERSTEERINGWHEEL | byte 3 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "?"
+16-23: "SEATWARMER"
+24-31: "DRIVERSTEERINGWHEEL"
+```
+
+#### USM_Driver_Assi_SET_ETC_M_RESP
+
+cmd `0x26`, length ≥ 17 · 🟡 code
+
+> stock USM\$ table DriverAssistETC; the EV6 firmware answers its request (0x1126) in emulation with 17 bytes; ids 1-4 and 6-17 (no 5); id 17 BLINDSPOTSAFETYWARNINGSOUND would sit at byte 17, past the reply, so it is not read
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| SMARTCRUISECONTROL | byte 1 | invalid 250 |
+| SMARTCRUISECONTROL_ACCELERATION | byte 2 | invalid 250 |
+| SMARTCRUISECONTROL_DISTANCE | byte 3 | invalid 250 |
+| SMARTCRUISECONTROL_REACTIONSPEED | byte 4 | invalid 250 |
+| FORWARDCROSSTRAFFICSAFETY | byte 6 | invalid 250 |
+| HIGHWAYLANECHANGEASSIST | byte 7 | invalid 250 |
+| DRIVINGSAFETYAUTOOFFINNDRIVEMODE | byte 8 | invalid 250 |
+| PARKINGSAFETYONOFF | byte 9 | invalid 250 |
+| AUTONMODSTA | byte 10 | invalid 250 |
+| FORWARDSIDESAFETY | byte 11 | invalid 250 |
+| SCC_ML_OnOffEquipSta | byte 12 | invalid 250 |
+| SCC_Char1Sta | byte 13 | invalid 250 |
+| SCC_Char2Sta | byte 14 | invalid 250 |
+| SCC_Char3Sta | byte 15 | invalid 250 |
+| LANESAFETYTYPENEW2_LDW | byte 16 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "SMARTCRUISECONTROL"
+16-23: "SMARTCRUISECONTROL_ACCELERATION"
+24-31: "SMARTCRUISECONTROL_DISTANCE"
+32-39: "SMARTCRUISECONTROL_REACTIONSPEED"
+40-47: "?"
+48-55: "FORWARDCROSSTRAFFICSAFETY"
+56-63: "HIGHWAYLANECHANGEASSIST"
+64-71: "DRIVINGSAFETYAUTOOFFINNDRIVEMODE"
+72-79: "PARKINGSAFETYONOFF"
+80-87: "AUTONMODSTA"
+88-95: "FORWARDSIDESAFETY"
+96-103: "SCC_ML_OnOffEquipSta"
+104-111: "SCC_Char1Sta"
+112-119: "SCC_Char2Sta"
+120-127: "SCC_Char3Sta"
+128-135: "LANESAFETYTYPENEW2_LDW"
+```
+
+#### USM_DIGITALKEY_2nd_M_RESP
+
+cmd `0x34`, length ≥ 10 · 🟡 code
+
+> stock USM\$ table DigitalKeyInfo2; the EV6 firmware answers its request (0x1134) in emulation with 10 bytes; item 6 NFCCARD1_SERIAL is a string, probably bytes 6-9, unread
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| DIGITALKEYINFO2OPT | byte 1 | invalid 250 |
+| SHAREDPHNREGSTAT | byte 2 | invalid 250 |
+| DIGITALKEYPROFILERVAL | byte 3 | invalid 250 |
+| CARDKEYENBLRVAL | byte 4 | invalid 250 |
+| VALETDIGITALKEY | byte 5 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "DIGITALKEYINFO2OPT"
+16-23: "SHAREDPHNREGSTAT"
+24-31: "DIGITALKEYPROFILERVAL"
+32-39: "CARDKEYENBLRVAL"
+40-47: "VALETDIGITALKEY"
+```
+
+#### USM_Dual_Light_SET_LAMP_M_RESP
+
+cmd `0x35`, length ≥ 10 · 🟡 code
+
+> stock USM\$ table DualLight; the EV6 firmware answers its request (0x1135) in emulation with 10 bytes; byte 0 is 02 here, not 0xfa, so it is left unnamed; id 100 MLMALL is the write-all id and has no byte
+
+| Field | At | Notes |
+| --- | --- | --- |
+| MLMBOTTOMRED | byte 1 | invalid 250 |
+| MLMBOTTOMGREEN | byte 2 | invalid 250 |
+| MLMBOTTOMBLUE | byte 3 | invalid 250 |
+| MLMSPEEDN | byte 4 | invalid 250 |
+| MLMCOLORN | byte 5 | invalid 250 |
+| MLMMODE | byte 6 | invalid 250 |
+| MLMRECOMMEND | byte 7 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "?"
+8-15: "MLMBOTTOMRED"
+16-23: "MLMBOTTOMGREEN"
+24-31: "MLMBOTTOMBLUE"
+32-39: "MLMSPEEDN"
+40-47: "MLMCOLORN"
+48-55: "MLMMODE"
+56-63: "MLMRECOMMEND"
+```
+
+#### USM_HUD_SET_ON_OFF_M_RESP
+
+cmd `0x01`, length ≥ 3 · 🟡 code
+
+> no stock table; the EV6 firmware answers its request (0x1101) in emulation with 3 bytes
+
+| Field | At |
+| --- | --- |
+| Byte0 | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "Byte0"
+```
+
+#### USM_Driver_Assi_SET_SCC_M_RESP
+
+cmd `0x05`, length ≥ 1 · 🟡 code
+
+> no stock table; the EV6 firmware answers its request (0x1105) in emulation with 1 bytes; 0xfa when unset
+
+| Field | At |
+| --- | --- |
+| Item | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+```
+
+#### USM_Cluster_SET_ENG_Reset_M_RESP
+
+cmd `0x0b`, length ≥ 2 · 🟡 code
+
+> no stock table; the EV6 firmware answers its request (0x110b) in emulation with 2 bytes
+
+| Field | At |
+| --- | --- |
+| Byte0 | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "Byte0"
+```
+
+#### USM_Reset_USM_SETTING_M_RESP
+
+cmd `0x10`, length ≥ 1 · 🟡 code
+
+> no stock table; the EV6 firmware answers its request (0x1110) in emulation with 1 bytes
+
+| Field | At |
+| --- | --- |
+| Byte0 | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "Byte0"
+```
+
+#### USM_UserProfile_ALL_NFC_0_M_REQ
+
+cmd `0x13`, length ≥ 14 · 🟡 code
+
+> no stock table; the EV6 firmware answers its request (0x1113) in emulation with 14 bytes; named _REQ in the stock table although it is micom to SoC
+
+| Field | At |
+| --- | --- |
+| Byte0 | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "Byte0"
+```
+
+#### USM_UserProfile_ALL_NFC_1_M_REQ
+
+cmd `0x14`, length ≥ 10 · 🟡 code
+
+> no stock table; the EV6 firmware answers its request (0x1114) in emulation with 10 bytes; named _REQ in the stock table although it is micom to SoC
+
+| Field | At |
+| --- | --- |
+| Item | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+```
+
+#### USM_DigitalKey_Info_M_RESP
+
+cmd `0x1e`, length ≥ 14 · 🟡 code
+
+> no stock table; the EV6 firmware answers its request (0x111e) in emulation with 14 bytes; stock strings Manufacturer, Serial, VendorCode and Date/Month/Year are unplaced
+
+| Field | At |
+| --- | --- |
+| Item | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+```
+
+#### USM_UserProfile_Rx_NFC_2_M_RESP
+
+cmd `0x1f`, length ≥ 8 · 🟡 code
+
+> no stock table; the EV6 firmware answers its request (0x111f) in emulation with 8 bytes
+
+| Field | At |
+| --- | --- |
+| Byte0 | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "Byte0"
 ```
 
 ### 0c 88 ?? 8c
