@@ -1566,7 +1566,7 @@ messages:
       - { name: "Byte0", off: 0 }
     status: code
     ref: "no stock table; the EV6 firmware answers its request (0x1110) in emulation with 1 bytes"
-  - name: "USM_UserProfile_ALL_NFC_0_M_REQ"
+  - name: "USM_UserProfile_ALL_NFC_0_M_RESP"
     dir: from_micom
     hdr: "11 92 ?? 91"
     cmd: 0x13
@@ -1582,8 +1582,8 @@ messages:
       - { name: "Owner_PhoneRValue", off: 12, invalid: 0xfa }
       - { name: "DigitalKeyEnableRValue", off: 13, invalid: 0xfa }
     status: code
-    ref: "stock USMService.onEvent, UserProfile fields in log order (byte-to-field pairing is that order, not a setter name); bytes 4-9 are the NFC BD address as hex; the EV6 firmware answers request 0x1113 in emulation with 14 bytes; named _REQ in the stock table although it is micom to SoC"
-  - name: "USM_UserProfile_ALL_NFC_1_M_REQ"
+    ref: "stock USMService.onEvent, UserProfile fields in log order (byte-to-field pairing is that order, not a setter name); bytes 4-9 are the NFC BD address as hex; the EV6 firmware answers request 0x1113 in emulation with 14 bytes; stock name is USM_UserProfile_ALL_NFC_0_M_REQ although it is micom to SoC"
+  - name: "USM_UserProfile_ALL_NFC_1_M_RESP"
     dir: from_micom
     hdr: "11 92 ?? 91"
     cmd: 0x14
@@ -1596,7 +1596,7 @@ messages:
       - { name: "DigitalKeyExit", off: 8, invalid: 0xfa }
       - { name: "DigitalKeyGuide", off: 9, invalid: 0xfa }
     status: code
-    ref: "stock USMService.onEvent, UserProfile fields in log order; bytes 2-7 are a number the SoC formats as hex (%06X of bytes 2-4, %X of bytes 5-7, each little-endian), shown as two halves; the field name PhoneNumberOnWPC is a guess from the stock field list; the EV6 firmware answers request 0x1114 in emulation with 10 bytes; named _REQ in the stock table although it is micom to SoC"
+    ref: "stock USMService.onEvent, UserProfile fields in log order; bytes 2-7 are a number the SoC formats as hex (%06X of bytes 2-4, %X of bytes 5-7, each little-endian), shown as two halves; the field name PhoneNumberOnWPC is a guess from the stock field list; the EV6 firmware answers request 0x1114 in emulation with 10 bytes; stock name is USM_UserProfile_ALL_NFC_1_M_REQ although it is micom to SoC"
   - name: "USM_DigitalKey_Info_M_RESP"
     dir: from_micom
     hdr: "11 92 ?? 91"
