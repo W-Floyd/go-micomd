@@ -43,7 +43,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 20 |
-| 🟡 code | 146 |
+| 🟡 code | 175 |
 | 🟠 inferred | 3 |
 
 Not yet backed by a capture:
@@ -76,15 +76,44 @@ Not yet backed by a capture:
 | NSCC_C_REQ | `0d 8f ?? 8d` | 0x41 | 🟡 code | stock Navigation constant NSCC_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes |
 | DAW_WRN_C_REQ | `0d 8f ?? 8d` | 0x44 | 🟡 code | stock Navigation constant DAW_WRN_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes |
 | HDA_LINE_NUM_VAL_C_REQ | `0d 8f ?? 8d` | 0x45 | 🟡 code | stock Navigation constant HDA_LINE_NUM_VAL_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes |
-| USM_SWRC_SET_C_REQ | `11 92 ?? 91` | 0x27 | 🟡 code | stock USM constant USM_SWRC_SET_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes |
-| USM_Front_Seat_Heat_SET_C_REQ | `11 92 ?? 91` | 0x28 | 🟡 code | stock USM constant USM_Front_Seat_Heat_SET_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes |
 | USM_UserProfile_Rx_NFC_0_Short_M PHONEPAIRINGRVALUE | `11 92 ?? 91` | 0x16 | 🟡 code | stock USM_UserProfile_Rx_NFC_0_Short_M, item 1 PHONEPAIRINGRVALUE (USM\$NFC0_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 1 bits 0..1 changes |
 | USM_UserProfile_Rx_NFC_0_Short_M NFC_SUPPORT_RESULT | `11 92 ?? 91` | 0x16 | 🟡 code | stock USM_UserProfile_Rx_NFC_0_Short_M, item 4 NFC_SUPPORT_RESULT (USM\$NFC0_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 0 bits 0..1 changes |
 | USM_UserProfile_Rx_NFC_0_Short_M OWNER_PHONERVALUE | `11 92 ?? 91` | 0x16 | 🟡 code | stock USM_UserProfile_Rx_NFC_0_Short_M, item 7 OWNER_PHONERVALUE (USM\$NFC0_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 3 bits 2..3 changes |
 | USM_UserProfile_Rx_NFC_0_Short_M DIGITALKEYENABLERVALUE | `11 92 ?? 91` | 0x16 | 🟡 code | stock USM_UserProfile_Rx_NFC_0_Short_M, item 8 DIGITALKEYENABLERVALUE (USM\$NFC0_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 3 bits 0..1 changes |
 | USM_UserProfile_Rx_NFC_1_Short_M IDRVALUE | `11 92 ?? 91` | 0x18 | 🟡 code | stock USM_UserProfile_Rx_NFC_1_Short_M, item 2 IDRVALUE (USM\$NFC1_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 1 bits 2..5 changes |
 | USM_UserProfile_Rx_NFC_1_Short_M DIGITALKEYGUIDE | `11 92 ?? 91` | 0x18 | 🟡 code | stock USM_UserProfile_Rx_NFC_1_Short_M, item 4 DIGITALKEYGUIDE (USM\$NFC1_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 2 bits 0..3 changes |
-| USM_Body_Type_C_REQ BodyTypeOption | `11 92 ?? 91` | 0x2d | 🟡 code | stock USM_Body_Type_C_REQ, item 1 BodyTypeOption (USM\$BodyType); the EV6 firmware sends it in emulation when CAN 0x442 byte 2 bits 4..6 changes |
+| USM_HUD_SET_Disp_Ctrl_M_RESP | `11 92 ?? 91` | 0x02 | 🟡 code | stock USM\$ table HUDDisplayControl; the EV6 firmware answers its request (0x1102) in emulation with 4 bytes |
+| USM_HUD_SET_Content_Selection_M_RESP | `11 92 ?? 91` | 0x03 | 🟡 code | stock USM\$ table HUDContentSelection; the EV6 firmware answers its request (0x1103) in emulation with 8 bytes |
+| USM_HUD_SET_Speed_Odometer_M_RESP | `11 92 ?? 91` | 0x04 | 🟡 code | stock USM\$ table HUDSpeedOdometer; the EV6 firmware answers its request (0x1104) in emulation with 3 bytes |
+| USM_Driver_Assi_SET_DrAssi_M_RESP | `11 92 ?? 91` | 0x06 | 🟡 code | stock USM\$ table DriverAssist; the EV6 firmware answers its request (0x1106) in emulation with 15 bytes |
+| USM_Driver_Assi_SET_Warn_M_RESP | `11 92 ?? 91` | 0x07 | 🟡 code | stock USM\$ table Warning; the EV6 firmware answers its request (0x1107) in emulation with 15 bytes |
+| USM_Driver_Assi_SET_Safety_M_RESP | `11 92 ?? 91` | 0x08 | 🟡 code | stock USM\$ table Safety; the EV6 firmware answers its request (0x1108) in emulation with 35 bytes |
+| USM_DrTk_SET_M_RESP | `11 92 ?? 91` | 0x09 | 🟡 code | stock USM\$ table Door; the EV6 firmware answers its request (0x1109) in emulation with 22 bytes |
+| USM_Cluster_SET_Service_M_RESP | `11 92 ?? 91` | 0x0a | 🟡 code | stock USM\$ table ClusterService; the EV6 firmware answers its request (0x110a) in emulation with 12 bytes |
+| USM_Cluster_SET_Content_Vol_M_RESP | `11 92 ?? 91` | 0x0c | 🟡 code | stock USM\$ table ClusterContent; the EV6 firmware answers its request (0x110c) in emulation with 12 bytes |
+| USM_Light_SET_Lamp_M_RESP | `11 92 ?? 91` | 0x0d | 🟡 code | stock USM\$ table Lights; the EV6 firmware answers its request (0x110d) in emulation with 15 bytes |
+| USM_Convenience_SET_ETC_M_RESP | `11 92 ?? 91` | 0x0f | 🟡 code | stock USM\$ table ConvenienceEtc; the EV6 firmware answers its request (0x110f) in emulation with 18 bytes |
+| USM_Pwr_Folding_M_RESP | `11 92 ?? 91` | 0x1a | 🟡 code | stock USM\$ table PowerFoldingSeat; the EV6 firmware answers its request (0x111a) in emulation with 23 bytes |
+| USM_Eco_Vehicle_M_RESP | `11 92 ?? 91` | 0x1b | 🟡 code | stock USM\$ table EcoVehicle; the EV6 firmware answers its request (0x111b) in emulation with 20 bytes |
+| USM_RearSeat_H_M_RESP | `11 92 ?? 91` | 0x1c | 🟡 code | stock USM\$ table RearSeatHeat; the EV6 firmware answers its request (0x111c) in emulation with 7 bytes |
+| USM_HealthCare_M_RESP | `11 92 ?? 91` | 0x20 | 🟡 code | stock USM\$ table HealthCare; the EV6 firmware answers its request (0x1120) in emulation with 4 bytes |
+| USM_SmartIMS20_M_RESP | `11 92 ?? 91` | 0x21 | 🟡 code | stock USM\$ table SmartIMS20; the EV6 firmware answers its request (0x1121) in emulation with 7 bytes |
+| USM_Seat_ETC_M_RESP | `11 92 ?? 91` | 0x22 | 🟡 code | stock USM\$ table SeatETC; the EV6 firmware answers its request (0x1122) in emulation with 3 bytes |
+| USM_HUD_SET_ETC_M_RESP | `11 92 ?? 91` | 0x23 | 🟡 code | stock USM\$ table HUDEtc; the EV6 firmware answers its request (0x1123) in emulation with 7 bytes |
+| USM_CLU_SET_ETC_M_RESP | `11 92 ?? 91` | 0x24 | 🟡 code | stock USM\$ table ClusterETC; the EV6 firmware answers its request (0x1124) in emulation with 6 bytes |
+| USM_DrTk_SET_ETC_M_RESP | `11 92 ?? 91` | 0x25 | 🟡 code | stock USM\$ table DoorETC; the EV6 firmware answers its request (0x1125) in emulation with 3 bytes |
+| USM_SWRC_SET_M_RESP | `11 92 ?? 91` | 0x27 | 🟡 code | stock USM\$ table SWRC; the EV6 firmware answers its request (0x1127) in emulation with 5 bytes |
+| USM_Front_Seat_Heat_SET_M_RESP | `11 92 ?? 91` | 0x28 | 🟡 code | stock USM\$ table FrontSeatHeat; the EV6 firmware answers its request (0x1128) in emulation with 5 bytes |
+| USM_All_Seat_Moving_SET_M_RESP | `11 92 ?? 91` | 0x29 | 🟡 code | stock USM\$ table AllSeatMoving; the EV6 firmware answers its request (0x1129) in emulation with 14 bytes |
+| USM_CMS_SET_M_RESP | `11 92 ?? 91` | 0x2a | 🟡 code | stock USM\$ table CameraMonitorSystem; the EV6 firmware answers its request (0x112a) in emulation with 8 bytes |
+| USM_Convenience_SET_ETC_ADD_M_RESP | `11 92 ?? 91` | 0x2b | 🟡 code | stock USM\$ table ConvenienceEtcAdd; the EV6 firmware answers its request (0x112b) in emulation with 5 bytes |
+| USM_Clu_Right_Gauge_M_RESP | `11 92 ?? 91` | 0x2c | 🟡 code | stock USM\$ table ClusterRightGauge; the EV6 firmware answers its request (0x112c) in emulation with 14 bytes |
+| USM_Body_Type_M_RESP | `11 92 ?? 91` | 0x2d | 🟡 code | stock USM\$ table BodyType; the EV6 firmware answers its request (0x112d) in emulation with 2 bytes |
+| USM_ERGO_M_RESP | `11 92 ?? 91` | 0x2e | 🟡 code | stock USM\$ table Ergo; the EV6 firmware answers its request (0x112e) in emulation with 9 bytes |
+| USM_Seat_2nd_Reg_L_M_RESP | `11 92 ?? 91` | 0x2f | 🟡 code | stock USM\$ table SEATBACKRECLINE_RLPSU; the EV6 firmware answers its request (0x112f) in emulation with 10 bytes |
+| USM_Seat_2nd_Reg_R_M_RESP | `11 92 ?? 91` | 0x30 | 🟡 code | stock USM\$ table SEATBACKRECLINE_RRPSU; the EV6 firmware answers its request (0x1130) in emulation with 10 bytes |
+| USM_Eco_Vehicle_ETC_M_RESP | `11 92 ?? 91` | 0x31 | 🟡 code | stock USM\$ table EcoVehicleETC; the EV6 firmware answers its request (0x1131) in emulation with 3 bytes |
+| USM_TOWMODE_M_RESP | `11 92 ?? 91` | 0x33 | 🟡 code | stock USM\$ table TOWMODE; the EV6 firmware answers its request (0x1133) in emulation with 2 bytes |
 | Status flag | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService status-flag setter; seen live as 57 00 NN |
 | Charge time estimate, DC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x0e QC_REM_TIME: a DC fast charge's time to full, while not charging; 10-41 seen |
 | Charge time estimate, AC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x13 SC_REM_TIME_EVSE_PHEV, an EV's NOT_CHAR_EVSE_REM_TIME (CAN DB generation > 0): a wallbox's time to full, while not charging; 20-220 seen, rising as the charge fell |
@@ -1059,40 +1088,6 @@ packet-beta
 
 
 
-#### USM_SWRC_SET_C_REQ
-
-cmd `0x27`, length ≥ 5 · 🟡 code
-
-> stock USM constant USM_SWRC_SET_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes
-
-| Field | At |
-| --- | --- |
-| USM_SWRC_SET_C_REQ | byte 1 |
-
-```mermaid
-packet-beta
-0-7: "?"
-8-15: "USM_SWRC_SET_C_REQ"
-```
-
-#### USM_Front_Seat_Heat_SET_C_REQ
-
-cmd `0x28`, length ≥ 5 · 🟡 code
-
-> stock USM constant USM_Front_Seat_Heat_SET_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes
-
-| Field | At |
-| --- | --- |
-| USM_Front_Seat_Heat_SET_C_REQ byte 2 | byte 2 |
-| USM_Front_Seat_Heat_SET_C_REQ byte 3 | byte 3 |
-
-```mermaid
-packet-beta
-0-15: "?"
-16-23: "USM_Front_Seat_Heat_SET_C_REQ byte 2"
-24-31: "USM_Front_Seat_Heat_SET_C_REQ byte 3"
-```
-
 #### USM_UserProfile_Rx_NFC_0_Short_M PHONEPAIRINGRVALUE
 
 cmd `0x16`, length ≥ 2 · 🟡 code
@@ -1189,20 +1184,1049 @@ packet-beta
 8-15: "DIGITALKEYGUIDE"
 ```
 
-#### USM_Body_Type_C_REQ BodyTypeOption
+#### USM_HUD_SET_Disp_Ctrl_M_RESP
 
-cmd `0x2d`, length ≥ 2 · 🟡 code
+cmd `0x02`, length ≥ 4 · 🟡 code
 
-> stock USM_Body_Type_C_REQ, item 1 BodyTypeOption (USM\$BodyType); the EV6 firmware sends it in emulation when CAN 0x442 byte 2 bits 4..6 changes
+> stock USM\$ table HUDDisplayControl; the EV6 firmware answers its request (0x1102) in emulation with 4 bytes
 
-| Field | At |
-| --- | --- |
-| BodyTypeOption | byte 1 |
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| HEIGHT | byte 1 | invalid 250 |
+| ROTATION | byte 2 | invalid 250 |
+| BRIGHTNESS | byte 3 | invalid 250 |
 
 ```mermaid
 packet-beta
-0-7: "?"
+0-7: "Item"
+8-15: "HEIGHT"
+16-23: "ROTATION"
+24-31: "BRIGHTNESS"
+```
+
+#### USM_HUD_SET_Content_Selection_M_RESP
+
+cmd `0x03`, length ≥ 8 · 🟡 code
+
+> stock USM\$ table HUDContentSelection; the EV6 firmware answers its request (0x1103) in emulation with 8 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| TURNBYTURN | byte 1 | invalid 250 |
+| TRAFFICINFO | byte 2 | invalid 250 |
+| DRIVINGASSISTINFO | byte 3 | invalid 250 |
+| LANESAFETYINFO | byte 4 | invalid 250 |
+| BLINDSPOTSAFETYINFO | byte 6 | invalid 250 |
+| AVINFO | byte 7 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "TURNBYTURN"
+16-23: "TRAFFICINFO"
+24-31: "DRIVINGASSISTINFO"
+32-39: "LANESAFETYINFO"
+40-47: "?"
+48-55: "BLINDSPOTSAFETYINFO"
+56-63: "AVINFO"
+```
+
+#### USM_HUD_SET_Speed_Odometer_M_RESP
+
+cmd `0x04`, length ≥ 3 · 🟡 code
+
+> stock USM\$ table HUDSpeedOdometer; the EV6 firmware answers its request (0x1104) in emulation with 3 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| SPEEDNUMBERSIZE | byte 1 | invalid 250 |
+| SPEEDCOLOR | byte 2 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "SPEEDNUMBERSIZE"
+16-23: "SPEEDCOLOR"
+```
+
+#### USM_Driver_Assi_SET_DrAssi_M_RESP
+
+cmd `0x06`, length ≥ 15 · 🟡 code
+
+> stock USM\$ table DriverAssist; the EV6 firmware answers its request (0x1106) in emulation with 15 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| LEADINGVEHICLEDEPARTURENOTICE | byte 1 | invalid 250 |
+| LANEFOLLOWING | byte 2 | invalid 250 |
+| HIGHWAYDRIVING | byte 3 | invalid 250 |
+| HIGHWAYAUTOSPEEDZONESLOWDOWN | byte 4 | invalid 250 |
+| HIGHWAYAUTOCURVEZONESLOWDOWN | byte 5 | invalid 250 |
+| SPEEDLIMITDISPLAY | byte 6 | invalid 250 |
+| SPEEDLIMITOFFSET | byte 7 | invalid 250 |
+| SPEEDLIMITAUTOSPEEDCHANGE | byte 8 | invalid 250 |
+| SPEEDLIMITSTATUS | byte 9 | invalid 250 |
+| SPEEDLIMITOFFSETUS | byte 10 | invalid 250 |
+| SPEEDLIMITCNTRYCURRENT | byte 11 | invalid 250 |
+| SPEEDLIMITCNTRYPREVIOUS | byte 12 | invalid 250 |
+| SPEEDLIMITCNTRYVERTYP | byte 13 | invalid 250 |
+| SPEEDLIMITSTATUS2 | byte 14 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "LEADINGVEHICLEDEPARTURENOTICE"
+16-23: "LANEFOLLOWING"
+24-31: "HIGHWAYDRIVING"
+32-39: "HIGHWAYAUTOSPEEDZONESLOWDOWN"
+40-47: "HIGHWAYAUTOCURVEZONESLOWDOWN"
+48-55: "SPEEDLIMITDISPLAY"
+56-63: "SPEEDLIMITOFFSET"
+64-71: "SPEEDLIMITAUTOSPEEDCHANGE"
+72-79: "SPEEDLIMITSTATUS"
+80-87: "SPEEDLIMITOFFSETUS"
+88-95: "SPEEDLIMITCNTRYCURRENT"
+96-103: "SPEEDLIMITCNTRYPREVIOUS"
+104-111: "SPEEDLIMITCNTRYVERTYP"
+112-119: "SPEEDLIMITSTATUS2"
+```
+
+#### USM_Driver_Assi_SET_Warn_M_RESP
+
+cmd `0x07`, length ≥ 15 · 🟡 code
+
+> stock USM\$ table Warning; the EV6 firmware answers its request (0x1107) in emulation with 15 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| DRIVERATTENTIONWARNING | byte 1 | invalid 250 |
+| WARNINGTIMING | byte 2 | invalid 250 |
+| WARNINGVOLUME | byte 3 | invalid 250 |
+| HAPTICWARNING | byte 4 | invalid 250 |
+| ICUHAPTICOPTION | byte 5 | invalid 250 |
+| SCMHAPTICOPTION | byte 6 | invalid 250 |
+| HAPTICWARNINGICU | byte 7 | invalid 250 |
+| HAPTICWARNINGSCM | byte 8 | invalid 250 |
+| HAPTICWARNINGICUPOPUP | byte 9 | invalid 250 |
+| HAPTICWARNINGSCMPOPUP | byte 10 | invalid 250 |
+| HAPTICWARNINGPOPUP | byte 11 | invalid 250 |
+| FORWARDATTENTIONWARN | byte 12 | invalid 250 |
+| LKAWARNINGOFF | byte 13 | invalid 250 |
+| LKAWARNINGBEEP | byte 14 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "DRIVERATTENTIONWARNING"
+16-23: "WARNINGTIMING"
+24-31: "WARNINGVOLUME"
+32-39: "HAPTICWARNING"
+40-47: "ICUHAPTICOPTION"
+48-55: "SCMHAPTICOPTION"
+56-63: "HAPTICWARNINGICU"
+64-71: "HAPTICWARNINGSCM"
+72-79: "HAPTICWARNINGICUPOPUP"
+80-87: "HAPTICWARNINGSCMPOPUP"
+88-95: "HAPTICWARNINGPOPUP"
+96-103: "FORWARDATTENTIONWARN"
+104-111: "LKAWARNINGOFF"
+112-119: "LKAWARNINGBEEP"
+```
+
+#### USM_Driver_Assi_SET_Safety_M_RESP
+
+cmd `0x08`, length ≥ 35 · 🟡 code
+
+> stock USM\$ table Safety; the EV6 firmware answers its request (0x1108) in emulation with 35 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| FORWARDSAFETYWARNING | byte 1 | invalid 250 |
+| LANESAFETY | byte 2 | invalid 250 |
+| BLINDSPOTSAFETYVIEW | byte 3 | invalid 250 |
+| BLINDSPOTSAFETYSAFEEXITASSIST | byte 4 | invalid 250 |
+| BLINDSPOTSAFETYREARCROSSTRAFFIC | byte 5 | invalid 250 |
+| BLINDSPOTSAFETYWARNING | byte 6 | invalid 250 |
+| BLINDSPOTSAFETYONOFF | byte 7 | invalid 250 |
+| PARKINGDISTANCEWARNING | byte 8 | invalid 250 |
+| PARKINGSAFETY | byte 9 | invalid 250 |
+| ADASMENU_SHORTCUT | byte 10 | invalid 250 |
+| SVMAUTOONOFF | byte 11 | invalid 250 |
+| DRIVERATTENTIONWARNINGONOFF | byte 12 | invalid 250 |
+| LEADINGVEHICLEDEPARTUREALERT | byte 13 | invalid 250 |
+| PARKINGDISTANCEWARNINGRVALUE | byte 14 | invalid 250 |
+| LANESAFETYTYPE | byte 15 | invalid 250 |
+| LANESAFETYTYPENEW | byte 16 | invalid 250 |
+| HIGHWAYAUTOSPEEDZONESLOWDOWNHCU | byte 17 | invalid 250 |
+| FORWARDSAFETYONOFFINNMODE | byte 18 | invalid 250 |
+| BLINDSPOTSAFETYREARCROSSTRAFFICNEW | byte 19 | invalid 250 |
+| HIGHWAYAUTOSPEEDCHANGE | byte 20 | invalid 250 |
+| BLINDSPOTSAFETYREARCROSSTRAFFICRCCA | byte 21 | invalid 250 |
+| BLINDSPOTSAFETYSAFEEXITASSISTNEW | byte 22 | invalid 250 |
+| BLINDSPOTSAFETYSAFEEXITWARNING | byte 23 | invalid 250 |
+| FORWARDCROSSASSISTANCE | byte 24 | invalid 250 |
+| BLINDSPOTCROSSASSISTANCE | byte 25 | invalid 250 |
+| ADASINHIBIT | byte 26 | invalid 250 |
+| BLINDSPOTSAFETYONOFFNEW | byte 27 | invalid 250 |
+| FORWARDSAFETYWARNINGTIME | byte 28 | invalid 250 |
+| FORWARDCROSSTRAFFICSAFETYNEW | byte 29 | invalid 250 |
+| FORWARDSIDESAFETYNEW | byte 30 | invalid 250 |
+| LANESAFETYTYPENEW2 | byte 31 | invalid 250 |
+| BLINDSAFETYEXITNEW2 | byte 32 | invalid 250 |
+| BLINDSAFETYWARNINGNEW2 | byte 33 | invalid 250 |
+| PEDALMISAPPLICATIONSAFETYASSIST | byte 34 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "FORWARDSAFETYWARNING"
+16-23: "LANESAFETY"
+24-31: "BLINDSPOTSAFETYVIEW"
+32-39: "BLINDSPOTSAFETYSAFEEXITASSIST"
+40-47: "BLINDSPOTSAFETYREARCROSSTRAFFIC"
+48-55: "BLINDSPOTSAFETYWARNING"
+56-63: "BLINDSPOTSAFETYONOFF"
+64-71: "PARKINGDISTANCEWARNING"
+72-79: "PARKINGSAFETY"
+80-87: "ADASMENU_SHORTCUT"
+88-95: "SVMAUTOONOFF"
+96-103: "DRIVERATTENTIONWARNINGONOFF"
+104-111: "LEADINGVEHICLEDEPARTUREALERT"
+112-119: "PARKINGDISTANCEWARNINGRVALUE"
+120-127: "LANESAFETYTYPE"
+128-135: "LANESAFETYTYPENEW"
+136-143: "HIGHWAYAUTOSPEEDZONESLOWDOWNHCU"
+144-151: "FORWARDSAFETYONOFFINNMODE"
+152-159: "BLINDSPOTSAFETYREARCROSSTRAFFICNEW"
+160-167: "HIGHWAYAUTOSPEEDCHANGE"
+168-175: "BLINDSPOTSAFETYREARCROSSTRAFFICRCCA"
+176-183: "BLINDSPOTSAFETYSAFEEXITASSISTNEW"
+184-191: "BLINDSPOTSAFETYSAFEEXITWARNING"
+192-199: "FORWARDCROSSASSISTANCE"
+200-207: "BLINDSPOTCROSSASSISTANCE"
+208-215: "ADASINHIBIT"
+216-223: "BLINDSPOTSAFETYONOFFNEW"
+224-231: "FORWARDSAFETYWARNINGTIME"
+232-239: "FORWARDCROSSTRAFFICSAFETYNEW"
+240-247: "FORWARDSIDESAFETYNEW"
+248-255: "LANESAFETYTYPENEW2"
+256-263: "BLINDSAFETYEXITNEW2"
+264-271: "BLINDSAFETYWARNINGNEW2"
+272-279: "PEDALMISAPPLICATIONSAFETYASSIST"
+```
+
+#### USM_DrTk_SET_M_RESP
+
+cmd `0x09`, length ≥ 22 · 🟡 code
+
+> stock USM\$ table Door; the EV6 firmware answers its request (0x1109) in emulation with 22 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| AUTOLOCK | byte 1 | invalid 250 |
+| AUTOUNLOCK | byte 2 | invalid 250 |
+| POWERTRUNK | byte 3 | invalid 250 |
+| SMARTTRUNK | byte 4 | invalid 250 |
+| POWERTRUNKSPEED | byte 5 | invalid 250 |
+| TWOPRESSUNLOCK | byte 6 | invalid 250 |
+| WALKAWAYLOCK | byte 7 | invalid 250 |
+| APPROACHUNLOCK | byte 8 | invalid 250 |
+| HORNFEEDBACK | byte 9 | invalid 250 |
+| TRUNKOPENINGHEIGHT | byte 10 | invalid 250 |
+| TRUNKOPENINGSPEEDWARNING | byte 11 | invalid 250 |
+| AUTODOORLOCKOPTIONINFO | byte 12 | invalid 250 |
+| TRUNKOPENINGHEIGHTWARNING | byte 13 | invalid 250 |
+| TRUNKOPTION | byte 14 | invalid 250 |
+| TRUNKAWAYCLOSE | byte 15 | invalid 250 |
+| SMARTSLIDINGDOOR | byte 16 | invalid 250 |
+| AUTOLOCKIBU | byte 17 | invalid 250 |
+| AUTOUNLOCKIBU | byte 18 | invalid 250 |
+| TWOPRESSUNLOCKIBU | byte 19 | invalid 250 |
+| AUTODOORLOCKOPTIONINFOIBU | byte 20 | invalid 250 |
+| AUTOLOCK2 | byte 21 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "AUTOLOCK"
+16-23: "AUTOUNLOCK"
+24-31: "POWERTRUNK"
+32-39: "SMARTTRUNK"
+40-47: "POWERTRUNKSPEED"
+48-55: "TWOPRESSUNLOCK"
+56-63: "WALKAWAYLOCK"
+64-71: "APPROACHUNLOCK"
+72-79: "HORNFEEDBACK"
+80-87: "TRUNKOPENINGHEIGHT"
+88-95: "TRUNKOPENINGSPEEDWARNING"
+96-103: "AUTODOORLOCKOPTIONINFO"
+104-111: "TRUNKOPENINGHEIGHTWARNING"
+112-119: "TRUNKOPTION"
+120-127: "TRUNKAWAYCLOSE"
+128-135: "SMARTSLIDINGDOOR"
+136-143: "AUTOLOCKIBU"
+144-151: "AUTOUNLOCKIBU"
+152-159: "TWOPRESSUNLOCKIBU"
+160-167: "AUTODOORLOCKOPTIONINFOIBU"
+168-175: "AUTOLOCK2"
+```
+
+#### USM_Cluster_SET_Service_M_RESP
+
+cmd `0x0a`, length ≥ 12 · 🟡 code
+
+> stock USM\$ table ClusterService; the EV6 firmware answers its request (0x110a) in emulation with 12 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| SERVICEREMINDERMODE | byte 1 | invalid 250 |
+| ENABLESERVICEINTERNAL | byte 2 | invalid 250 |
+| DISTANCETYPE | byte 4 | invalid 250 |
+| DISTANCE | byte 5 | invalid 250 |
+| DURATIONTYPE | byte 8 | invalid 250 |
+| DURATION | byte 9 | invalid 250 |
+| SERVICEREMINDERUNIT | byte 11 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "SERVICEREMINDERMODE"
+16-23: "ENABLESERVICEINTERNAL"
+24-31: "?"
+32-39: "DISTANCETYPE"
+40-47: "DISTANCE"
+48-63: "?"
+64-71: "DURATIONTYPE"
+72-79: "DURATION"
+80-87: "?"
+88-95: "SERVICEREMINDERUNIT"
+```
+
+#### USM_Cluster_SET_Content_Vol_M_RESP
+
+cmd `0x0c`, length ≥ 12 · 🟡 code
+
+> stock USM\$ table ClusterContent; the EV6 firmware answers its request (0x110c) in emulation with 12 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| GEARPOSITIONPOPUP | byte 1 | invalid 250 |
+| WIPERLIGHTSDISPLAY | byte 2 | invalid 250 |
+| TRAFFICINFO | byte 3 | invalid 250 |
+| ICYROADWARNING | byte 4 | invalid 250 |
+| VOICEGUIDANCEVOLUME | byte 5 | invalid 250 |
+| WELCOMESOUND | byte 6 | invalid 250 |
+| SPEEDODOMETERSUBSCALE | byte 7 | invalid 250 |
+| THEMESTATUS | byte 8 | invalid 250 |
+| THEMECOUNT | byte 9 | invalid 250 |
+| THEMEAUTOSETSTATUS | byte 10 | invalid 250 |
+| AUTOSTOPTIMERRESETSTATUS | byte 11 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "GEARPOSITIONPOPUP"
+16-23: "WIPERLIGHTSDISPLAY"
+24-31: "TRAFFICINFO"
+32-39: "ICYROADWARNING"
+40-47: "VOICEGUIDANCEVOLUME"
+48-55: "WELCOMESOUND"
+56-63: "SPEEDODOMETERSUBSCALE"
+64-71: "THEMESTATUS"
+72-79: "THEMECOUNT"
+80-87: "THEMEAUTOSETSTATUS"
+88-95: "AUTOSTOPTIMERRESETSTATUS"
+```
+
+#### USM_Light_SET_Lamp_M_RESP
+
+cmd `0x0d`, length ≥ 15 · 🟡 code
+
+> stock USM\$ table Lights; the EV6 firmware answers its request (0x110d) in emulation with 15 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| ONETOUCHTURNSIGNAL | byte 1 | invalid 250 |
+| SEQUENTIALTURNLAMP | byte 2 | invalid 250 |
+| HEADLIGHTDELAY | byte 3 | invalid 250 |
+| TRAVELMODE | byte 4 | invalid 250 |
+| PROXIMITYSENSOR | byte 5 | invalid 250 |
+| HIGHBEAMASSIST | byte 6 | invalid 250 |
+| AMBIENTLIGHTDIMMED | byte 7 | invalid 250 |
+| AMBIENTLIGHTDRIVEMODE | byte 8 | invalid 250 |
+| LHINTELLIGENTFRONTLIGHTINGSYSTEM | byte 9 | invalid 250 |
+| RHINTELLIGENTFRONTLIGHTINGSYSTEM | byte 10 | invalid 250 |
+| AMBIENTLIGHTBRIGHTONLY | byte 11 | invalid 250 |
+| AMBIENTFADEINOUT | byte 12 | invalid 250 |
+| AMBIENTAIVOICE | byte 13 | invalid 250 |
+| AMBIENTILLUMISTA | byte 14 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "ONETOUCHTURNSIGNAL"
+16-23: "SEQUENTIALTURNLAMP"
+24-31: "HEADLIGHTDELAY"
+32-39: "TRAVELMODE"
+40-47: "PROXIMITYSENSOR"
+48-55: "HIGHBEAMASSIST"
+56-63: "AMBIENTLIGHTDIMMED"
+64-71: "AMBIENTLIGHTDRIVEMODE"
+72-79: "LHINTELLIGENTFRONTLIGHTINGSYSTEM"
+80-87: "RHINTELLIGENTFRONTLIGHTINGSYSTEM"
+88-95: "AMBIENTLIGHTBRIGHTONLY"
+96-103: "AMBIENTFADEINOUT"
+104-111: "AMBIENTAIVOICE"
+112-119: "AMBIENTILLUMISTA"
+```
+
+#### USM_Convenience_SET_ETC_M_RESP
+
+cmd `0x0f`, length ≥ 18 · 🟡 code
+
+> stock USM\$ table ConvenienceEtc; the EV6 firmware answers its request (0x110f) in emulation with 18 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| STEERINGEASYACCESS | byte 1 | invalid 250 |
+| SEATEASYACCESS | byte 2 | invalid 250 |
+| REAROCCUPANTALERT | byte 3 | invalid 250 |
+| ENABLEONDOORUNLOCK | byte 4 | invalid 250 |
+| ENABLEONDRIVERAPPROACH | byte 5 | invalid 250 |
+| WIRELESSCHARGINGSYSTEMFRONT | byte 6 | invalid 250 |
+| WIRELESSCHARGINGSYSTEMREAR | byte 7 | invalid 250 |
+| AUTOMATICCONTROLBEFORETUNNEL | byte 8 | invalid 250 |
+| TUNNELINDICATE | byte 9 | invalid 250 |
+| DATCTUNFUNCOFFADS | byte 10 | invalid 250 |
+| WELCOMEMIRRORLIGHTTITLE | byte 11 | invalid 250 |
+| AUTOREARWIPER | byte 12 | invalid 250 |
+| SEATEASYACCESSUPDOWN | byte 13 | invalid 250 |
+| SECONDARYBATTERYSAVER | byte 14 | invalid 250 |
+| POWERAUTOOFFTIME | byte 15 | invalid 250 |
+| ADVANCEDANTITHEFT | byte 16 | invalid 250 |
+| ENABLEONDOORDRIVER | byte 17 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "STEERINGEASYACCESS"
+16-23: "SEATEASYACCESS"
+24-31: "REAROCCUPANTALERT"
+32-39: "ENABLEONDOORUNLOCK"
+40-47: "ENABLEONDRIVERAPPROACH"
+48-55: "WIRELESSCHARGINGSYSTEMFRONT"
+56-63: "WIRELESSCHARGINGSYSTEMREAR"
+64-71: "AUTOMATICCONTROLBEFORETUNNEL"
+72-79: "TUNNELINDICATE"
+80-87: "DATCTUNFUNCOFFADS"
+88-95: "WELCOMEMIRRORLIGHTTITLE"
+96-103: "AUTOREARWIPER"
+104-111: "SEATEASYACCESSUPDOWN"
+112-119: "SECONDARYBATTERYSAVER"
+120-127: "POWERAUTOOFFTIME"
+128-135: "ADVANCEDANTITHEFT"
+136-143: "ENABLEONDOORDRIVER"
+```
+
+#### USM_Pwr_Folding_M_RESP
+
+cmd `0x1a`, length ≥ 23 · 🟡 code
+
+> stock USM\$ table PowerFoldingSeat; the EV6 firmware answers its request (0x111a) in emulation with 23 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| LH_FOLDING_POSITION | byte 5 | invalid 250 |
+| LH_FOLDING_STATE_POPUP | byte 6 | invalid 250 |
+| RH_FOLDING_POSITION | byte 7 | invalid 250 |
+| RH_FOLDING_STATE_POPUP | byte 8 | invalid 250 |
+| RLPSU_PWRSEATOPT | byte 13 | invalid 250 |
+| RRPSU_PWRSEATOPT | byte 14 | invalid 250 |
+| RLPSU_PWRSEATPOS | byte 15 | invalid 250 |
+| RRPSU_PWRSEATPOS | byte 16 | invalid 250 |
+| RLPSU_RCLFWDDIS | byte 17 | invalid 250 |
+| RRPSU_RCLFWDDIS | byte 18 | invalid 250 |
+| RLPSU_RCLBWDDIS | byte 19 | invalid 250 |
+| RRPSU_RCLBWDDIS | byte 20 | invalid 250 |
+| RLPSU_RECLINING_STATE_POPUP | byte 21 | invalid 250 |
+| RRPSU_RECLINING_STATE_POPUP | byte 22 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-39: "?"
+40-47: "LH_FOLDING_POSITION"
+48-55: "LH_FOLDING_STATE_POPUP"
+56-63: "RH_FOLDING_POSITION"
+64-71: "RH_FOLDING_STATE_POPUP"
+72-103: "?"
+104-111: "RLPSU_PWRSEATOPT"
+112-119: "RRPSU_PWRSEATOPT"
+120-127: "RLPSU_PWRSEATPOS"
+128-135: "RRPSU_PWRSEATPOS"
+136-143: "RLPSU_RCLFWDDIS"
+144-151: "RRPSU_RCLFWDDIS"
+152-159: "RLPSU_RCLBWDDIS"
+160-167: "RRPSU_RCLBWDDIS"
+168-175: "RLPSU_RECLINING_STATE_POPUP"
+176-183: "RRPSU_RECLINING_STATE_POPUP"
+```
+
+#### USM_Eco_Vehicle_M_RESP
+
+cmd `0x1b`, length ≥ 20 · 🟡 code
+
+> stock USM\$ table EcoVehicle; the EV6 firmware answers its request (0x111b) in emulation with 20 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| COASTINGGUIDE | byte 1 | invalid 250 |
+| COASTINGGUIDESOUND | byte 2 | invalid 250 |
+| STARTCOASTING | byte 3 | invalid 250 |
+| SMARTREGENERATION | byte 4 | invalid 250 |
+| CHARGINGCONNECTORLOCKINGMODE | byte 5 | invalid 250 |
+| VESSCONTROL | byte 6 | invalid 250 |
+| GREENZONEDRIVE | byte 7 | invalid 250 |
+| CHARGINGCONNECTORLOCKINGMODETYPE | byte 8 | invalid 250 |
+| CHARGINGCONNECTORLOCKINGMODEVCMSTYPE | byte 9 | invalid 250 |
+| CHARGINGCONNECTORLOCKINGMODEVCMS | byte 10 | invalid 250 |
+| VESSGUIDEMODESTATE | byte 11 | invalid 250 |
+| VESSGUIDEMODELEVELSTATE | byte 12 | invalid 250 |
+| VESSSMARTCONTROL | byte 13 | invalid 250 |
+| IPEDAL | byte 14 | invalid 250 |
+| TOWWEIGHT | byte 15 | invalid 250 |
+| OILCHANGEREMINDER_ENABLE | byte 16 | invalid 250 |
+| OILCHANGEREMINDER_RATIO | byte 17 | invalid 250 |
+| HEVOILCHANGEREMINDER_ENABLE | byte 18 | invalid 250 |
+| HEVOILCHANGEREMINDER_RATIO | byte 19 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "COASTINGGUIDE"
+16-23: "COASTINGGUIDESOUND"
+24-31: "STARTCOASTING"
+32-39: "SMARTREGENERATION"
+40-47: "CHARGINGCONNECTORLOCKINGMODE"
+48-55: "VESSCONTROL"
+56-63: "GREENZONEDRIVE"
+64-71: "CHARGINGCONNECTORLOCKINGMODETYPE"
+72-79: "CHARGINGCONNECTORLOCKINGMODEVCMSTYPE"
+80-87: "CHARGINGCONNECTORLOCKINGMODEVCMS"
+88-95: "VESSGUIDEMODESTATE"
+96-103: "VESSGUIDEMODELEVELSTATE"
+104-111: "VESSSMARTCONTROL"
+112-119: "IPEDAL"
+120-127: "TOWWEIGHT"
+128-135: "OILCHANGEREMINDER_ENABLE"
+136-143: "OILCHANGEREMINDER_RATIO"
+144-151: "HEVOILCHANGEREMINDER_ENABLE"
+152-159: "HEVOILCHANGEREMINDER_RATIO"
+```
+
+#### USM_RearSeat_H_M_RESP
+
+cmd `0x1c`, length ≥ 7 · 🟡 code
+
+> stock USM\$ table RearSeatHeat; the EV6 firmware answers its request (0x111c) in emulation with 7 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| REARSEATHEATLEFTOPTION | byte 3 | invalid 250 |
+| REARSEATHEATRIGHTOPTION | byte 4 | invalid 250 |
+| REARSEATHEATLEFTSTATE | byte 5 | invalid 250 |
+| REARSEATHEATRIGHTSTATE | byte 6 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-23: "?"
+24-31: "REARSEATHEATLEFTOPTION"
+32-39: "REARSEATHEATRIGHTOPTION"
+40-47: "REARSEATHEATLEFTSTATE"
+48-55: "REARSEATHEATRIGHTSTATE"
+```
+
+#### USM_HealthCare_M_RESP
+
+cmd `0x20`, length ≥ 4 · 🟡 code
+
+> stock USM\$ table HealthCare; the EV6 firmware answers its request (0x1120) in emulation with 4 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| HEALTHCARE_SET_STATE | byte 1 | invalid 250 |
+| HEALTHCARE_SOS_STATE | byte 2 | invalid 250 |
+| HEALTHCARE_SOS_REQUEST | byte 3 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "HEALTHCARE_SET_STATE"
+16-23: "HEALTHCARE_SOS_STATE"
+24-31: "HEALTHCARE_SOS_REQUEST"
+```
+
+#### USM_SmartIMS20_M_RESP
+
+cmd `0x21`, length ≥ 7 · 🟡 code
+
+> stock USM\$ table SmartIMS20; the EV6 firmware answers its request (0x1121) in emulation with 7 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| SMARTIMS20_ONOFF | byte 1 | invalid 250 |
+| SMARTIMS20_STATUS | byte 2 | invalid 250 |
+| SMARTIMS20_1H | byte 3 | invalid 250 |
+| SMARTIMS20_2H | byte 4 | invalid 250 |
+| SMARTIMS20_ONETOUCHSTRETCH | byte 5 | invalid 250 |
+| SMARTIMS20_LUMBARSTABILIZATION | byte 6 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "SMARTIMS20_ONOFF"
+16-23: "SMARTIMS20_STATUS"
+24-31: "SMARTIMS20_1H"
+32-39: "SMARTIMS20_2H"
+40-47: "SMARTIMS20_ONETOUCHSTRETCH"
+48-55: "SMARTIMS20_LUMBARSTABILIZATION"
+```
+
+#### USM_Seat_ETC_M_RESP
+
+cmd `0x22`, length ≥ 3 · 🟡 code
+
+> stock USM\$ table SeatETC; the EV6 firmware answers its request (0x1122) in emulation with 3 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| LATERAL_SEAT_SUPPORT | byte 1 | invalid 250 |
+| CLIMATE_CONTROL_ECO_MODE | byte 2 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "LATERAL_SEAT_SUPPORT"
+16-23: "CLIMATE_CONTROL_ECO_MODE"
+```
+
+#### USM_HUD_SET_ETC_M_RESP
+
+cmd `0x23`, length ≥ 7 · 🟡 code
+
+> stock USM\$ table HUDEtc; the EV6 firmware answers its request (0x1123) in emulation with 7 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| INSPORTMODE | byte 1 | invalid 250 |
+| SPEED | byte 2 | invalid 250 |
+| ARLEFTRIGHT | byte 3 | invalid 250 |
+| ARVIEW | byte 4 | invalid 250 |
+| INSPORTMODE2 | byte 5 | invalid 250 |
+| IMSAUTOSAVESTATUS | byte 6 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "INSPORTMODE"
+16-23: "SPEED"
+24-31: "ARLEFTRIGHT"
+32-39: "ARVIEW"
+40-47: "INSPORTMODE2"
+48-55: "IMSAUTOSAVESTATUS"
+```
+
+#### USM_CLU_SET_ETC_M_RESP
+
+cmd `0x24`, length ≥ 6 · 🟡 code
+
+> stock USM\$ table ClusterETC; the EV6 firmware answers its request (0x1124) in emulation with 6 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| CLUSTER_3D_STATUS | byte 1 | invalid 250 |
+| THEMESTATUSNEW | byte 2 | invalid 250 |
+| CLUSTER_DISPLAY_TYPE | byte 3 | invalid 250 |
+| CLUSTER_THEME_OPT | byte 4 | invalid 250 |
+| CLUSTER_ISGTEXT_OPT | byte 5 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "CLUSTER_3D_STATUS"
+16-23: "THEMESTATUSNEW"
+24-31: "CLUSTER_DISPLAY_TYPE"
+32-39: "CLUSTER_THEME_OPT"
+40-47: "CLUSTER_ISGTEXT_OPT"
+```
+
+#### USM_DrTk_SET_ETC_M_RESP
+
+cmd `0x25`, length ≥ 3 · 🟡 code
+
+> stock USM\$ table DoorETC; the EV6 firmware answers its request (0x1125) in emulation with 3 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| ALLPOWERDOOROPEN | byte 1 | invalid 250 |
+| REMOTEWINDOW | byte 2 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "ALLPOWERDOOROPEN"
+16-23: "REMOTEWINDOW"
+```
+
+#### USM_SWRC_SET_M_RESP
+
+cmd `0x27`, length ≥ 5 · 🟡 code
+
+> stock USM\$ table SWRC; the EV6 firmware answers its request (0x1127) in emulation with 5 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| STEERINGWHEELHEATINGOPT | byte 1 | invalid 250 |
+| STEERINGWHEELHEATINGSWINF | byte 2 | invalid 250 |
+| STEERINGWHEELHEATINDSTEP1 | byte 3 | invalid 250 |
+| STEERINGWHEELHEATINDSTEP2 | byte 4 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "STEERINGWHEELHEATINGOPT"
+16-23: "STEERINGWHEELHEATINGSWINF"
+24-31: "STEERINGWHEELHEATINDSTEP1"
+32-39: "STEERINGWHEELHEATINDSTEP2"
+```
+
+#### USM_Front_Seat_Heat_SET_M_RESP
+
+cmd `0x28`, length ≥ 5 · 🟡 code
+
+> stock USM\$ table FrontSeatHeat; the EV6 firmware answers its request (0x1128) in emulation with 5 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| FRONTSEATHEATDRVOPTION | byte 1 | invalid 250 |
+| FRONTSEATHEATASTOPTION | byte 2 | invalid 250 |
+| FRONTSEATHEATDRVSTATE | byte 3 | invalid 250 |
+| FRONTSEATHEATASTSTATE | byte 4 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "FRONTSEATHEATDRVOPTION"
+16-23: "FRONTSEATHEATASTOPTION"
+24-31: "FRONTSEATHEATDRVSTATE"
+32-39: "FRONTSEATHEATASTSTATE"
+```
+
+#### USM_All_Seat_Moving_SET_M_RESP
+
+cmd `0x29`, length ≥ 14 · 🟡 code
+
+> stock USM\$ table AllSeatMoving; the EV6 firmware answers its request (0x1129) in emulation with 14 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| ALLSEATMOVING_PSMOPTION | byte 1 | invalid 250 |
+| ALLSEATMOVING_SEATPOSITIONMEMORY | byte 2 | invalid 250 |
+| ALLSEATMOVING_PSMWARNING | byte 3 | invalid 250 |
+| ALLSEATMOVING_PSMSEATPOSITION | byte 4 | invalid 250 |
+| ALLSEATMOVING_SEATPOSPLYBCK | byte 5 | invalid 250 |
+| ALLSEATMOVING_PSMSEATPOSSLDLMT | byte 6 | invalid 250 |
+| ALLSEATMOVING_PSMSEATPOSRCLNLMT | byte 7 | invalid 250 |
+| ALLSEATMOVING_APSMSEATPOSSLDLMT | byte 8 | invalid 250 |
+| ALLSEATMOVING_APSMSEATPOSRCLNLMT | byte 9 | invalid 250 |
+| ALLSEATMOVING_RRPSMSEATPOSSLDLMT | byte 10 | invalid 250 |
+| ALLSEATMOVING_RLPSMSEATPOSSLDLMT | byte 11 | invalid 250 |
+| ALLSEATMOVING_RLPSMSEATPOSSTA | byte 12 | invalid 250 |
+| ALLSEATMOVING_RLPSM_ENABLE_STA | byte 13 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "ALLSEATMOVING_PSMOPTION"
+16-23: "ALLSEATMOVING_SEATPOSITIONMEMORY"
+24-31: "ALLSEATMOVING_PSMWARNING"
+32-39: "ALLSEATMOVING_PSMSEATPOSITION"
+40-47: "ALLSEATMOVING_SEATPOSPLYBCK"
+48-55: "ALLSEATMOVING_PSMSEATPOSSLDLMT"
+56-63: "ALLSEATMOVING_PSMSEATPOSRCLNLMT"
+64-71: "ALLSEATMOVING_APSMSEATPOSSLDLMT"
+72-79: "ALLSEATMOVING_APSMSEATPOSRCLNLMT"
+80-87: "ALLSEATMOVING_RRPSMSEATPOSSLDLMT"
+88-95: "ALLSEATMOVING_RLPSMSEATPOSSLDLMT"
+96-103: "ALLSEATMOVING_RLPSMSEATPOSSTA"
+104-111: "ALLSEATMOVING_RLPSM_ENABLE_STA"
+```
+
+#### USM_CMS_SET_M_RESP
+
+cmd `0x2a`, length ≥ 8 · 🟡 code
+
+> stock USM\$ table CameraMonitorSystem; the EV6 firmware answers its request (0x112a) in emulation with 8 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| AUTOREVERSE | byte 1 | invalid 250 |
+| VISIONMIRRORLANECHANGEASSISTANT | byte 2 | invalid 250 |
+| USERHEOSTATLEVEL | byte 3 | invalid 250 |
+| DAYBRIGHTLEVELLHSTATUS | byte 4 | invalid 250 |
+| NIGHTBRIGHTLEVELLHSTATUS | byte 5 | invalid 250 |
+| DAYBRIGHTLEVELRHSTATUS | byte 6 | invalid 250 |
+| NIGHTBRIGHTLEVELRHSTATUS | byte 7 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "AUTOREVERSE"
+16-23: "VISIONMIRRORLANECHANGEASSISTANT"
+24-31: "USERHEOSTATLEVEL"
+32-39: "DAYBRIGHTLEVELLHSTATUS"
+40-47: "NIGHTBRIGHTLEVELLHSTATUS"
+48-55: "DAYBRIGHTLEVELRHSTATUS"
+56-63: "NIGHTBRIGHTLEVELRHSTATUS"
+```
+
+#### USM_Convenience_SET_ETC_ADD_M_RESP
+
+cmd `0x2b`, length ≥ 5 · 🟡 code
+
+> stock USM\$ table ConvenienceEtcAdd; the EV6 firmware answers its request (0x112b) in emulation with 5 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| REAROCCUPANTALERTNEW | byte 1 | invalid 250 |
+| REAROCCUPANTALERTNEWSENSOR | byte 2 | invalid 250 |
+| CABINVENTILATIONALERT | byte 3 | invalid 250 |
+| PASSENGERAIRBAG | byte 4 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "REAROCCUPANTALERTNEW"
+16-23: "REAROCCUPANTALERTNEWSENSOR"
+24-31: "CABINVENTILATIONALERT"
+32-39: "PASSENGERAIRBAG"
+```
+
+#### USM_Clu_Right_Gauge_M_RESP
+
+cmd `0x2c`, length ≥ 14 · 🟡 code
+
+> stock USM\$ table ClusterRightGauge; the EV6 firmware answers its request (0x112c) in emulation with 14 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| COMFORT | byte 1 | invalid 250 |
+| NORMAL | byte 2 | invalid 250 |
+| ECO | byte 3 | invalid 250 |
+| SPORT | byte 4 | invalid 250 |
+| SPORTPLUS | byte 5 | invalid 250 |
+| SMART | byte 6 | invalid 250 |
+| CUSTOM | byte 7 | invalid 250 |
+| AUTOTERRAIN | byte 8 | invalid 250 |
+| SNOW | byte 9 | invalid 250 |
+| MUD | byte 10 | invalid 250 |
+| SAND | byte 11 | invalid 250 |
+| COMFORTREAR | byte 12 | invalid 250 |
+| MYDRIVEMODE | byte 13 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "COMFORT"
+16-23: "NORMAL"
+24-31: "ECO"
+32-39: "SPORT"
+40-47: "SPORTPLUS"
+48-55: "SMART"
+56-63: "CUSTOM"
+64-71: "AUTOTERRAIN"
+72-79: "SNOW"
+80-87: "MUD"
+88-95: "SAND"
+96-103: "COMFORTREAR"
+104-111: "MYDRIVEMODE"
+```
+
+#### USM_Body_Type_M_RESP
+
+cmd `0x2d`, length ≥ 2 · 🟡 code
+
+> stock USM\$ table BodyType; the EV6 firmware answers its request (0x112d) in emulation with 2 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| BodyTypeOption | byte 1 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
 8-15: "BodyTypeOption"
+```
+
+#### USM_ERGO_M_RESP
+
+cmd `0x2e`, length ≥ 9 · 🟡 code
+
+> stock USM\$ table Ergo; the EV6 firmware answers its request (0x112e) in emulation with 9 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| COMFORTABLESTRETCH | byte 1 | invalid 250 |
+| COMFORTABLESTRETCHTIME | byte 2 | invalid 250 |
+| ALERTNESSASSIST | byte 3 | invalid 250 |
+| ALERTNESSASSISTTIME | byte 4 | invalid 250 |
+| POSTUREASSIST | byte 5 | invalid 250 |
+| SMARTSUPPORT | byte 6 | invalid 250 |
+| ACTIVEDIS | byte 7 | invalid 250 |
+| SEATAIRSUPPORTINGSPORTMODE | byte 8 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "COMFORTABLESTRETCH"
+16-23: "COMFORTABLESTRETCHTIME"
+24-31: "ALERTNESSASSIST"
+32-39: "ALERTNESSASSISTTIME"
+40-47: "POSTUREASSIST"
+48-55: "SMARTSUPPORT"
+56-63: "ACTIVEDIS"
+64-71: "SEATAIRSUPPORTINGSPORTMODE"
+```
+
+#### USM_Seat_2nd_Reg_L_M_RESP
+
+cmd `0x2f`, length ≥ 10 · 🟡 code
+
+> stock USM\$ table SEATBACKRECLINE_RLPSU; the EV6 firmware answers its request (0x112f) in emulation with 10 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| RLSLIDPOS | byte 1 | invalid 250 |
+| RLRCLPOS | byte 2 | invalid 250 |
+| RLTILTPOS | byte 3 | invalid 250 |
+| RLLEGEXTPOS | byte 4 | invalid 250 |
+| RLLEGSUPPOS | byte 5 | invalid 250 |
+| RLHRESTSLIDPOS | byte 6 | invalid 250 |
+| RLHRESTHEIGHTPOS | byte 7 | invalid 250 |
+| REARMODESTATE | byte 8 | invalid 250 |
+| FAILSTATE_POPUP | byte 9 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "RLSLIDPOS"
+16-23: "RLRCLPOS"
+24-31: "RLTILTPOS"
+32-39: "RLLEGEXTPOS"
+40-47: "RLLEGSUPPOS"
+48-55: "RLHRESTSLIDPOS"
+56-63: "RLHRESTHEIGHTPOS"
+64-71: "REARMODESTATE"
+72-79: "FAILSTATE_POPUP"
+```
+
+#### USM_Seat_2nd_Reg_R_M_RESP
+
+cmd `0x30`, length ≥ 10 · 🟡 code
+
+> stock USM\$ table SEATBACKRECLINE_RRPSU; the EV6 firmware answers its request (0x1130) in emulation with 10 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| RLSLIDPOS | byte 1 | invalid 250 |
+| RLRCLPOS | byte 2 | invalid 250 |
+| RLTILTPOS | byte 3 | invalid 250 |
+| RLLEGEXTPOS | byte 4 | invalid 250 |
+| RLLEGSUPPOS | byte 5 | invalid 250 |
+| RLHRESTSLIDPOS | byte 6 | invalid 250 |
+| RLHRESTHEIGHTPOS | byte 7 | invalid 250 |
+| REARMODESTATE | byte 8 | invalid 250 |
+| FAILSTATE_POPUP | byte 9 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "RLSLIDPOS"
+16-23: "RLRCLPOS"
+24-31: "RLTILTPOS"
+32-39: "RLLEGEXTPOS"
+40-47: "RLLEGSUPPOS"
+48-55: "RLHRESTSLIDPOS"
+56-63: "RLHRESTHEIGHTPOS"
+64-71: "REARMODESTATE"
+72-79: "FAILSTATE_POPUP"
+```
+
+#### USM_Eco_Vehicle_ETC_M_RESP
+
+cmd `0x31`, length ≥ 3 · 🟡 code
+
+> stock USM\$ table EcoVehicleETC; the EV6 firmware answers its request (0x1131) in emulation with 3 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| DECELERATION | byte 1 | invalid 250 |
+| LINKTONAVIGATIONROUTE | byte 2 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "DECELERATION"
+16-23: "LINKTONAVIGATIONROUTE"
+```
+
+#### USM_TOWMODE_M_RESP
+
+cmd `0x33`, length ≥ 2 · 🟡 code
+
+> stock USM\$ table TOWMODE; the EV6 firmware answers its request (0x1133) in emulation with 2 bytes
+
+| Field | At | Notes |
+| --- | --- | --- |
+| Item | byte 0 |  |
+| TOWWEIGHT | byte 1 | invalid 250 |
+
+```mermaid
+packet-beta
+0-7: "Item"
+8-15: "TOWWEIGHT"
 ```
 
 ### 0c 88 ?? 8c

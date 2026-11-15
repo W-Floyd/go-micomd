@@ -805,25 +805,6 @@ messages:
       - { name: "HDA_LINE_NUM_VAL_C_REQ", off: 0 }   # CAN 0x1EC byte 7 bits 4..7
     status: code
     ref: "stock Navigation constant HDA_LINE_NUM_VAL_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes"
-  - name: "USM_SWRC_SET_C_REQ"
-    dir: from_micom
-    hdr: "11 92 ?? 91"
-    cmd: 0x27
-    min_length: 5
-    fields:
-      - { name: "USM_SWRC_SET_C_REQ", off: 1 }   # CAN 0x48F byte 4 bits 0..1
-    status: code
-    ref: "stock USM constant USM_SWRC_SET_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes"
-  - name: "USM_Front_Seat_Heat_SET_C_REQ"
-    dir: from_micom
-    hdr: "11 92 ?? 91"
-    cmd: 0x28
-    min_length: 5
-    fields:
-      - { name: "USM_Front_Seat_Heat_SET_C_REQ byte 2", off: 2 }   # CAN 0x475 byte 0 bits 0..2
-      - { name: "USM_Front_Seat_Heat_SET_C_REQ byte 3", off: 3 }   # CAN 0x496 byte 0 bits 3..6
-    status: code
-    ref: "stock USM constant USM_Front_Seat_Heat_SET_C_REQ; the EV6 firmware sends it in emulation when its CAN input changes"
   # USM frames that carry one item per frame, [item id, value], items named by the stock USM$ table of the frame. Found by
   # sweeping CAN input through the EV6 micom firmware in emulation (never seen on a car); only the items a CAN signal
   # was seen to drive are listed (the tables have more).
@@ -887,16 +868,578 @@ messages:
       - { name: "DIGITALKEYGUIDE", off: 1 }
     status: code
     ref: "stock USM_UserProfile_Rx_NFC_1_Short_M, item 4 DIGITALKEYGUIDE (USM$NFC1_SHORT); the EV6 firmware sends it in emulation when CAN 0x434 byte 2 bits 0..3 changes"
-  - name: "USM_Body_Type_C_REQ BodyTypeOption"
+  # USM tables, one message per stock table: byte 0 is the item the frame is about (0xfa: all), then one byte per item at the
+  # offset equal to its id, 0xfa meaning not available (the whole table is sent for a request, and for a change with that
+  # item in byte 0). Layout from the replies of the EV6 micom firmware in emulation to each table's request (payload fa fa),
+  # the item names from the stock USM$ class of the table; never seen on a car. Not here: 0x11 Units (above), and the tables
+  # whose item ids do not fit the frame (ConvenienceVentilate, DriverAssistETC, DigitalKeyInfo2, DualLight).
+  - name: "USM_HUD_SET_Disp_Ctrl_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x02
+    min_length: 4
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "HEIGHT", off: 1, invalid: 0xfa }
+      - { name: "ROTATION", off: 2, invalid: 0xfa }
+      - { name: "BRIGHTNESS", off: 3, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table HUDDisplayControl; the EV6 firmware answers its request (0x1102) in emulation with 4 bytes"
+  - name: "USM_HUD_SET_Content_Selection_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x03
+    min_length: 8
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "TURNBYTURN", off: 1, invalid: 0xfa }
+      - { name: "TRAFFICINFO", off: 2, invalid: 0xfa }
+      - { name: "DRIVINGASSISTINFO", off: 3, invalid: 0xfa }
+      - { name: "LANESAFETYINFO", off: 4, invalid: 0xfa }
+      - { name: "BLINDSPOTSAFETYINFO", off: 6, invalid: 0xfa }
+      - { name: "AVINFO", off: 7, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table HUDContentSelection; the EV6 firmware answers its request (0x1103) in emulation with 8 bytes"
+  - name: "USM_HUD_SET_Speed_Odometer_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x04
+    min_length: 3
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "SPEEDNUMBERSIZE", off: 1, invalid: 0xfa }
+      - { name: "SPEEDCOLOR", off: 2, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table HUDSpeedOdometer; the EV6 firmware answers its request (0x1104) in emulation with 3 bytes"
+  - name: "USM_Driver_Assi_SET_DrAssi_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x06
+    min_length: 15
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "LEADINGVEHICLEDEPARTURENOTICE", off: 1, invalid: 0xfa }
+      - { name: "LANEFOLLOWING", off: 2, invalid: 0xfa }
+      - { name: "HIGHWAYDRIVING", off: 3, invalid: 0xfa }
+      - { name: "HIGHWAYAUTOSPEEDZONESLOWDOWN", off: 4, invalid: 0xfa }
+      - { name: "HIGHWAYAUTOCURVEZONESLOWDOWN", off: 5, invalid: 0xfa }
+      - { name: "SPEEDLIMITDISPLAY", off: 6, invalid: 0xfa }
+      - { name: "SPEEDLIMITOFFSET", off: 7, invalid: 0xfa }
+      - { name: "SPEEDLIMITAUTOSPEEDCHANGE", off: 8, invalid: 0xfa }
+      - { name: "SPEEDLIMITSTATUS", off: 9, invalid: 0xfa }
+      - { name: "SPEEDLIMITOFFSETUS", off: 10, invalid: 0xfa }
+      - { name: "SPEEDLIMITCNTRYCURRENT", off: 11, invalid: 0xfa }
+      - { name: "SPEEDLIMITCNTRYPREVIOUS", off: 12, invalid: 0xfa }
+      - { name: "SPEEDLIMITCNTRYVERTYP", off: 13, invalid: 0xfa }
+      - { name: "SPEEDLIMITSTATUS2", off: 14, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table DriverAssist; the EV6 firmware answers its request (0x1106) in emulation with 15 bytes"
+  - name: "USM_Driver_Assi_SET_Warn_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x07
+    min_length: 15
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "DRIVERATTENTIONWARNING", off: 1, invalid: 0xfa }
+      - { name: "WARNINGTIMING", off: 2, invalid: 0xfa }
+      - { name: "WARNINGVOLUME", off: 3, invalid: 0xfa }
+      - { name: "HAPTICWARNING", off: 4, invalid: 0xfa }
+      - { name: "ICUHAPTICOPTION", off: 5, invalid: 0xfa }
+      - { name: "SCMHAPTICOPTION", off: 6, invalid: 0xfa }
+      - { name: "HAPTICWARNINGICU", off: 7, invalid: 0xfa }
+      - { name: "HAPTICWARNINGSCM", off: 8, invalid: 0xfa }
+      - { name: "HAPTICWARNINGICUPOPUP", off: 9, invalid: 0xfa }
+      - { name: "HAPTICWARNINGSCMPOPUP", off: 10, invalid: 0xfa }
+      - { name: "HAPTICWARNINGPOPUP", off: 11, invalid: 0xfa }
+      - { name: "FORWARDATTENTIONWARN", off: 12, invalid: 0xfa }
+      - { name: "LKAWARNINGOFF", off: 13, invalid: 0xfa }
+      - { name: "LKAWARNINGBEEP", off: 14, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table Warning; the EV6 firmware answers its request (0x1107) in emulation with 15 bytes"
+  - name: "USM_Driver_Assi_SET_Safety_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x08
+    min_length: 35
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "FORWARDSAFETYWARNING", off: 1, invalid: 0xfa }
+      - { name: "LANESAFETY", off: 2, invalid: 0xfa }
+      - { name: "BLINDSPOTSAFETYVIEW", off: 3, invalid: 0xfa }
+      - { name: "BLINDSPOTSAFETYSAFEEXITASSIST", off: 4, invalid: 0xfa }
+      - { name: "BLINDSPOTSAFETYREARCROSSTRAFFIC", off: 5, invalid: 0xfa }
+      - { name: "BLINDSPOTSAFETYWARNING", off: 6, invalid: 0xfa }
+      - { name: "BLINDSPOTSAFETYONOFF", off: 7, invalid: 0xfa }
+      - { name: "PARKINGDISTANCEWARNING", off: 8, invalid: 0xfa }
+      - { name: "PARKINGSAFETY", off: 9, invalid: 0xfa }
+      - { name: "ADASMENU_SHORTCUT", off: 10, invalid: 0xfa }
+      - { name: "SVMAUTOONOFF", off: 11, invalid: 0xfa }
+      - { name: "DRIVERATTENTIONWARNINGONOFF", off: 12, invalid: 0xfa }
+      - { name: "LEADINGVEHICLEDEPARTUREALERT", off: 13, invalid: 0xfa }
+      - { name: "PARKINGDISTANCEWARNINGRVALUE", off: 14, invalid: 0xfa }
+      - { name: "LANESAFETYTYPE", off: 15, invalid: 0xfa }
+      - { name: "LANESAFETYTYPENEW", off: 16, invalid: 0xfa }
+      - { name: "HIGHWAYAUTOSPEEDZONESLOWDOWNHCU", off: 17, invalid: 0xfa }
+      - { name: "FORWARDSAFETYONOFFINNMODE", off: 18, invalid: 0xfa }
+      - { name: "BLINDSPOTSAFETYREARCROSSTRAFFICNEW", off: 19, invalid: 0xfa }
+      - { name: "HIGHWAYAUTOSPEEDCHANGE", off: 20, invalid: 0xfa }
+      - { name: "BLINDSPOTSAFETYREARCROSSTRAFFICRCCA", off: 21, invalid: 0xfa }
+      - { name: "BLINDSPOTSAFETYSAFEEXITASSISTNEW", off: 22, invalid: 0xfa }
+      - { name: "BLINDSPOTSAFETYSAFEEXITWARNING", off: 23, invalid: 0xfa }
+      - { name: "FORWARDCROSSASSISTANCE", off: 24, invalid: 0xfa }
+      - { name: "BLINDSPOTCROSSASSISTANCE", off: 25, invalid: 0xfa }
+      - { name: "ADASINHIBIT", off: 26, invalid: 0xfa }
+      - { name: "BLINDSPOTSAFETYONOFFNEW", off: 27, invalid: 0xfa }
+      - { name: "FORWARDSAFETYWARNINGTIME", off: 28, invalid: 0xfa }
+      - { name: "FORWARDCROSSTRAFFICSAFETYNEW", off: 29, invalid: 0xfa }
+      - { name: "FORWARDSIDESAFETYNEW", off: 30, invalid: 0xfa }
+      - { name: "LANESAFETYTYPENEW2", off: 31, invalid: 0xfa }
+      - { name: "BLINDSAFETYEXITNEW2", off: 32, invalid: 0xfa }
+      - { name: "BLINDSAFETYWARNINGNEW2", off: 33, invalid: 0xfa }
+      - { name: "PEDALMISAPPLICATIONSAFETYASSIST", off: 34, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table Safety; the EV6 firmware answers its request (0x1108) in emulation with 35 bytes"
+  - name: "USM_DrTk_SET_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x09
+    min_length: 22
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "AUTOLOCK", off: 1, invalid: 0xfa }
+      - { name: "AUTOUNLOCK", off: 2, invalid: 0xfa }
+      - { name: "POWERTRUNK", off: 3, invalid: 0xfa }
+      - { name: "SMARTTRUNK", off: 4, invalid: 0xfa }
+      - { name: "POWERTRUNKSPEED", off: 5, invalid: 0xfa }
+      - { name: "TWOPRESSUNLOCK", off: 6, invalid: 0xfa }
+      - { name: "WALKAWAYLOCK", off: 7, invalid: 0xfa }
+      - { name: "APPROACHUNLOCK", off: 8, invalid: 0xfa }
+      - { name: "HORNFEEDBACK", off: 9, invalid: 0xfa }
+      - { name: "TRUNKOPENINGHEIGHT", off: 10, invalid: 0xfa }
+      - { name: "TRUNKOPENINGSPEEDWARNING", off: 11, invalid: 0xfa }
+      - { name: "AUTODOORLOCKOPTIONINFO", off: 12, invalid: 0xfa }
+      - { name: "TRUNKOPENINGHEIGHTWARNING", off: 13, invalid: 0xfa }
+      - { name: "TRUNKOPTION", off: 14, invalid: 0xfa }
+      - { name: "TRUNKAWAYCLOSE", off: 15, invalid: 0xfa }
+      - { name: "SMARTSLIDINGDOOR", off: 16, invalid: 0xfa }
+      - { name: "AUTOLOCKIBU", off: 17, invalid: 0xfa }
+      - { name: "AUTOUNLOCKIBU", off: 18, invalid: 0xfa }
+      - { name: "TWOPRESSUNLOCKIBU", off: 19, invalid: 0xfa }
+      - { name: "AUTODOORLOCKOPTIONINFOIBU", off: 20, invalid: 0xfa }
+      - { name: "AUTOLOCK2", off: 21, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table Door; the EV6 firmware answers its request (0x1109) in emulation with 22 bytes"
+  - name: "USM_Cluster_SET_Service_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x0a
+    min_length: 12
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "SERVICEREMINDERMODE", off: 1, invalid: 0xfa }
+      - { name: "ENABLESERVICEINTERNAL", off: 2, invalid: 0xfa }
+      - { name: "DISTANCETYPE", off: 4, invalid: 0xfa }
+      - { name: "DISTANCE", off: 5, invalid: 0xfa }
+      - { name: "DURATIONTYPE", off: 8, invalid: 0xfa }
+      - { name: "DURATION", off: 9, invalid: 0xfa }
+      - { name: "SERVICEREMINDERUNIT", off: 11, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table ClusterService; the EV6 firmware answers its request (0x110a) in emulation with 12 bytes"
+  - name: "USM_Cluster_SET_Content_Vol_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x0c
+    min_length: 12
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "GEARPOSITIONPOPUP", off: 1, invalid: 0xfa }
+      - { name: "WIPERLIGHTSDISPLAY", off: 2, invalid: 0xfa }
+      - { name: "TRAFFICINFO", off: 3, invalid: 0xfa }
+      - { name: "ICYROADWARNING", off: 4, invalid: 0xfa }
+      - { name: "VOICEGUIDANCEVOLUME", off: 5, invalid: 0xfa }
+      - { name: "WELCOMESOUND", off: 6, invalid: 0xfa }
+      - { name: "SPEEDODOMETERSUBSCALE", off: 7, invalid: 0xfa }
+      - { name: "THEMESTATUS", off: 8, invalid: 0xfa }
+      - { name: "THEMECOUNT", off: 9, invalid: 0xfa }
+      - { name: "THEMEAUTOSETSTATUS", off: 10, invalid: 0xfa }
+      - { name: "AUTOSTOPTIMERRESETSTATUS", off: 11, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table ClusterContent; the EV6 firmware answers its request (0x110c) in emulation with 12 bytes"
+  - name: "USM_Light_SET_Lamp_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x0d
+    min_length: 15
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "ONETOUCHTURNSIGNAL", off: 1, invalid: 0xfa }
+      - { name: "SEQUENTIALTURNLAMP", off: 2, invalid: 0xfa }
+      - { name: "HEADLIGHTDELAY", off: 3, invalid: 0xfa }
+      - { name: "TRAVELMODE", off: 4, invalid: 0xfa }
+      - { name: "PROXIMITYSENSOR", off: 5, invalid: 0xfa }
+      - { name: "HIGHBEAMASSIST", off: 6, invalid: 0xfa }
+      - { name: "AMBIENTLIGHTDIMMED", off: 7, invalid: 0xfa }
+      - { name: "AMBIENTLIGHTDRIVEMODE", off: 8, invalid: 0xfa }
+      - { name: "LHINTELLIGENTFRONTLIGHTINGSYSTEM", off: 9, invalid: 0xfa }
+      - { name: "RHINTELLIGENTFRONTLIGHTINGSYSTEM", off: 10, invalid: 0xfa }
+      - { name: "AMBIENTLIGHTBRIGHTONLY", off: 11, invalid: 0xfa }
+      - { name: "AMBIENTFADEINOUT", off: 12, invalid: 0xfa }
+      - { name: "AMBIENTAIVOICE", off: 13, invalid: 0xfa }
+      - { name: "AMBIENTILLUMISTA", off: 14, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table Lights; the EV6 firmware answers its request (0x110d) in emulation with 15 bytes"
+  - name: "USM_Convenience_SET_ETC_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x0f
+    min_length: 18
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "STEERINGEASYACCESS", off: 1, invalid: 0xfa }
+      - { name: "SEATEASYACCESS", off: 2, invalid: 0xfa }
+      - { name: "REAROCCUPANTALERT", off: 3, invalid: 0xfa }
+      - { name: "ENABLEONDOORUNLOCK", off: 4, invalid: 0xfa }
+      - { name: "ENABLEONDRIVERAPPROACH", off: 5, invalid: 0xfa }
+      - { name: "WIRELESSCHARGINGSYSTEMFRONT", off: 6, invalid: 0xfa }
+      - { name: "WIRELESSCHARGINGSYSTEMREAR", off: 7, invalid: 0xfa }
+      - { name: "AUTOMATICCONTROLBEFORETUNNEL", off: 8, invalid: 0xfa }
+      - { name: "TUNNELINDICATE", off: 9, invalid: 0xfa }
+      - { name: "DATCTUNFUNCOFFADS", off: 10, invalid: 0xfa }
+      - { name: "WELCOMEMIRRORLIGHTTITLE", off: 11, invalid: 0xfa }
+      - { name: "AUTOREARWIPER", off: 12, invalid: 0xfa }
+      - { name: "SEATEASYACCESSUPDOWN", off: 13, invalid: 0xfa }
+      - { name: "SECONDARYBATTERYSAVER", off: 14, invalid: 0xfa }
+      - { name: "POWERAUTOOFFTIME", off: 15, invalid: 0xfa }
+      - { name: "ADVANCEDANTITHEFT", off: 16, invalid: 0xfa }
+      - { name: "ENABLEONDOORDRIVER", off: 17, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table ConvenienceEtc; the EV6 firmware answers its request (0x110f) in emulation with 18 bytes"
+  - name: "USM_Pwr_Folding_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x1a
+    min_length: 23
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "LH_FOLDING_POSITION", off: 5, invalid: 0xfa }
+      - { name: "LH_FOLDING_STATE_POPUP", off: 6, invalid: 0xfa }
+      - { name: "RH_FOLDING_POSITION", off: 7, invalid: 0xfa }
+      - { name: "RH_FOLDING_STATE_POPUP", off: 8, invalid: 0xfa }
+      - { name: "RLPSU_PWRSEATOPT", off: 13, invalid: 0xfa }
+      - { name: "RRPSU_PWRSEATOPT", off: 14, invalid: 0xfa }
+      - { name: "RLPSU_PWRSEATPOS", off: 15, invalid: 0xfa }
+      - { name: "RRPSU_PWRSEATPOS", off: 16, invalid: 0xfa }
+      - { name: "RLPSU_RCLFWDDIS", off: 17, invalid: 0xfa }
+      - { name: "RRPSU_RCLFWDDIS", off: 18, invalid: 0xfa }
+      - { name: "RLPSU_RCLBWDDIS", off: 19, invalid: 0xfa }
+      - { name: "RRPSU_RCLBWDDIS", off: 20, invalid: 0xfa }
+      - { name: "RLPSU_RECLINING_STATE_POPUP", off: 21, invalid: 0xfa }
+      - { name: "RRPSU_RECLINING_STATE_POPUP", off: 22, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table PowerFoldingSeat; the EV6 firmware answers its request (0x111a) in emulation with 23 bytes"
+  - name: "USM_Eco_Vehicle_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x1b
+    min_length: 20
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "COASTINGGUIDE", off: 1, invalid: 0xfa }
+      - { name: "COASTINGGUIDESOUND", off: 2, invalid: 0xfa }
+      - { name: "STARTCOASTING", off: 3, invalid: 0xfa }
+      - { name: "SMARTREGENERATION", off: 4, invalid: 0xfa }
+      - { name: "CHARGINGCONNECTORLOCKINGMODE", off: 5, invalid: 0xfa }
+      - { name: "VESSCONTROL", off: 6, invalid: 0xfa }
+      - { name: "GREENZONEDRIVE", off: 7, invalid: 0xfa }
+      - { name: "CHARGINGCONNECTORLOCKINGMODETYPE", off: 8, invalid: 0xfa }
+      - { name: "CHARGINGCONNECTORLOCKINGMODEVCMSTYPE", off: 9, invalid: 0xfa }
+      - { name: "CHARGINGCONNECTORLOCKINGMODEVCMS", off: 10, invalid: 0xfa }
+      - { name: "VESSGUIDEMODESTATE", off: 11, invalid: 0xfa }
+      - { name: "VESSGUIDEMODELEVELSTATE", off: 12, invalid: 0xfa }
+      - { name: "VESSSMARTCONTROL", off: 13, invalid: 0xfa }
+      - { name: "IPEDAL", off: 14, invalid: 0xfa }
+      - { name: "TOWWEIGHT", off: 15, invalid: 0xfa }
+      - { name: "OILCHANGEREMINDER_ENABLE", off: 16, invalid: 0xfa }
+      - { name: "OILCHANGEREMINDER_RATIO", off: 17, invalid: 0xfa }
+      - { name: "HEVOILCHANGEREMINDER_ENABLE", off: 18, invalid: 0xfa }
+      - { name: "HEVOILCHANGEREMINDER_RATIO", off: 19, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table EcoVehicle; the EV6 firmware answers its request (0x111b) in emulation with 20 bytes"
+  - name: "USM_RearSeat_H_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x1c
+    min_length: 7
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "REARSEATHEATLEFTOPTION", off: 3, invalid: 0xfa }
+      - { name: "REARSEATHEATRIGHTOPTION", off: 4, invalid: 0xfa }
+      - { name: "REARSEATHEATLEFTSTATE", off: 5, invalid: 0xfa }
+      - { name: "REARSEATHEATRIGHTSTATE", off: 6, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table RearSeatHeat; the EV6 firmware answers its request (0x111c) in emulation with 7 bytes"
+  - name: "USM_HealthCare_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x20
+    min_length: 4
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "HEALTHCARE_SET_STATE", off: 1, invalid: 0xfa }
+      - { name: "HEALTHCARE_SOS_STATE", off: 2, invalid: 0xfa }
+      - { name: "HEALTHCARE_SOS_REQUEST", off: 3, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table HealthCare; the EV6 firmware answers its request (0x1120) in emulation with 4 bytes"
+  - name: "USM_SmartIMS20_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x21
+    min_length: 7
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "SMARTIMS20_ONOFF", off: 1, invalid: 0xfa }
+      - { name: "SMARTIMS20_STATUS", off: 2, invalid: 0xfa }
+      - { name: "SMARTIMS20_1H", off: 3, invalid: 0xfa }
+      - { name: "SMARTIMS20_2H", off: 4, invalid: 0xfa }
+      - { name: "SMARTIMS20_ONETOUCHSTRETCH", off: 5, invalid: 0xfa }
+      - { name: "SMARTIMS20_LUMBARSTABILIZATION", off: 6, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table SmartIMS20; the EV6 firmware answers its request (0x1121) in emulation with 7 bytes"
+  - name: "USM_Seat_ETC_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x22
+    min_length: 3
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "LATERAL_SEAT_SUPPORT", off: 1, invalid: 0xfa }
+      - { name: "CLIMATE_CONTROL_ECO_MODE", off: 2, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table SeatETC; the EV6 firmware answers its request (0x1122) in emulation with 3 bytes"
+  - name: "USM_HUD_SET_ETC_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x23
+    min_length: 7
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "INSPORTMODE", off: 1, invalid: 0xfa }
+      - { name: "SPEED", off: 2, invalid: 0xfa }
+      - { name: "ARLEFTRIGHT", off: 3, invalid: 0xfa }
+      - { name: "ARVIEW", off: 4, invalid: 0xfa }
+      - { name: "INSPORTMODE2", off: 5, invalid: 0xfa }
+      - { name: "IMSAUTOSAVESTATUS", off: 6, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table HUDEtc; the EV6 firmware answers its request (0x1123) in emulation with 7 bytes"
+  - name: "USM_CLU_SET_ETC_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x24
+    min_length: 6
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "CLUSTER_3D_STATUS", off: 1, invalid: 0xfa }
+      - { name: "THEMESTATUSNEW", off: 2, invalid: 0xfa }
+      - { name: "CLUSTER_DISPLAY_TYPE", off: 3, invalid: 0xfa }
+      - { name: "CLUSTER_THEME_OPT", off: 4, invalid: 0xfa }
+      - { name: "CLUSTER_ISGTEXT_OPT", off: 5, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table ClusterETC; the EV6 firmware answers its request (0x1124) in emulation with 6 bytes"
+  - name: "USM_DrTk_SET_ETC_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x25
+    min_length: 3
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "ALLPOWERDOOROPEN", off: 1, invalid: 0xfa }
+      - { name: "REMOTEWINDOW", off: 2, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table DoorETC; the EV6 firmware answers its request (0x1125) in emulation with 3 bytes"
+  - name: "USM_SWRC_SET_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x27
+    min_length: 5
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "STEERINGWHEELHEATINGOPT", off: 1, invalid: 0xfa }
+      - { name: "STEERINGWHEELHEATINGSWINF", off: 2, invalid: 0xfa }
+      - { name: "STEERINGWHEELHEATINDSTEP1", off: 3, invalid: 0xfa }
+      - { name: "STEERINGWHEELHEATINDSTEP2", off: 4, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table SWRC; the EV6 firmware answers its request (0x1127) in emulation with 5 bytes"
+  - name: "USM_Front_Seat_Heat_SET_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x28
+    min_length: 5
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "FRONTSEATHEATDRVOPTION", off: 1, invalid: 0xfa }
+      - { name: "FRONTSEATHEATASTOPTION", off: 2, invalid: 0xfa }
+      - { name: "FRONTSEATHEATDRVSTATE", off: 3, invalid: 0xfa }
+      - { name: "FRONTSEATHEATASTSTATE", off: 4, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table FrontSeatHeat; the EV6 firmware answers its request (0x1128) in emulation with 5 bytes"
+  - name: "USM_All_Seat_Moving_SET_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x29
+    min_length: 14
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "ALLSEATMOVING_PSMOPTION", off: 1, invalid: 0xfa }
+      - { name: "ALLSEATMOVING_SEATPOSITIONMEMORY", off: 2, invalid: 0xfa }
+      - { name: "ALLSEATMOVING_PSMWARNING", off: 3, invalid: 0xfa }
+      - { name: "ALLSEATMOVING_PSMSEATPOSITION", off: 4, invalid: 0xfa }
+      - { name: "ALLSEATMOVING_SEATPOSPLYBCK", off: 5, invalid: 0xfa }
+      - { name: "ALLSEATMOVING_PSMSEATPOSSLDLMT", off: 6, invalid: 0xfa }
+      - { name: "ALLSEATMOVING_PSMSEATPOSRCLNLMT", off: 7, invalid: 0xfa }
+      - { name: "ALLSEATMOVING_APSMSEATPOSSLDLMT", off: 8, invalid: 0xfa }
+      - { name: "ALLSEATMOVING_APSMSEATPOSRCLNLMT", off: 9, invalid: 0xfa }
+      - { name: "ALLSEATMOVING_RRPSMSEATPOSSLDLMT", off: 10, invalid: 0xfa }
+      - { name: "ALLSEATMOVING_RLPSMSEATPOSSLDLMT", off: 11, invalid: 0xfa }
+      - { name: "ALLSEATMOVING_RLPSMSEATPOSSTA", off: 12, invalid: 0xfa }
+      - { name: "ALLSEATMOVING_RLPSM_ENABLE_STA", off: 13, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table AllSeatMoving; the EV6 firmware answers its request (0x1129) in emulation with 14 bytes"
+  - name: "USM_CMS_SET_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x2a
+    min_length: 8
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "AUTOREVERSE", off: 1, invalid: 0xfa }
+      - { name: "VISIONMIRRORLANECHANGEASSISTANT", off: 2, invalid: 0xfa }
+      - { name: "USERHEOSTATLEVEL", off: 3, invalid: 0xfa }
+      - { name: "DAYBRIGHTLEVELLHSTATUS", off: 4, invalid: 0xfa }
+      - { name: "NIGHTBRIGHTLEVELLHSTATUS", off: 5, invalid: 0xfa }
+      - { name: "DAYBRIGHTLEVELRHSTATUS", off: 6, invalid: 0xfa }
+      - { name: "NIGHTBRIGHTLEVELRHSTATUS", off: 7, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table CameraMonitorSystem; the EV6 firmware answers its request (0x112a) in emulation with 8 bytes"
+  - name: "USM_Convenience_SET_ETC_ADD_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x2b
+    min_length: 5
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "REAROCCUPANTALERTNEW", off: 1, invalid: 0xfa }
+      - { name: "REAROCCUPANTALERTNEWSENSOR", off: 2, invalid: 0xfa }
+      - { name: "CABINVENTILATIONALERT", off: 3, invalid: 0xfa }
+      - { name: "PASSENGERAIRBAG", off: 4, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table ConvenienceEtcAdd; the EV6 firmware answers its request (0x112b) in emulation with 5 bytes"
+  - name: "USM_Clu_Right_Gauge_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x2c
+    min_length: 14
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "COMFORT", off: 1, invalid: 0xfa }
+      - { name: "NORMAL", off: 2, invalid: 0xfa }
+      - { name: "ECO", off: 3, invalid: 0xfa }
+      - { name: "SPORT", off: 4, invalid: 0xfa }
+      - { name: "SPORTPLUS", off: 5, invalid: 0xfa }
+      - { name: "SMART", off: 6, invalid: 0xfa }
+      - { name: "CUSTOM", off: 7, invalid: 0xfa }
+      - { name: "AUTOTERRAIN", off: 8, invalid: 0xfa }
+      - { name: "SNOW", off: 9, invalid: 0xfa }
+      - { name: "MUD", off: 10, invalid: 0xfa }
+      - { name: "SAND", off: 11, invalid: 0xfa }
+      - { name: "COMFORTREAR", off: 12, invalid: 0xfa }
+      - { name: "MYDRIVEMODE", off: 13, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table ClusterRightGauge; the EV6 firmware answers its request (0x112c) in emulation with 14 bytes"
+  - name: "USM_Body_Type_M_RESP"
     dir: from_micom
     hdr: "11 92 ?? 91"
     cmd: 0x2d
     min_length: 2
-    when: [ { off: 0, eq: 0x01 } ]
     fields:
-      - { name: "BodyTypeOption", off: 1 }
+      - { name: "Item", off: 0 }
+      - { name: "BodyTypeOption", off: 1, invalid: 0xfa }
     status: code
-    ref: "stock USM_Body_Type_C_REQ, item 1 BodyTypeOption (USM$BodyType); the EV6 firmware sends it in emulation when CAN 0x442 byte 2 bits 4..6 changes"
+    ref: "stock USM$ table BodyType; the EV6 firmware answers its request (0x112d) in emulation with 2 bytes"
+  - name: "USM_ERGO_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x2e
+    min_length: 9
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "COMFORTABLESTRETCH", off: 1, invalid: 0xfa }
+      - { name: "COMFORTABLESTRETCHTIME", off: 2, invalid: 0xfa }
+      - { name: "ALERTNESSASSIST", off: 3, invalid: 0xfa }
+      - { name: "ALERTNESSASSISTTIME", off: 4, invalid: 0xfa }
+      - { name: "POSTUREASSIST", off: 5, invalid: 0xfa }
+      - { name: "SMARTSUPPORT", off: 6, invalid: 0xfa }
+      - { name: "ACTIVEDIS", off: 7, invalid: 0xfa }
+      - { name: "SEATAIRSUPPORTINGSPORTMODE", off: 8, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table Ergo; the EV6 firmware answers its request (0x112e) in emulation with 9 bytes"
+  - name: "USM_Seat_2nd_Reg_L_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x2f
+    min_length: 10
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "RLSLIDPOS", off: 1, invalid: 0xfa }
+      - { name: "RLRCLPOS", off: 2, invalid: 0xfa }
+      - { name: "RLTILTPOS", off: 3, invalid: 0xfa }
+      - { name: "RLLEGEXTPOS", off: 4, invalid: 0xfa }
+      - { name: "RLLEGSUPPOS", off: 5, invalid: 0xfa }
+      - { name: "RLHRESTSLIDPOS", off: 6, invalid: 0xfa }
+      - { name: "RLHRESTHEIGHTPOS", off: 7, invalid: 0xfa }
+      - { name: "REARMODESTATE", off: 8, invalid: 0xfa }
+      - { name: "FAILSTATE_POPUP", off: 9, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table SEATBACKRECLINE_RLPSU; the EV6 firmware answers its request (0x112f) in emulation with 10 bytes"
+  - name: "USM_Seat_2nd_Reg_R_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x30
+    min_length: 10
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "RLSLIDPOS", off: 1, invalid: 0xfa }
+      - { name: "RLRCLPOS", off: 2, invalid: 0xfa }
+      - { name: "RLTILTPOS", off: 3, invalid: 0xfa }
+      - { name: "RLLEGEXTPOS", off: 4, invalid: 0xfa }
+      - { name: "RLLEGSUPPOS", off: 5, invalid: 0xfa }
+      - { name: "RLHRESTSLIDPOS", off: 6, invalid: 0xfa }
+      - { name: "RLHRESTHEIGHTPOS", off: 7, invalid: 0xfa }
+      - { name: "REARMODESTATE", off: 8, invalid: 0xfa }
+      - { name: "FAILSTATE_POPUP", off: 9, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table SEATBACKRECLINE_RRPSU; the EV6 firmware answers its request (0x1130) in emulation with 10 bytes"
+  - name: "USM_Eco_Vehicle_ETC_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x31
+    min_length: 3
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "DECELERATION", off: 1, invalid: 0xfa }
+      - { name: "LINKTONAVIGATIONROUTE", off: 2, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table EcoVehicleETC; the EV6 firmware answers its request (0x1131) in emulation with 3 bytes"
+  - name: "USM_TOWMODE_M_RESP"
+    dir: from_micom
+    hdr: "11 92 ?? 91"
+    cmd: 0x33
+    min_length: 2
+    fields:
+      - { name: "Item", off: 0 }
+      - { name: "TOWWEIGHT", off: 1, invalid: 0xfa }
+    status: code
+    ref: "stock USM$ table TOWMODE; the EV6 firmware answers its request (0x1133) in emulation with 2 bytes"
 
 # SystemService requests that reset, rewrite or reconfigure the micom. They are
 # on the system header (sendPacket(0x8a, 1, func)); the `dangerous` string marks
