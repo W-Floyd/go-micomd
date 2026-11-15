@@ -43,7 +43,7 @@ A message is a header plus a cmd. Find the header, then the cmd under it; its fi
 | Status | Messages |
 | --- | --- |
 | 🟢 captured | 20 |
-| 🟡 code | 187 |
+| 🟡 code | 266 |
 | 🟠 inferred | 3 |
 
 Not yet backed by a capture:
@@ -240,6 +240,85 @@ Not yet backed by a capture:
 | backlight-dim-mode | `display_tx` | 0x01 | 🟡 code | stock MON_SET_DIMMING_MODE_C (0 auto, 1 daylight, 2 night, 3 manual); micom firmware 0x0801 handler; EEPROM trace under emulation |
 | backlight-period-level | `display_tx` | 0x07 | 🟡 code | stock dimming brightness [period, level]; micom firmware 0x0807 handler; EEPROM trace under emulation |
 | backlight-manual-level | `display_tx` | 0x1a | 🟡 code | stock user brightness; micom firmware 0x081A handler; EEPROM trace under emulation |
+| DATC_TempUnit | `climate_panel` | 0x0e | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 14 (func 0xc30e); the EV6 firmware sends it in emulation when CAN 0x382 byte 5 bits 0..1 changes |
+| CF_DATC_Option2 | `climate_panel` | 0x31 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 49 (func 0xc331); the EV6 firmware sends it in emulation when CAN 0x3B2 byte 6 bits 0..3 changes |
+| DATC_WshFldUSMSta | `climate_panel` | 0x3c | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 60 (func 0xc33c); the EV6 firmware sends it in emulation when CAN 0x427 byte 4 bits 6..7 changes |
+| DATC_FrontBlwAutoDisp | `climate_panel` | 0x3f | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 63 (func 0xc33f); the EV6 firmware sends it in emulation when CAN 0x384 byte 4 bits 6..7 changes |
+| CF_DATC_Option4 | `climate_panel` | 0x44 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 68 (func 0xc344); the EV6 firmware sends it in emulation when CAN 0x3B2 byte 6 bits 4..7 changes |
+| DATC_ArClnSmblTyp | `climate_panel` | 0x45 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 69 (func 0xc345); the EV6 firmware sends it in emulation when CAN 0x3B1 byte 6 bits 0..2 changes |
+| DATC_ArClnStepClr | `climate_panel` | 0x46 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 70 (func 0xc346); the EV6 firmware sends it in emulation when CAN 0x3B1 byte 5 bits 4..7 changes |
+| DATC_ArClnSysOSD | `climate_panel` | 0x47 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 71 (func 0xc347); the EV6 firmware sends it in emulation when CAN 0x3B1 byte 5 bits 0..3 changes |
+| DATC_Opt5Typ | `climate_panel` | 0x4b | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 75 (func 0xc34b); the EV6 firmware sends it in emulation when CAN 0x42A byte 5 bits 4..7 changes |
+| DATC_AfterBlowUSMSta | `climate_panel` | 0x4c | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 76 (func 0xc34c); the EV6 firmware sends it in emulation when CAN 0x3B1 byte 6 bits 4..5 changes |
+| DATC_ArClnIND | `climate_panel` | 0x53 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 83 (func 0xc353); the EV6 firmware sends it in emulation when CAN 0x383 byte 6 bits 6..7 changes |
+| DATC_Type2_NEW | `climate_panel` | 0x55 | 🟡 code | stock UNIDatcProtocol TE_RX_IL ordinal 85 (func 0xc355); the EV6 firmware sends it in emulation when CAN 0x34B bytes 6..7 change (payload byte 0 is CAN byte 7) |
+| C_SMKTeleEngineRunning | `body` | 0x09 | 🟡 code | stock BODY TE_RX_IL ordinal 9 (func 0xc409); the EV6 firmware sends it in emulation when CAN 0x444 byte 7 bits 0..1 changes |
+| C_BAlarmState | `body` | 0x0a | 🟡 code | stock BODY TE_RX_IL ordinal 10 (func 0xc40a); the EV6 firmware sends it in emulation when CAN 0x3E0 byte 2 bits 0..3 changes |
+| C_PanicState | `body` | 0x0b | 🟡 code | stock BODY TE_RX_IL ordinal 11 (func 0xc40b); the EV6 firmware sends it in emulation when CAN 0x3E0 byte 2 bits 6..7 changes |
+| C_RrSeatRemindAlarm | `body` | 0x12 | 🟡 code | stock BODY TE_RX_IL ordinal 18 (func 0xc412); the EV6 firmware sends it in emulation when CAN 0x3C0 byte 4 bits 5..6 changes |
+| C_DrvSeatHeatOption | `body` | 0x18 | 🟡 code | stock BODY TE_RX_IL ordinal 24 (func 0xc418); the EV6 firmware sends it in emulation when CAN 0x496 byte 0 bits 0..2 changes |
+| C_AstSeatHeatOption | `body` | 0x1a | 🟡 code | stock BODY TE_RX_IL ordinal 26 (func 0xc41a); the EV6 firmware sends it in emulation when CAN 0x475 byte 0 bits 0..2 changes |
+| C_RLSeatHeatOption | `body` | 0x1c | 🟡 code | stock BODY TE_RX_IL ordinal 28 (func 0xc41c); the EV6 firmware sends it in emulation when CAN 0x438 byte 0 bits 0..2 changes |
+| C_RRSeatHeatOption | `body` | 0x1e | 🟡 code | stock BODY TE_RX_IL ordinal 30 (func 0xc41e); the EV6 firmware sends it in emulation when CAN 0x453 byte 0 bits 0..2 changes |
+| C_SafetyWDWOpt | `body` | 0x2c | 🟡 code | stock BODY TE_RX_IL ordinal 44 (func 0xc42c); the EV6 firmware sends it in emulation when CAN 0x442 byte 3 bits 6..7 changes |
+| C_IMSOption | `body` | 0x2d | 🟡 code | stock BODY TE_RX_IL ordinal 45 (func 0xc42d); the EV6 firmware sends it in emulation when CAN 0x386 byte 1 bits 0..0 changes |
+| C_FOBBatteryStatusInfo | `body` | 0x2f | 🟡 code | stock BODY TE_RX_IL ordinal 47 (func 0xc42f); the EV6 firmware sends it in emulation when CAN 0x445 byte 3 bits 0..1 changes |
+| C_BrakeFluidSw | `body` | 0x30 | 🟡 code | stock BODY TE_RX_IL ordinal 48 (func 0xc430); the EV6 firmware sends it in emulation when CAN 0x411 byte 4 bits 6..7 changes |
+| C_DrvWindowOpenState | `body` | 0x31 | 🟡 code | stock BODY TE_RX_IL ordinal 49 (func 0xc431); the EV6 firmware sends it in emulation when CAN 0x442 byte 4 bits 0..1 changes |
+| C_AstWindowOpenState | `body` | 0x32 | 🟡 code | stock BODY TE_RX_IL ordinal 50 (func 0xc432); the EV6 firmware sends it in emulation when CAN 0x442 byte 4 bits 2..3 changes |
+| C_RLWindowOpenState | `body` | 0x33 | 🟡 code | stock BODY TE_RX_IL ordinal 51 (func 0xc433); the EV6 firmware sends it in emulation when CAN 0x442 byte 4 bits 4..5 changes |
+| C_RRWindowOpenState | `body` | 0x34 | 🟡 code | stock BODY TE_RX_IL ordinal 52 (func 0xc434); the EV6 firmware sends it in emulation when CAN 0x442 byte 4 bits 6..7 changes |
+| C_StrgWhlHeatingOpt | `body` | 0x3b | 🟡 code | stock BODY TE_RX_IL ordinal 59 (func 0xc43b); the EV6 firmware sends it in emulation when CAN 0x48F byte 4 bits 0..0 changes |
+| CCM_Evse_ID1 | `body` | 0x46 | 🟡 code | stock BODY TE_RX_IL ordinal 70 (func 0xc446); the EV6 firmware sends it in emulation when CAN 0x356 bytes 3..7 change (payload byte i is CAN byte 7-i, so little-endian hex reads in CAN order) |
+| CCM_Evse_ID2 | `body` | 0x47 | 🟡 code | stock BODY TE_RX_IL ordinal 71 (func 0xc447); the EV6 firmware sends it in emulation when CAN 0x357 bytes 0..4 change (payload byte i is CAN byte 4-i, so little-endian hex reads in CAN order) |
+| CDM_HS_OptTyp | `body` | 0x48 | 🟡 code | stock BODY TE_RX_IL ordinal 72 (func 0xc448); the EV6 firmware sends it in emulation when CAN 0x3AA byte 4 bits 6..7 changes |
+| CDM_HS_WarnMsg | `body` | 0x4a | 🟡 code | stock BODY TE_RX_IL ordinal 74 (func 0xc44a); the EV6 firmware sends it in emulation when CAN 0x3AA byte 4 bits 4..5 changes |
+| ICU_BattAutoCutPreWrng | `body` | 0x4b | 🟡 code | stock BODY TE_RX_IL ordinal 75 (func 0xc44b); the EV6 firmware sends it in emulation when CAN 0x48F byte 4 bits 4..5 changes |
+| ICU_BattMngAlert | `body` | 0x4c | 🟡 code | stock BODY TE_RX_IL ordinal 76 (func 0xc44c); the EV6 firmware sends it in emulation when CAN 0x405 byte 6 bits 0..7 changes |
+| ROA_RrStRmndAlrm | `body` | 0x4d | 🟡 code | stock BODY TE_RX_IL ordinal 77 (func 0xc44d); the EV6 firmware sends it in emulation when CAN 0x3C0 byte 3 bits 0..2 changes |
+| IBU_RrStRmndAlrmSta | `body` | 0x4e | 🟡 code | stock BODY TE_RX_IL ordinal 78 (func 0xc44e); the EV6 firmware sends it in emulation when CAN 0x3E2 byte 5 bits 6..7 changes |
+| Warn_ROA_RrStRmndSysSta | `body` | 0x4f | 🟡 code | stock BODY TE_RX_IL ordinal 79 (func 0xc44f); the EV6 firmware sends it in emulation when CAN 0x3C0 byte 3 bits 6..7 changes |
+| C_SafetyWDWOpt2 | `body` | 0x55 | 🟡 code | stock BODY TE_RX_IL ordinal 85 (func 0xc455); the EV6 firmware sends it in emulation when CAN 0xFF byte 6 bits 1..3 changes |
+| VCMS_ChgPwrDerating | `body` | 0x5a | 🟡 code | stock BODY TE_RX_IL ordinal 90 (func 0xc45a); the EV6 firmware sends it in emulation when CAN 0x30C byte 0 bits 0..1 changes |
+| AVM_Option | `gear_node` | 0x07 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 7 (func 0xd007); the EV6 firmware sends it in emulation when CAN 0x477 byte 4 bits 0..3 changes |
+| AVM_Btn_Show | `gear_node` | 0x0c | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 12 (func 0xd00c); the EV6 firmware sends it in emulation when CAN 0x477 byte 4 bits 4..5 changes |
+| Lamp_RrTrnSigLmpLftOpnSta | `gear_node` | 0x12 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 18 (func 0xd012); the EV6 firmware sends it in emulation when CAN 0x416 byte 6 bits 2..3 changes |
+| Lamp_RrTrnSigLmpRtOpnSta | `gear_node` | 0x13 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 19 (func 0xd013); the EV6 firmware sends it in emulation when CAN 0x416 byte 6 bits 4..5 changes |
+| Lamp_FrTrnSigLmpLftOpnSta | `gear_node` | 0x14 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 20 (func 0xd014); the EV6 firmware sends it in emulation when CAN 0x416 byte 6 bits 6..7 changes |
+| Lamp_FrTrnSigLmpRtOpnSta | `gear_node` | 0x15 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 21 (func 0xd015); the EV6 firmware sends it in emulation when CAN 0x416 byte 7 bits 0..1 changes |
+| SVM_CaptureModeState | `gear_node` | 0x16 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 22 (func 0xd016); the EV6 firmware sends it in emulation when CAN 0x409 byte 0 bits 6..7 changes |
+| SVM_CaptureModeViewState | `gear_node` | 0x17 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 23 (func 0xd017); the EV6 firmware sends it in emulation when CAN 0x409 byte 7 bits 0..2 changes |
+| SVM_Typ | `gear_node` | 0x18 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 24 (func 0xd018); the EV6 firmware sends it in emulation when CAN 0x409 byte 0 bits 0..3 changes |
+| SVM_Typ2 | `gear_node` | 0x19 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 25 (func 0xd019); the EV6 firmware sends it in emulation when CAN 0x409 byte 7 bits 3..6 changes |
+| SVM_PhoneLimitFR_YawLft | `gear_node` | 0x26 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 38 (func 0xd026); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 0 bits 0..5 changes |
+| SVM_PhoneLimitFR_YawRt | `gear_node` | 0x27 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 39 (func 0xd027); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 0 bits 6..7 changes |
+| SVM_PhoneLimitFR_TiltUp | `gear_node` | 0x28 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 40 (func 0xd028); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 1 bits 4..7 changes |
+| SVM_PhoneLimitFR_TiltDnCtr | `gear_node` | 0x29 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 41 (func 0xd029); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 2 bits 2..7 changes |
+| SVM_PhoneLimitFR_TiltDnLft | `gear_node` | 0x2a | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 42 (func 0xd02a); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 3 bits 0..5 changes |
+| SVM_PhoneLimitFR_TiltDnRt | `gear_node` | 0x2b | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 43 (func 0xd02b); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 3 bits 6..7 changes |
+| SVM_PhoneLimitRR_YawLft | `gear_node` | 0x2c | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 44 (func 0xd02c); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 0 bits 0..5 changes |
+| SVM_PhoneLimitRR_YawRt | `gear_node` | 0x2d | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 45 (func 0xd02d); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 0 bits 6..7 changes |
+| SVM_PhoneLimitRR_TiltUp | `gear_node` | 0x2e | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 46 (func 0xd02e); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 1 bits 4..7 changes |
+| SVM_PhoneLimitRR_TiltDnCtr | `gear_node` | 0x2f | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 47 (func 0xd02f); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 2 bits 2..7 changes |
+| SVM_PhoneLimitRR_TiltDnLft | `gear_node` | 0x30 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 48 (func 0xd030); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 3 bits 0..5 changes |
+| SVM_PhoneLimitRR_TiltDnRt | `gear_node` | 0x31 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 49 (func 0xd031); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 3 bits 6..7 changes |
+| SVM_PhoneLimitLH_YawLft | `gear_node` | 0x32 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 50 (func 0xd032); the EV6 firmware sends it in emulation when CAN 0x3AC byte 0 bits 0..5 changes |
+| SVM_PhoneLimitLH_YawRt | `gear_node` | 0x33 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 51 (func 0xd033); the EV6 firmware sends it in emulation when CAN 0x3AC byte 0 bits 6..7 changes |
+| SVM_PhoneLimitLH_TiltUp | `gear_node` | 0x34 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 52 (func 0xd034); the EV6 firmware sends it in emulation when CAN 0x3AC byte 1 bits 4..7 changes |
+| SVM_PhoneLimitLH_TiltDnCtr | `gear_node` | 0x35 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 53 (func 0xd035); the EV6 firmware sends it in emulation when CAN 0x3AC byte 2 bits 2..7 changes |
+| SVM_PhoneLimitLH_TiltDnLft | `gear_node` | 0x36 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 54 (func 0xd036); the EV6 firmware sends it in emulation when CAN 0x3AC byte 3 bits 0..5 changes |
+| SVM_PhoneLimitLH_TiltDnRt | `gear_node` | 0x37 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 55 (func 0xd037); the EV6 firmware sends it in emulation when CAN 0x3AC byte 3 bits 6..7 changes |
+| SVM_PhoneLimitRH_YawLft | `gear_node` | 0x38 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 56 (func 0xd038); the EV6 firmware sends it in emulation when CAN 0x3AD byte 0 bits 0..5 changes |
+| SVM_PhoneLimitRH_YawRt | `gear_node` | 0x39 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 57 (func 0xd039); the EV6 firmware sends it in emulation when CAN 0x3AD byte 0 bits 6..7 changes |
+| SVM_PhoneLimitRH_TiltUp | `gear_node` | 0x3a | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 58 (func 0xd03a); the EV6 firmware sends it in emulation when CAN 0x3AD byte 1 bits 4..7 changes |
+| SVM_PhoneLimitRH_TiltDnCtr | `gear_node` | 0x3b | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 59 (func 0xd03b); the EV6 firmware sends it in emulation when CAN 0x3AD byte 2 bits 2..7 changes |
+| SVM_PhoneLimitRH_TiltDnLft | `gear_node` | 0x3c | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 60 (func 0xd03c); the EV6 firmware sends it in emulation when CAN 0x3AD byte 3 bits 0..5 changes |
+| SVM_PhoneLimitRH_TiltDnRt | `gear_node` | 0x3d | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 61 (func 0xd03d); the EV6 firmware sends it in emulation when CAN 0x3AD byte 3 bits 6..7 changes |
+| AVM_ZoomBtn_State | `gear_node` | 0x3e | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 62 (func 0xd03e); the EV6 firmware sends it in emulation when CAN 0x409 byte 0 bits 4..5 changes |
+| Mirror_OSMirFldOpt | `gear_node` | 0x3f | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 63 (func 0xd03f); the EV6 firmware sends it in emulation when CAN 0x401 byte 2 bits 0..1 changes |
+| SVM_FrViewBtn_Sta | `gear_node` | 0x42 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 66 (func 0xd042); the EV6 firmware sends it in emulation when CAN 0x476 byte 2 bits 0..2 changes |
+| SVM_RrViewBtn_Sta | `gear_node` | 0x43 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 67 (func 0xd043); the EV6 firmware sends it in emulation when CAN 0x476 byte 2 bits 3..5 changes |
+| SVM_DRVViewBtn_Sta | `gear_node` | 0x44 | 🟡 code | stock UNICameraProtocol TE_RX_IL ordinal 68 (func 0xd044); the EV6 firmware sends it in emulation when CAN 0x476 byte 2 bits 6..7 changes |
 
 ## Match
 
@@ -4378,6 +4457,1203 @@ packet-beta
 24-31: "Efficiency unit code (km)"
 32-39: "Efficiency unit code (mi)"
 40-47: "Tire pressure unit code"
+```
+
+### climate_panel
+
+`43 c2 00 c3`
+
+#### DATC_TempUnit
+
+cmd `0x0e`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 14 (func 0xc30e); the EV6 firmware sends it in emulation when CAN 0x382 byte 5 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| DATC_TempUnit | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_TempUnit"
+```
+
+#### CF_DATC_Option2
+
+cmd `0x31`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 49 (func 0xc331); the EV6 firmware sends it in emulation when CAN 0x3B2 byte 6 bits 0..3 changes
+
+| Field | At |
+| --- | --- |
+| CF_DATC_Option2 | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "CF_DATC_Option2"
+```
+
+#### DATC_WshFldUSMSta
+
+cmd `0x3c`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 60 (func 0xc33c); the EV6 firmware sends it in emulation when CAN 0x427 byte 4 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| DATC_WshFldUSMSta | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_WshFldUSMSta"
+```
+
+#### DATC_FrontBlwAutoDisp
+
+cmd `0x3f`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 63 (func 0xc33f); the EV6 firmware sends it in emulation when CAN 0x384 byte 4 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| DATC_FrontBlwAutoDisp | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_FrontBlwAutoDisp"
+```
+
+#### CF_DATC_Option4
+
+cmd `0x44`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 68 (func 0xc344); the EV6 firmware sends it in emulation when CAN 0x3B2 byte 6 bits 4..7 changes
+
+| Field | At |
+| --- | --- |
+| CF_DATC_Option4 | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "CF_DATC_Option4"
+```
+
+#### DATC_ArClnSmblTyp
+
+cmd `0x45`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 69 (func 0xc345); the EV6 firmware sends it in emulation when CAN 0x3B1 byte 6 bits 0..2 changes
+
+| Field | At |
+| --- | --- |
+| DATC_ArClnSmblTyp | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_ArClnSmblTyp"
+```
+
+#### DATC_ArClnStepClr
+
+cmd `0x46`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 70 (func 0xc346); the EV6 firmware sends it in emulation when CAN 0x3B1 byte 5 bits 4..7 changes
+
+| Field | At |
+| --- | --- |
+| DATC_ArClnStepClr | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_ArClnStepClr"
+```
+
+#### DATC_ArClnSysOSD
+
+cmd `0x47`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 71 (func 0xc347); the EV6 firmware sends it in emulation when CAN 0x3B1 byte 5 bits 0..3 changes
+
+| Field | At |
+| --- | --- |
+| DATC_ArClnSysOSD | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_ArClnSysOSD"
+```
+
+#### DATC_Opt5Typ
+
+cmd `0x4b`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 75 (func 0xc34b); the EV6 firmware sends it in emulation when CAN 0x42A byte 5 bits 4..7 changes
+
+| Field | At |
+| --- | --- |
+| DATC_Opt5Typ | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_Opt5Typ"
+```
+
+#### DATC_AfterBlowUSMSta
+
+cmd `0x4c`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 76 (func 0xc34c); the EV6 firmware sends it in emulation when CAN 0x3B1 byte 6 bits 4..5 changes
+
+| Field | At |
+| --- | --- |
+| DATC_AfterBlowUSMSta | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_AfterBlowUSMSta"
+```
+
+#### DATC_ArClnIND
+
+cmd `0x53`, length 1 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 83 (func 0xc353); the EV6 firmware sends it in emulation when CAN 0x383 byte 6 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| DATC_ArClnIND | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "DATC_ArClnIND"
+```
+
+#### DATC_Type2_NEW
+
+cmd `0x55`, length 2 · 🟡 code
+
+> stock UNIDatcProtocol TE_RX_IL ordinal 85 (func 0xc355); the EV6 firmware sends it in emulation when CAN 0x34B bytes 6..7 change (payload byte 0 is CAN byte 7)
+
+| Field | At | Type |
+| --- | --- | --- |
+| DATC_Type2_NEW | byte 0 | u16 little |
+
+```mermaid
+packet-beta
+0-15: "DATC_Type2_NEW"
+```
+
+### body
+
+`44 c1 00 c4`: doors; repeats seat heat and windows
+
+#### C_SMKTeleEngineRunning
+
+cmd `0x09`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 9 (func 0xc409); the EV6 firmware sends it in emulation when CAN 0x444 byte 7 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| C_SMKTeleEngineRunning | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_SMKTeleEngineRunning"
+```
+
+#### C_BAlarmState
+
+cmd `0x0a`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 10 (func 0xc40a); the EV6 firmware sends it in emulation when CAN 0x3E0 byte 2 bits 0..3 changes
+
+| Field | At |
+| --- | --- |
+| C_BAlarmState | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_BAlarmState"
+```
+
+#### C_PanicState
+
+cmd `0x0b`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 11 (func 0xc40b); the EV6 firmware sends it in emulation when CAN 0x3E0 byte 2 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| C_PanicState | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_PanicState"
+```
+
+#### C_RrSeatRemindAlarm
+
+cmd `0x12`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 18 (func 0xc412); the EV6 firmware sends it in emulation when CAN 0x3C0 byte 4 bits 5..6 changes
+
+| Field | At |
+| --- | --- |
+| C_RrSeatRemindAlarm | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_RrSeatRemindAlarm"
+```
+
+#### C_DrvSeatHeatOption
+
+cmd `0x18`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 24 (func 0xc418); the EV6 firmware sends it in emulation when CAN 0x496 byte 0 bits 0..2 changes
+
+| Field | At |
+| --- | --- |
+| C_DrvSeatHeatOption | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_DrvSeatHeatOption"
+```
+
+#### C_AstSeatHeatOption
+
+cmd `0x1a`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 26 (func 0xc41a); the EV6 firmware sends it in emulation when CAN 0x475 byte 0 bits 0..2 changes
+
+| Field | At |
+| --- | --- |
+| C_AstSeatHeatOption | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_AstSeatHeatOption"
+```
+
+#### C_RLSeatHeatOption
+
+cmd `0x1c`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 28 (func 0xc41c); the EV6 firmware sends it in emulation when CAN 0x438 byte 0 bits 0..2 changes
+
+| Field | At |
+| --- | --- |
+| C_RLSeatHeatOption | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_RLSeatHeatOption"
+```
+
+#### C_RRSeatHeatOption
+
+cmd `0x1e`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 30 (func 0xc41e); the EV6 firmware sends it in emulation when CAN 0x453 byte 0 bits 0..2 changes
+
+| Field | At |
+| --- | --- |
+| C_RRSeatHeatOption | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_RRSeatHeatOption"
+```
+
+#### C_SafetyWDWOpt
+
+cmd `0x2c`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 44 (func 0xc42c); the EV6 firmware sends it in emulation when CAN 0x442 byte 3 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| C_SafetyWDWOpt | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_SafetyWDWOpt"
+```
+
+#### C_IMSOption
+
+cmd `0x2d`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 45 (func 0xc42d); the EV6 firmware sends it in emulation when CAN 0x386 byte 1 bits 0..0 changes
+
+| Field | At |
+| --- | --- |
+| C_IMSOption | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_IMSOption"
+```
+
+#### C_FOBBatteryStatusInfo
+
+cmd `0x2f`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 47 (func 0xc42f); the EV6 firmware sends it in emulation when CAN 0x445 byte 3 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| C_FOBBatteryStatusInfo | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_FOBBatteryStatusInfo"
+```
+
+#### C_BrakeFluidSw
+
+cmd `0x30`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 48 (func 0xc430); the EV6 firmware sends it in emulation when CAN 0x411 byte 4 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| C_BrakeFluidSw | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_BrakeFluidSw"
+```
+
+#### C_DrvWindowOpenState
+
+cmd `0x31`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 49 (func 0xc431); the EV6 firmware sends it in emulation when CAN 0x442 byte 4 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| C_DrvWindowOpenState | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_DrvWindowOpenState"
+```
+
+#### C_AstWindowOpenState
+
+cmd `0x32`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 50 (func 0xc432); the EV6 firmware sends it in emulation when CAN 0x442 byte 4 bits 2..3 changes
+
+| Field | At |
+| --- | --- |
+| C_AstWindowOpenState | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_AstWindowOpenState"
+```
+
+#### C_RLWindowOpenState
+
+cmd `0x33`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 51 (func 0xc433); the EV6 firmware sends it in emulation when CAN 0x442 byte 4 bits 4..5 changes
+
+| Field | At |
+| --- | --- |
+| C_RLWindowOpenState | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_RLWindowOpenState"
+```
+
+#### C_RRWindowOpenState
+
+cmd `0x34`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 52 (func 0xc434); the EV6 firmware sends it in emulation when CAN 0x442 byte 4 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| C_RRWindowOpenState | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_RRWindowOpenState"
+```
+
+#### C_StrgWhlHeatingOpt
+
+cmd `0x3b`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 59 (func 0xc43b); the EV6 firmware sends it in emulation when CAN 0x48F byte 4 bits 0..0 changes
+
+| Field | At |
+| --- | --- |
+| C_StrgWhlHeatingOpt | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_StrgWhlHeatingOpt"
+```
+
+#### CCM_Evse_ID1
+
+cmd `0x46`, length 5 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 70 (func 0xc446); the EV6 firmware sends it in emulation when CAN 0x356 bytes 3..7 change (payload byte i is CAN byte 7-i, so little-endian hex reads in CAN order)
+
+| Field | At | Type |
+| --- | --- | --- |
+| CCM_Evse_ID1 | byte 0 | str little |
+
+```mermaid
+packet-beta
+0-39: "CCM_Evse_ID1"
+```
+
+#### CCM_Evse_ID2
+
+cmd `0x47`, length 5 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 71 (func 0xc447); the EV6 firmware sends it in emulation when CAN 0x357 bytes 0..4 change (payload byte i is CAN byte 4-i, so little-endian hex reads in CAN order)
+
+| Field | At | Type |
+| --- | --- | --- |
+| CCM_Evse_ID2 | byte 0 | str little |
+
+```mermaid
+packet-beta
+0-39: "CCM_Evse_ID2"
+```
+
+#### CDM_HS_OptTyp
+
+cmd `0x48`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 72 (func 0xc448); the EV6 firmware sends it in emulation when CAN 0x3AA byte 4 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| CDM_HS_OptTyp | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "CDM_HS_OptTyp"
+```
+
+#### CDM_HS_WarnMsg
+
+cmd `0x4a`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 74 (func 0xc44a); the EV6 firmware sends it in emulation when CAN 0x3AA byte 4 bits 4..5 changes
+
+| Field | At |
+| --- | --- |
+| CDM_HS_WarnMsg | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "CDM_HS_WarnMsg"
+```
+
+#### ICU_BattAutoCutPreWrng
+
+cmd `0x4b`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 75 (func 0xc44b); the EV6 firmware sends it in emulation when CAN 0x48F byte 4 bits 4..5 changes
+
+| Field | At |
+| --- | --- |
+| ICU_BattAutoCutPreWrng | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "ICU_BattAutoCutPreWrng"
+```
+
+#### ICU_BattMngAlert
+
+cmd `0x4c`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 76 (func 0xc44c); the EV6 firmware sends it in emulation when CAN 0x405 byte 6 bits 0..7 changes
+
+| Field | At |
+| --- | --- |
+| ICU_BattMngAlert | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "ICU_BattMngAlert"
+```
+
+#### ROA_RrStRmndAlrm
+
+cmd `0x4d`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 77 (func 0xc44d); the EV6 firmware sends it in emulation when CAN 0x3C0 byte 3 bits 0..2 changes
+
+| Field | At |
+| --- | --- |
+| ROA_RrStRmndAlrm | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "ROA_RrStRmndAlrm"
+```
+
+#### IBU_RrStRmndAlrmSta
+
+cmd `0x4e`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 78 (func 0xc44e); the EV6 firmware sends it in emulation when CAN 0x3E2 byte 5 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| IBU_RrStRmndAlrmSta | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "IBU_RrStRmndAlrmSta"
+```
+
+#### Warn_ROA_RrStRmndSysSta
+
+cmd `0x4f`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 79 (func 0xc44f); the EV6 firmware sends it in emulation when CAN 0x3C0 byte 3 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| Warn_ROA_RrStRmndSysSta | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "Warn_ROA_RrStRmndSysSta"
+```
+
+#### C_SafetyWDWOpt2
+
+cmd `0x55`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 85 (func 0xc455); the EV6 firmware sends it in emulation when CAN 0xFF byte 6 bits 1..3 changes
+
+| Field | At |
+| --- | --- |
+| C_SafetyWDWOpt2 | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "C_SafetyWDWOpt2"
+```
+
+#### VCMS_ChgPwrDerating
+
+cmd `0x5a`, length 1 · 🟡 code
+
+> stock BODY TE_RX_IL ordinal 90 (func 0xc45a); the EV6 firmware sends it in emulation when CAN 0x30C byte 0 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| VCMS_ChgPwrDerating | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "VCMS_ChgPwrDerating"
+```
+
+### gear_node
+
+`50 c4 00 d0`: micomd capture, 2026-11-10, P/D/N/R shifts
+
+#### AVM_Option
+
+cmd `0x07`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 7 (func 0xd007); the EV6 firmware sends it in emulation when CAN 0x477 byte 4 bits 0..3 changes
+
+| Field | At |
+| --- | --- |
+| AVM_Option | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "AVM_Option"
+```
+
+#### AVM_Btn_Show
+
+cmd `0x0c`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 12 (func 0xd00c); the EV6 firmware sends it in emulation when CAN 0x477 byte 4 bits 4..5 changes
+
+| Field | At |
+| --- | --- |
+| AVM_Btn_Show | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "AVM_Btn_Show"
+```
+
+#### Lamp_RrTrnSigLmpLftOpnSta
+
+cmd `0x12`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 18 (func 0xd012); the EV6 firmware sends it in emulation when CAN 0x416 byte 6 bits 2..3 changes
+
+| Field | At |
+| --- | --- |
+| Lamp_RrTrnSigLmpLftOpnSta | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "Lamp_RrTrnSigLmpLftOpnSta"
+```
+
+#### Lamp_RrTrnSigLmpRtOpnSta
+
+cmd `0x13`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 19 (func 0xd013); the EV6 firmware sends it in emulation when CAN 0x416 byte 6 bits 4..5 changes
+
+| Field | At |
+| --- | --- |
+| Lamp_RrTrnSigLmpRtOpnSta | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "Lamp_RrTrnSigLmpRtOpnSta"
+```
+
+#### Lamp_FrTrnSigLmpLftOpnSta
+
+cmd `0x14`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 20 (func 0xd014); the EV6 firmware sends it in emulation when CAN 0x416 byte 6 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| Lamp_FrTrnSigLmpLftOpnSta | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "Lamp_FrTrnSigLmpLftOpnSta"
+```
+
+#### Lamp_FrTrnSigLmpRtOpnSta
+
+cmd `0x15`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 21 (func 0xd015); the EV6 firmware sends it in emulation when CAN 0x416 byte 7 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| Lamp_FrTrnSigLmpRtOpnSta | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "Lamp_FrTrnSigLmpRtOpnSta"
+```
+
+#### SVM_CaptureModeState
+
+cmd `0x16`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 22 (func 0xd016); the EV6 firmware sends it in emulation when CAN 0x409 byte 0 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_CaptureModeState | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_CaptureModeState"
+```
+
+#### SVM_CaptureModeViewState
+
+cmd `0x17`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 23 (func 0xd017); the EV6 firmware sends it in emulation when CAN 0x409 byte 7 bits 0..2 changes
+
+| Field | At |
+| --- | --- |
+| SVM_CaptureModeViewState | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_CaptureModeViewState"
+```
+
+#### SVM_Typ
+
+cmd `0x18`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 24 (func 0xd018); the EV6 firmware sends it in emulation when CAN 0x409 byte 0 bits 0..3 changes
+
+| Field | At |
+| --- | --- |
+| SVM_Typ | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_Typ"
+```
+
+#### SVM_Typ2
+
+cmd `0x19`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 25 (func 0xd019); the EV6 firmware sends it in emulation when CAN 0x409 byte 7 bits 3..6 changes
+
+| Field | At |
+| --- | --- |
+| SVM_Typ2 | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_Typ2"
+```
+
+#### SVM_PhoneLimitFR_YawLft
+
+cmd `0x26`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 38 (func 0xd026); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 0 bits 0..5 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitFR_YawLft | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitFR_YawLft"
+```
+
+#### SVM_PhoneLimitFR_YawRt
+
+cmd `0x27`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 39 (func 0xd027); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 0 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitFR_YawRt | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitFR_YawRt"
+```
+
+#### SVM_PhoneLimitFR_TiltUp
+
+cmd `0x28`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 40 (func 0xd028); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 1 bits 4..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitFR_TiltUp | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitFR_TiltUp"
+```
+
+#### SVM_PhoneLimitFR_TiltDnCtr
+
+cmd `0x29`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 41 (func 0xd029); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 2 bits 2..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitFR_TiltDnCtr | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitFR_TiltDnCtr"
+```
+
+#### SVM_PhoneLimitFR_TiltDnLft
+
+cmd `0x2a`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 42 (func 0xd02a); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 3 bits 0..5 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitFR_TiltDnLft | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitFR_TiltDnLft"
+```
+
+#### SVM_PhoneLimitFR_TiltDnRt
+
+cmd `0x2b`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 43 (func 0xd02b); the EV6 firmware sends it in emulation when CAN 0x3A8 byte 3 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitFR_TiltDnRt | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitFR_TiltDnRt"
+```
+
+#### SVM_PhoneLimitRR_YawLft
+
+cmd `0x2c`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 44 (func 0xd02c); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 0 bits 0..5 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitRR_YawLft | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitRR_YawLft"
+```
+
+#### SVM_PhoneLimitRR_YawRt
+
+cmd `0x2d`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 45 (func 0xd02d); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 0 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitRR_YawRt | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitRR_YawRt"
+```
+
+#### SVM_PhoneLimitRR_TiltUp
+
+cmd `0x2e`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 46 (func 0xd02e); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 1 bits 4..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitRR_TiltUp | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitRR_TiltUp"
+```
+
+#### SVM_PhoneLimitRR_TiltDnCtr
+
+cmd `0x2f`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 47 (func 0xd02f); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 2 bits 2..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitRR_TiltDnCtr | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitRR_TiltDnCtr"
+```
+
+#### SVM_PhoneLimitRR_TiltDnLft
+
+cmd `0x30`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 48 (func 0xd030); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 3 bits 0..5 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitRR_TiltDnLft | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitRR_TiltDnLft"
+```
+
+#### SVM_PhoneLimitRR_TiltDnRt
+
+cmd `0x31`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 49 (func 0xd031); the EV6 firmware sends it in emulation when CAN 0x3A9 byte 3 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitRR_TiltDnRt | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitRR_TiltDnRt"
+```
+
+#### SVM_PhoneLimitLH_YawLft
+
+cmd `0x32`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 50 (func 0xd032); the EV6 firmware sends it in emulation when CAN 0x3AC byte 0 bits 0..5 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitLH_YawLft | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitLH_YawLft"
+```
+
+#### SVM_PhoneLimitLH_YawRt
+
+cmd `0x33`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 51 (func 0xd033); the EV6 firmware sends it in emulation when CAN 0x3AC byte 0 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitLH_YawRt | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitLH_YawRt"
+```
+
+#### SVM_PhoneLimitLH_TiltUp
+
+cmd `0x34`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 52 (func 0xd034); the EV6 firmware sends it in emulation when CAN 0x3AC byte 1 bits 4..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitLH_TiltUp | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitLH_TiltUp"
+```
+
+#### SVM_PhoneLimitLH_TiltDnCtr
+
+cmd `0x35`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 53 (func 0xd035); the EV6 firmware sends it in emulation when CAN 0x3AC byte 2 bits 2..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitLH_TiltDnCtr | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitLH_TiltDnCtr"
+```
+
+#### SVM_PhoneLimitLH_TiltDnLft
+
+cmd `0x36`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 54 (func 0xd036); the EV6 firmware sends it in emulation when CAN 0x3AC byte 3 bits 0..5 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitLH_TiltDnLft | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitLH_TiltDnLft"
+```
+
+#### SVM_PhoneLimitLH_TiltDnRt
+
+cmd `0x37`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 55 (func 0xd037); the EV6 firmware sends it in emulation when CAN 0x3AC byte 3 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitLH_TiltDnRt | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitLH_TiltDnRt"
+```
+
+#### SVM_PhoneLimitRH_YawLft
+
+cmd `0x38`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 56 (func 0xd038); the EV6 firmware sends it in emulation when CAN 0x3AD byte 0 bits 0..5 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitRH_YawLft | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitRH_YawLft"
+```
+
+#### SVM_PhoneLimitRH_YawRt
+
+cmd `0x39`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 57 (func 0xd039); the EV6 firmware sends it in emulation when CAN 0x3AD byte 0 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitRH_YawRt | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitRH_YawRt"
+```
+
+#### SVM_PhoneLimitRH_TiltUp
+
+cmd `0x3a`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 58 (func 0xd03a); the EV6 firmware sends it in emulation when CAN 0x3AD byte 1 bits 4..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitRH_TiltUp | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitRH_TiltUp"
+```
+
+#### SVM_PhoneLimitRH_TiltDnCtr
+
+cmd `0x3b`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 59 (func 0xd03b); the EV6 firmware sends it in emulation when CAN 0x3AD byte 2 bits 2..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitRH_TiltDnCtr | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitRH_TiltDnCtr"
+```
+
+#### SVM_PhoneLimitRH_TiltDnLft
+
+cmd `0x3c`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 60 (func 0xd03c); the EV6 firmware sends it in emulation when CAN 0x3AD byte 3 bits 0..5 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitRH_TiltDnLft | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitRH_TiltDnLft"
+```
+
+#### SVM_PhoneLimitRH_TiltDnRt
+
+cmd `0x3d`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 61 (func 0xd03d); the EV6 firmware sends it in emulation when CAN 0x3AD byte 3 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_PhoneLimitRH_TiltDnRt | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_PhoneLimitRH_TiltDnRt"
+```
+
+#### AVM_ZoomBtn_State
+
+cmd `0x3e`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 62 (func 0xd03e); the EV6 firmware sends it in emulation when CAN 0x409 byte 0 bits 4..5 changes
+
+| Field | At |
+| --- | --- |
+| AVM_ZoomBtn_State | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "AVM_ZoomBtn_State"
+```
+
+#### Mirror_OSMirFldOpt
+
+cmd `0x3f`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 63 (func 0xd03f); the EV6 firmware sends it in emulation when CAN 0x401 byte 2 bits 0..1 changes
+
+| Field | At |
+| --- | --- |
+| Mirror_OSMirFldOpt | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "Mirror_OSMirFldOpt"
+```
+
+#### SVM_FrViewBtn_Sta
+
+cmd `0x42`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 66 (func 0xd042); the EV6 firmware sends it in emulation when CAN 0x476 byte 2 bits 0..2 changes
+
+| Field | At |
+| --- | --- |
+| SVM_FrViewBtn_Sta | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_FrViewBtn_Sta"
+```
+
+#### SVM_RrViewBtn_Sta
+
+cmd `0x43`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 67 (func 0xd043); the EV6 firmware sends it in emulation when CAN 0x476 byte 2 bits 3..5 changes
+
+| Field | At |
+| --- | --- |
+| SVM_RrViewBtn_Sta | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_RrViewBtn_Sta"
+```
+
+#### SVM_DRVViewBtn_Sta
+
+cmd `0x44`, length 1 · 🟡 code
+
+> stock UNICameraProtocol TE_RX_IL ordinal 68 (func 0xd044); the EV6 firmware sends it in emulation when CAN 0x476 byte 2 bits 6..7 changes
+
+| Field | At |
+| --- | --- |
+| SVM_DRVViewBtn_Sta | byte 0 |
+
+```mermaid
+packet-beta
+0-7: "SVM_DRVViewBtn_Sta"
 ```
 
 ## Messages to micom
