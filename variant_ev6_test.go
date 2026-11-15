@@ -89,7 +89,9 @@ func TestEV6VariantDescribesAsBefore(t *testing.T) {
 		// sends it, and 0x8C4F has more fields: the Go tables' reading is
 		// where each starts.
 		widened := legacyFrameName(f) == "Departure timers" || legacyFrameName(f) == "Charger state"
-		grown := func(a, b string) bool { return widened && (b == "" && len(f.Payload) < 8 || strings.HasPrefix(b, a+" ")) }
+		grown := func(a, b string) bool {
+			return widened && (b == "" && len(f.Payload) < 8 || strings.HasPrefix(b, a+" "))
+		}
 		if a, b, c := legacyDescribe(f), v.Describe(f), Describe(f); (a != b || a != c) && !added && !(grown(a, b) && b == c) {
 			t.Errorf("%v: legacy Describe %q, variant %q, Describe %q", f, a, b, c)
 			bad++
