@@ -230,7 +230,7 @@ func TestEV6VariantSendsAsService(t *testing.T) {
 		"ff8a010101990001ec", "ff8a01010175000100", "ff8a010101890001fc", // part-number-request, vehicle-trim-request, regulation-type-request
 	}
 	// The base file's patterns come before the car's.
-	base := []string{"ff 8c 08 01 08 02 00 02 [00-01] ..", "ff 85 02 01 02 20 00 02 [20-62] .."} // monitor-backlight-set, audio-mic-volume-set
+	base := []string{"ff 8c 08 01 08 02 00 02 [00-01] ..", "ff 85 02 01 02 20 00 02 [20-62] ..", "ff 8a 01 01 01 76 00 02 [00-01] .."} // monitor-backlight-set, audio-mic-volume-set, micom-charge-request
 	for _, s := range append(append(base, serviceAllow...), added...) {
 		if err := al.Set(s); err != nil {
 			t.Fatal(err)
