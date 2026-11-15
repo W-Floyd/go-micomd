@@ -257,7 +257,7 @@ func TestEV6VariantSendsAsService(t *testing.T) {
 	if got := hexes(fs); !reflect.DeepEqual(got, want) {
 		t.Errorf("captured frames %v, want %v", got, want)
 	}
-	if len(ps) != 1 || !reflect.DeepEqual(ps[0], al.patterns[2]) {
+	if len(ps) != 1 || !reflect.DeepEqual(ps[0], al.patterns[3]) {
 		t.Errorf("captured patterns %+v", ps)
 	}
 }
