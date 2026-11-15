@@ -879,7 +879,7 @@ func compileField(c *checker, where string, r rawMsgField, enums map[string]map[
 		// Field.Value is an int: 32 bits on arm.
 		lo, hi := f.rawRange()
 		a, b := float64(lo)*f.scale+f.offset, float64(hi)*f.scale+f.offset
-		if f.typ != "str" && math.Max(math.Abs(a), math.Abs(b)) > math.MaxInt32 {
+		if f.typ != "str" && (math.Min(a, b) < math.MinInt32 || math.Max(a, b) > math.MaxInt32) {
 			c.errf(w, "a value from the micom must fit 32 bits (Field.Value is an int)")
 		}
 		if r.Default != nil || r.Min != nil || r.Max != nil {

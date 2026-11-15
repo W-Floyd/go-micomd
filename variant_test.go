@@ -197,6 +197,7 @@ func TestLoadVariantRefuses(t *testing.T) {
 		{"utf16 size", tx("{name: a, off: 0, type: str, size: 1, encoding: UTF-16LE}", "}"), "size is even"},
 		{"size on a number", tx("{name: a, off: 0, size: 2}", "}"), "are for str"},
 		{"from_micom u32", rx("{name: a, off: 0, type: u32}", ", min_length: 4}"), "must fit 32 bits"},
+		{"from_micom negated i32", rx("{name: a, off: 0, type: i32, scale: -1}", ", min_length: 4}"), "must fit 32 bits"},
 		{"from_micom scaled past 32 bits", rx("{name: a, off: 0, type: i32, scale: 2}", ", min_length: 4}"), "must fit 32 bits"},
 		{"from_micom default", rx("{name: a, off: 0, default: 1}", ", min_length: 2}"), "are for to_micom"},
 		{"from_micom every", rx(f0, ", min_length: 2, every: 1s}"), "are for to_micom"},
