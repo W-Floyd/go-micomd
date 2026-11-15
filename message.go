@@ -757,19 +757,24 @@ func compileField(c *checker, where string, r rawMsgField, enums map[string]map[
 		}
 		switch r.Encoding {
 		case "", "ASCII":
+		case "hex":
+			f.hex, f.hexLE = true, little
 		case "UTF-16LE":
 			f.utf16 = true
 			if r.Size%2 != 0 {
 				c.errf(w, "a UTF-16LE field's size is even")
 			}
 		default:
-			c.errf(w, "encoding is ASCII or UTF-16LE, not %q", r.Encoding)
+			c.errf(w, "encoding is ASCII, UTF-16LE or hex, not %q", r.Encoding)
 		}
 		if r.PadRight != nil {
 			f.hasPad, f.pad = true, *r.PadRight
+			if f.hex {
+				c.errf(w, "a hex field is exactly size bytes: no pad_right")
+			}
 		}
-		if r.Endian != "" || r.Bits != "" || r.BitLength != 0 || r.Signed || r.Scale != nil || r.Offset != 0 || r.Enum != "" || r.Invalid != nil || r.Min != nil || r.Max != nil || r.Unit != "" {
-			c.errf(w, "a str field has only off, size, encoding, pad_right and default")
+		if (r.Endian != "" && !f.hex) || r.Bits != "" || r.BitLength != 0 || r.Signed || r.Scale != nil || r.Offset != 0 || r.Enum != "" || r.Invalid != nil || r.Min != nil || r.Max != nil || r.Unit != "" {
+			c.errf(w, "a str field has only off, size, encoding, pad_right and default (endian with hex)")
 		}
 		f.pos = bytePositions(f.off, f.width, false)
 	case r.StartBit != nil:

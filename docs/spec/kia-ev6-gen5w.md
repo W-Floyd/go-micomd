@@ -122,10 +122,10 @@ Not yet backed by a capture:
 | USM_Driver_Assi_SET_SCC_M_RESP | `11 92 ?? 91` | 0x05 | 🟡 code | no stock table; the EV6 firmware answers its request (0x1105) in emulation with 1 bytes; 0xfa when unset |
 | USM_Cluster_SET_ENG_Reset_M_RESP | `11 92 ?? 91` | 0x0b | 🟡 code | no stock table; the EV6 firmware answers its request (0x110b) in emulation with 2 bytes |
 | USM_Reset_USM_SETTING_M_RESP | `11 92 ?? 91` | 0x10 | 🟡 code | no stock table; the EV6 firmware answers its request (0x1110) in emulation with 1 bytes |
-| USM_UserProfile_ALL_NFC_0_M_REQ | `11 92 ?? 91` | 0x13 | 🟡 code | stock USMService.onEvent, UserProfile fields in log order (byte-to-field pairing is that order, not a setter name); bytes 4-9 are the NFC BD address, big-endian 6 bytes, unread; the EV6 firmware answers request 0x1113 in emulation with 14 bytes; named _REQ in the stock table although it is micom to SoC |
-| USM_UserProfile_ALL_NFC_1_M_REQ | `11 92 ?? 91` | 0x14 | 🟡 code | stock USMService.onEvent, UserProfile fields in log order; bytes 2-7 are a number the SoC formats as hex, little-endian 3+3 bytes, unread; the EV6 firmware answers request 0x1114 in emulation with 10 bytes; named _REQ in the stock table although it is micom to SoC |
-| USM_DigitalKey_Info_M_RESP | `11 92 ?? 91` | 0x1e | 🟡 code | stock USMService.onEvent: Item 1-6 (or 0xfa for all) says which of Manufacturer, Serial, VendorCode, Year, Month, Date the reply carries, each big-endian at its own offset (VendorCode as two u16, no 32-bit field is allowed from the micom); the string fields are the stock hex of those bytes; Year, Month and Date indices are from the getters, the three strings are assumed in that order; the EV6 firmware answers request 0x111e in emulation with 14 bytes |
-| USM_UserProfile_Rx_NFC_2_M_RESP | `11 92 ?? 91` | 0x1f | 🟡 code | stock USMService.onEvent: all 8 bytes are UserProfile PhoneNumber, little-endian, which the SoC formats as hex (%08X of bytes 0-3, then %X of bytes 4-7), so Byte0 is only a placeholder; the EV6 firmware answers request 0x111f in emulation with 8 bytes |
+| USM_UserProfile_ALL_NFC_0_M_REQ | `11 92 ?? 91` | 0x13 | 🟡 code | stock USMService.onEvent, UserProfile fields in log order (byte-to-field pairing is that order, not a setter name); bytes 4-9 are the NFC BD address as hex; the EV6 firmware answers request 0x1113 in emulation with 14 bytes; named _REQ in the stock table although it is micom to SoC |
+| USM_UserProfile_ALL_NFC_1_M_REQ | `11 92 ?? 91` | 0x14 | 🟡 code | stock USMService.onEvent, UserProfile fields in log order; bytes 2-7 are a number the SoC formats as hex (%06X of bytes 2-4, %X of bytes 5-7, each little-endian), shown as two halves; the field name PhoneNumberOnWPC is a guess from the stock field list; the EV6 firmware answers request 0x1114 in emulation with 10 bytes; named _REQ in the stock table although it is micom to SoC |
+| USM_DigitalKey_Info_M_RESP | `11 92 ?? 91` | 0x1e | 🟡 code | stock USMService.onEvent: Item 1-6 (or 0xfa for all) says which of Manufacturer, Serial, VendorCode, Year, Month, Date the reply carries, each big-endian at its own offset; the string fields are the stock hex of those bytes; Year, Month and Date indices are from the getters, the three strings are assumed in that order; the EV6 firmware answers request 0x111e in emulation with 14 bytes |
+| USM_UserProfile_Rx_NFC_2_M_RESP | `11 92 ?? 91` | 0x1f | 🟡 code | stock USMService.onEvent: all 8 bytes are UserProfile PhoneNumber, little-endian, which the SoC formats as hex (%08X of bytes 0-3, then %X of bytes 4-7), shown as two halves; the stock's %X drops leading zeros, these halves keep them; the EV6 firmware answers request 0x111f in emulation with 8 bytes |
 | Status flag | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService status-flag setter; seen live as 57 00 NN |
 | Charge time estimate, DC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x0e QC_REM_TIME: a DC fast charge's time to full, while not charging; 10-41 seen |
 | Charge time estimate, AC | `0c 88 ?? 8c` | 0x02 | 🟡 code | HEVService item 0x13 SC_REM_TIME_EVSE_PHEV, an EV's NOT_CHAR_EVSE_REM_TIME (CAN DB generation > 0): a wallbox's time to full, while not charging; 20-220 seen, rising as the charge fell |
@@ -2424,18 +2424,19 @@ packet-beta
 
 cmd `0x13`, length ≥ 14 · 🟡 code
 
-> stock USMService.onEvent, UserProfile fields in log order (byte-to-field pairing is that order, not a setter name); bytes 4-9 are the NFC BD address, big-endian 6 bytes, unread; the EV6 firmware answers request 0x1113 in emulation with 14 bytes; named _REQ in the stock table although it is micom to SoC
+> stock USMService.onEvent, UserProfile fields in log order (byte-to-field pairing is that order, not a setter name); bytes 4-9 are the NFC BD address as hex; the EV6 firmware answers request 0x1113 in emulation with 14 bytes; named _REQ in the stock table although it is micom to SoC
 
-| Field | At | Notes |
-| --- | --- | --- |
-| PhonePairingRValue | byte 0 | invalid 250 |
-| IMSPairingErr | byte 1 | invalid 250 |
-| NFC_BD_Addr_exist_result | byte 2 | invalid 250 |
-| NFC_Support_result | byte 3 | invalid 250 |
-| NFCCard1RValue | byte 10 | invalid 250 |
-| NFCCard2RValue | byte 11 | invalid 250 |
-| Owner_PhoneRValue | byte 12 | invalid 250 |
-| DigitalKeyEnableRValue | byte 13 | invalid 250 |
+| Field | At | Type | Notes |
+| --- | --- | --- | --- |
+| PhonePairingRValue | byte 0 |  | invalid 250 |
+| IMSPairingErr | byte 1 |  | invalid 250 |
+| NFC_BD_Addr_exist_result | byte 2 |  | invalid 250 |
+| NFC_Support_result | byte 3 |  | invalid 250 |
+| NFC_BD_Address_result | byte 4 | str |  |
+| NFCCard1RValue | byte 10 |  | invalid 250 |
+| NFCCard2RValue | byte 11 |  | invalid 250 |
+| Owner_PhoneRValue | byte 12 |  | invalid 250 |
+| DigitalKeyEnableRValue | byte 13 |  | invalid 250 |
 
 ```mermaid
 packet-beta
@@ -2443,7 +2444,7 @@ packet-beta
 8-15: "IMSPairingErr"
 16-23: "NFC_BD_Addr_exist_result"
 24-31: "NFC_Support_result"
-32-79: "?"
+32-79: "NFC_BD_Address_result"
 80-87: "NFCCard1RValue"
 88-95: "NFCCard2RValue"
 96-103: "Owner_PhoneRValue"
@@ -2454,20 +2455,23 @@ packet-beta
 
 cmd `0x14`, length ≥ 10 · 🟡 code
 
-> stock USMService.onEvent, UserProfile fields in log order; bytes 2-7 are a number the SoC formats as hex, little-endian 3+3 bytes, unread; the EV6 firmware answers request 0x1114 in emulation with 10 bytes; named _REQ in the stock table although it is micom to SoC
+> stock USMService.onEvent, UserProfile fields in log order; bytes 2-7 are a number the SoC formats as hex (%06X of bytes 2-4, %X of bytes 5-7, each little-endian), shown as two halves; the field name PhoneNumberOnWPC is a guess from the stock field list; the EV6 firmware answers request 0x1114 in emulation with 10 bytes; named _REQ in the stock table although it is micom to SoC
 
-| Field | At | Notes |
-| --- | --- | --- |
-| IMSRValue | byte 0 | invalid 250 |
-| IDRValue | byte 1 | invalid 250 |
-| DigitalKeyExit | byte 8 | invalid 250 |
-| DigitalKeyGuide | byte 9 | invalid 250 |
+| Field | At | Type | Notes |
+| --- | --- | --- | --- |
+| IMSRValue | byte 0 |  | invalid 250 |
+| IDRValue | byte 1 |  | invalid 250 |
+| PhoneNumberOnWPC low | byte 2 | str little |  |
+| PhoneNumberOnWPC high | byte 5 | str little |  |
+| DigitalKeyExit | byte 8 |  | invalid 250 |
+| DigitalKeyGuide | byte 9 |  | invalid 250 |
 
 ```mermaid
 packet-beta
 0-7: "IMSRValue"
 8-15: "IDRValue"
-16-63: "?"
+16-39: "PhoneNumberOnWPC low"
+40-63: "PhoneNumberOnWPC high"
 64-71: "DigitalKeyExit"
 72-79: "DigitalKeyGuide"
 ```
@@ -2476,15 +2480,14 @@ packet-beta
 
 cmd `0x1e`, length ≥ 14 · 🟡 code
 
-> stock USMService.onEvent: Item 1-6 (or 0xfa for all) says which of Manufacturer, Serial, VendorCode, Year, Month, Date the reply carries, each big-endian at its own offset (VendorCode as two u16, no 32-bit field is allowed from the micom); the string fields are the stock hex of those bytes; Year, Month and Date indices are from the getters, the three strings are assumed in that order; the EV6 firmware answers request 0x111e in emulation with 14 bytes
+> stock USMService.onEvent: Item 1-6 (or 0xfa for all) says which of Manufacturer, Serial, VendorCode, Year, Month, Date the reply carries, each big-endian at its own offset; the string fields are the stock hex of those bytes; Year, Month and Date indices are from the getters, the three strings are assumed in that order; the EV6 firmware answers request 0x111e in emulation with 14 bytes
 
 | Field | At | Type |
 | --- | --- | --- |
 | Item | byte 0 |  |
 | Manufacturer | byte 1 |  |
-| Serial | byte 2 | u24 |
-| VendorCode high | byte 5 | u16 |
-| VendorCode low | byte 7 | u16 |
+| Serial | byte 2 | str |
+| VendorCode | byte 5 | str |
 | Year | byte 9 | u16 |
 | Month | byte 11 |  |
 | Date | byte 12 | u16 |
@@ -2494,8 +2497,7 @@ packet-beta
 0-7: "Item"
 8-15: "Manufacturer"
 16-39: "Serial"
-40-55: "VendorCode high"
-56-71: "VendorCode low"
+40-71: "VendorCode"
 72-87: "Year"
 88-95: "Month"
 96-111: "Date"
@@ -2505,15 +2507,17 @@ packet-beta
 
 cmd `0x1f`, length ≥ 8 · 🟡 code
 
-> stock USMService.onEvent: all 8 bytes are UserProfile PhoneNumber, little-endian, which the SoC formats as hex (%08X of bytes 0-3, then %X of bytes 4-7), so Byte0 is only a placeholder; the EV6 firmware answers request 0x111f in emulation with 8 bytes
+> stock USMService.onEvent: all 8 bytes are UserProfile PhoneNumber, little-endian, which the SoC formats as hex (%08X of bytes 0-3, then %X of bytes 4-7), shown as two halves; the stock's %X drops leading zeros, these halves keep them; the EV6 firmware answers request 0x111f in emulation with 8 bytes
 
-| Field | At |
-| --- | --- |
-| Byte0 | byte 0 |
+| Field | At | Type |
+| --- | --- | --- |
+| PhoneNumber low | byte 0 | str little |
+| PhoneNumber high | byte 4 | str little |
 
 ```mermaid
 packet-beta
-0-7: "Byte0"
+0-31: "PhoneNumber low"
+32-63: "PhoneNumber high"
 ```
 
 ### 0c 88 ?? 8c

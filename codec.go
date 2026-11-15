@@ -1,9 +1,11 @@
 package micom
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf16"
@@ -32,6 +34,7 @@ type field struct {
 	min, max   *float64
 	def        *inValue
 	utf16      bool
+	hex, hexLE bool // str: the bytes as hex digits, last byte first when hexLE
 	pad        byte
 	hasPad     bool
 	reflect    *reflectSpec // to_micom: where the micom reports it back
@@ -135,6 +138,14 @@ func (f *field) value(p []byte) any {
 // text reads a str field; ASCII is n/a when a byte is unprintable.
 func (f *field) text(p []byte) (string, bool) {
 	b := p[f.off : f.off+f.width]
+	if f.hex {
+		h := make([]byte, 0, len(b))
+		h = append(h, b...)
+		if f.hexLE {
+			slices.Reverse(h)
+		}
+		return strings.ToUpper(hex.EncodeToString(h)), true
+	}
 	if f.hasPad {
 		step := 1
 		if f.utf16 {
@@ -229,6 +240,17 @@ func (f *field) putText(p []byte, v inValue) error {
 		return fmt.Errorf("%s: %s is not text", f.name, v)
 	}
 	var b []byte
+	if f.hex {
+		h, err := hex.DecodeString(v.str)
+		if err != nil || len(h) != f.width {
+			return fmt.Errorf("%s: %s is not %d bytes of hex", f.name, v, f.width)
+		}
+		if f.hexLE {
+			slices.Reverse(h)
+		}
+		copy(p[f.off:f.off+f.width], h)
+		return nil
+	}
 	if f.utf16 {
 		for _, u := range utf16.Encode([]rune(v.str)) {
 			b = append(b, byte(u), byte(u>>8))

@@ -193,7 +193,7 @@ func TestLoadVariantRefuses(t *testing.T) {
 		{"str size", tx("{name: a, off: 0, type: str}", "}"), "needs a size"},
 		{"str start_bit", tx("{name: a, start_bit: 0, type: str, size: 1}", "}"), "placed by off"},
 		{"str bits", tx("{name: a, off: 0, type: str, size: 2, bits: \"3:0\"}", "}"), "a str field has only"},
-		{"str encoding", tx("{name: a, off: 0, type: str, size: 2, encoding: latin1}", "}"), "encoding is ASCII or UTF-16LE"},
+		{"str encoding", tx("{name: a, off: 0, type: str, size: 2, encoding: latin1}", "}"), "encoding is ASCII, UTF-16LE or hex"},
 		{"utf16 size", tx("{name: a, off: 0, type: str, size: 1, encoding: UTF-16LE}", "}"), "size is even"},
 		{"size on a number", tx("{name: a, off: 0, size: 2}", "}"), "are for str"},
 		{"from_micom u32", rx("{name: a, off: 0, type: u32}", ", min_length: 4}"), "must fit 32 bits"},

@@ -37,6 +37,8 @@ func TestFieldCodec(t *testing.T) {
 		{"{name: a, off: 0, type: str, size: 4, pad_right: 0}", 4, "ab", "61620000"},
 		{"{name: a, off: 0, type: str, size: 4, encoding: UTF-16LE, pad_right: 0}", 4, "é", "e9000000"},
 		{"{name: a, off: 0, type: str, size: 2}", 2, "en", "656e"},
+		{"{name: a, off: 1, type: str, size: 3, encoding: hex}", 4, "A1B2C3", "00a1b2c3"},
+		{"{name: a, off: 0, type: str, size: 3, encoding: hex, endian: little}", 3, "C3B2A1", "a1b2c3"},
 	} {
 		y := "schema: 1\nname: t\nextends: hkmc-gen5w\nenums: {e: {one: 1, two: 2}}\n" +
 			fmt.Sprintf("messages: [{name: m, dir: to_micom, hdr: audio_tx, cmd: 0x40, length: %d, status: code, ref: r, fields: [%s]}]\n", tc.length, tc.field)

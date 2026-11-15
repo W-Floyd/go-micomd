@@ -107,7 +107,7 @@ and coded by:
 | `default` | the input value when none was given |
 | `from` | computed, not an input: `{clock: NAME}` or `{field: NAME}` (see Computed fields) |
 | `unit` | appended to a decoded value, as before |
-| `type: str` | `off`, `size` (bytes), `encoding` (`ASCII`, the default, or `UTF-16LE`), `pad_right` (byte) |
+| `type: str` | `off`, `size` (bytes), `encoding` (`ASCII`, the default, `UTF-16LE`, or `hex`), `pad_right` (byte), `endian` (hex only) |
 
 Rules:
 
@@ -130,7 +130,9 @@ Rules:
 - **str**: refused if longer than `size` or not encodable (ASCII: printable
   only); the rest is `pad_right` (default 0x00). Decoding drops trailing
   `pad_right` bytes when one is declared and, for ASCII, reads n/a when a
-  byte is unprintable, as before.
+  byte is unprintable, as before. `encoding: hex` is exactly `size` bytes as
+  uppercase hex digits (`endian: little` gives the last byte first); it takes
+  no `pad_right`, and an input must be exactly `size` bytes of hex.
 - **32-bit ARM**: `int` is 32 bits there, and `Field.Value` is an `int`. The
   codec computes in 64 bits; a from_micom field must decode into an `int32`
   (so no `u32` from the micom, and scaled fields are bounded at load).
